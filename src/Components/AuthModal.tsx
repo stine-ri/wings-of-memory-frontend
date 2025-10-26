@@ -15,7 +15,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode }) =
   const [error, setError] = useState('');
 
   // Backend URL - put it right here
- const BACKEND_URL = 'http://localhost:3000/api';
+ const BACKEND_URL = 'https://wings-of-memories-backend.onrender.com/api';
 
   if (!isOpen) return null;
 

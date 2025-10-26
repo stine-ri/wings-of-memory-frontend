@@ -64,7 +64,7 @@ export const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, me
 
     try {
       setLoading(true);
-      const response = await fetch(`http://localhost:3000/api/memorials/${memorialId}`, {
+      const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${memorialId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
@@ -99,7 +99,7 @@ export const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, me
     if (!memorialData?.id) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/api/memorials/${memorialData.id}`, {
+      const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${memorialData.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

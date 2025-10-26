@@ -74,7 +74,7 @@ export const GallerySection: React.FC = () => {
       formData.append('file', file);
       formData.append('folder', 'memorials/gallery');
 
-      const uploadResponse = await fetch('http://localhost:3000/api/imagekit/upload', {
+      const uploadResponse = await fetch('https://wings-of-memories-backend.onrender.com/api/imagekit/upload', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`

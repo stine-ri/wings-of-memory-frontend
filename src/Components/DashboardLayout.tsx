@@ -1,8 +1,8 @@
-// Components/DashboardLayout.tsx - FIXED
+// Components/DashboardLayout.tsx - RESPONSIVE VERSION
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, User, Clock, Heart, Users, Images, Calendar,
-  Download, Settings, Menu, LogOut, Eye, ExternalLink
+  Download, Settings, Menu, LogOut, Eye, ExternalLink, X
 } from 'lucide-react';
 
 interface UserData {
@@ -122,7 +122,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   };
 
   return (
-    <div className="bg-gray-50 flex">
+    <div className="bg-gray-50 flex min-h-screen">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 
@@ -133,34 +133,45 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
       {/* Sidebar */}
       <div className={`
-        fixed top-16 bottom-0 left-0 z-30 w-64 sm:w-72 bg-white shadow-2xl transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:sticky lg:top-16
+        fixed top-0 bottom-0 left-0 z-50 w-80 bg-white shadow-2xl transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:sticky lg:top-0 lg:z-30
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex flex-col h-full border-r-2 border-gray-200">
-          {/* Decorative Top Bar */}
-          <div className="h-1 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400"></div>
+          {/* Mobile Header */}
+          <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-gray-800">Navigation</h2>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-2 text-gray-500 hover:text-gray-700 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Decorative Top Bar - Hidden on mobile */}
+          <div className="hidden lg:block h-1 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400"></div>
           
           {/* Header */}
-          <div className="p-6 border-b-2 border-gray-200 bg-gradient-to-br from-amber-50 to-orange-50">
-            {/* User Info - Larger */}
+          <div className="p-4 lg:p-6 border-b-2 border-gray-200 bg-gradient-to-br from-amber-50 to-orange-50">
+            {/* User Info - Responsive */}
             {user && (
-              <div className="flex items-center gap-4 p-4 bg-white rounded-2xl shadow-md border border-amber-200">
-                <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full flex items-center justify-center shrink-0">
-                  <span className="text-white text-lg font-bold">
+              <div className="flex items-center gap-3 p-3 lg:p-4 bg-white rounded-xl lg:rounded-2xl shadow-md border border-amber-200">
+                <div className="w-10 h-10 lg:w-14 lg:h-14 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full flex items-center justify-center shrink-0">
+                  <span className="text-white text-sm lg:text-lg font-bold">
                     {user.name.split(' ').map(n => n[0]).join('')}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-base font-semibold text-gray-800 truncate">{user.name}</p>
-                  <p className="text-sm text-gray-600 truncate">{user.email}</p>
-                  <p className="text-xs text-amber-600 font-medium mt-1 capitalize">{user.role || 'Member'}</p>
+                  <p className="text-sm lg:text-base font-semibold text-gray-800 truncate">{user.name}</p>
+                  <p className="text-xs lg:text-sm text-gray-600 truncate">{user.email}</p>
+                  <p className="text-xs text-amber-600 font-medium mt-0.5 lg:mt-1 capitalize">{user.role || 'Member'}</p>
                 </div>
               </div>
             )}
           </div>
 
           {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          <nav className="flex-1 p-3 lg:p-4 space-y-1 overflow-y-auto">
             {sidebarSections.map((section) => {
               const Icon = section.icon;
               return (
@@ -170,59 +181,72 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                     onSectionChange(section.id);
                     setSidebarOpen(false);
                   }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ease-in-out transform hover:scale-105 ${
+                  className={`w-full flex items-center gap-3 px-3 lg:px-4 py-3 rounded-xl transition-all duration-300 ease-in-out ${
                     activeSection === section.id
-                      ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-white shadow-lg scale-105'
+                      ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-white shadow-lg'
                       : 'text-gray-600 hover:bg-gray-100'
                   }`}
                 >
                   <Icon className="w-5 h-5 shrink-0" />
-                  <span className="font-medium text-sm sm:text-base">{section.name}</span>
+                  <span className="font-medium text-sm lg:text-base">{section.name}</span>
                 </button>
               );
             })}
           </nav>
 
           {/* Footer Actions */}
-          <div className="p-4 border-t-2 border-gray-200 space-y-2 bg-gray-50">
+          <div className="p-3 lg:p-4 border-t-2 border-gray-200 space-y-2 bg-gray-50">
             <button 
               onClick={handlePreview}
               disabled={!memorialData?.id || saving}
-              className="w-full flex items-center gap-3 px-4 py-3 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-all duration-300 disabled:opacity-50"
+              className="w-full flex items-center gap-3 px-3 lg:px-4 py-3 bg-amber-500 text-white rounded-xl hover:bg-amber-600 transition-all duration-300 disabled:opacity-50 text-sm lg:text-base"
             >
-              <Eye className="w-5 h-5 shrink-0" />
-              <span className="font-medium text-sm sm:text-base">
+              <Eye className="w-4 lg:w-5 h-4 lg:h-5 shrink-0" />
+              <span className="font-medium">
                 {saving ? 'Saving...' : 'Preview Memorial'}
               </span>
             </button>
-            <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-white hover:shadow-md rounded-xl transition-all duration-300">
-              <Download className="w-5 h-5 shrink-0" />
-              <span className="font-medium text-sm sm:text-base">Download Memorial</span>
+            
+            <button 
+              onClick={handlePublish}
+              disabled={!memorialData?.name.trim() || publishing}
+              className={`w-full flex items-center gap-3 px-3 lg:px-4 py-3 rounded-xl transition-all duration-300 text-sm lg:text-base ${
+                memorialData?.isPublished
+                  ? 'bg-green-500 text-white hover:bg-green-600'
+                  : 'bg-amber-500 text-white hover:bg-amber-600'
+              } disabled:opacity-50`}
+            >
+              <Download className="w-4 lg:w-5 h-4 lg:h-5 shrink-0" />
+              <span className="font-medium">
+                {publishing ? 'Publishing...' : (memorialData?.isPublished ? 'Published' : 'Publish Memorial')}
+              </span>
             </button>
-            <button className="w-full flex items-center gap-3 px-4 py-3 text-gray-600 hover:bg-white hover:shadow-md rounded-xl transition-all duration-300">
-              <Settings className="w-5 h-5 shrink-0" />
-              <span className="font-medium text-sm sm:text-base">Settings</span>
+            
+            <button className="w-full flex items-center gap-3 px-3 lg:px-4 py-3 text-gray-600 hover:bg-white hover:shadow-md rounded-xl transition-all duration-300 text-sm lg:text-base">
+              <Settings className="w-4 lg:w-5 h-4 lg:h-5 shrink-0" />
+              <span className="font-medium">Settings</span>
             </button>
+            
             <button 
               onClick={handleLogout}
-              className="w-full flex items-center gap-3 px-4 py-3 text-red-600 hover:bg-red-50 hover:shadow-md rounded-xl transition-all duration-300"
+              className="w-full flex items-center gap-3 px-3 lg:px-4 py-3 text-red-600 hover:bg-red-50 hover:shadow-md rounded-xl transition-all duration-300 text-sm lg:text-base"
             >
-              <LogOut className="w-5 h-5 shrink-0" />
-              <span className="font-medium text-sm sm:text-base">Logout</span>
+              <LogOut className="w-4 lg:w-5 h-4 lg:h-5 shrink-0" />
+              <span className="font-medium">Logout</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col min-h-screen">
-        {/* Decorative Line Below Navbar */}
-        <div className="h-1 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400"></div>
+      <div className="flex-1 flex flex-col min-h-screen w-full lg:w-auto">
+        {/* Decorative Line Below Navbar - Hidden on mobile */}
+        <div className="hidden lg:block h-1 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400"></div>
         
         {/* Top bar */}
         <header className="bg-white shadow-md border-b-2 border-gray-200 shrink-0 sticky top-0 z-40">
-          <div className="flex items-center justify-between px-3 sm:px-4 lg:px-6 py-3 sm:py-4">
-            <div className="flex items-center gap-4">
+          <div className="flex items-center justify-between px-4 sm:px-6 py-3">
+            <div className="flex items-center gap-3">
               <button
                 onClick={() => setSidebarOpen(true)}
                 className="lg:hidden text-gray-600 hover:text-gray-800 p-1"
@@ -230,44 +254,71 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 <Menu className="w-6 h-6" />
               </button>
               
-              <h1 className="text-lg sm:text-xl font-serif text-gray-800 capitalize">
-                {memorialData?.name || 'Your Memorial'} - {activeSection.replace('-', ' ')}
-              </h1>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                <h1 className="text-lg font-semibold text-gray-800 truncate max-w-[150px] sm:max-w-none">
+                  {memorialData?.name || 'Your Memorial'}
+                </h1>
+                <span className="text-sm text-gray-500 capitalize hidden sm:block">
+                  - {activeSection.replace('-', ' ')}
+                </span>
+              </div>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-4">
-              <div className="flex gap-2">
+            <div className="flex items-center gap-2">
+              {/* Mobile: Only show essential buttons */}
+              <div className="hidden sm:flex gap-2">
                 <button 
                   onClick={handleSaveAndPreview}
                   disabled={saving || !memorialData?.id}
-                  className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-full hover:bg-amber-600 transition-all font-medium text-sm shadow-md hover:shadow-lg disabled:opacity-50"
+                  className="flex items-center gap-2 px-3 py-2 bg-amber-500 text-white rounded-full hover:bg-amber-600 transition-all font-medium text-sm shadow-md hover:shadow-lg disabled:opacity-50"
                 >
                   <Eye className="w-4 h-4" />
-                  {saving ? 'Saving...' : 'Quick Preview'}
+                  <span className="hidden sm:inline">{saving ? 'Saving...' : 'Quick Preview'}</span>
                 </button>
                 <button 
                   onClick={() => window.open(`/preview/${memorialData?.id}`, '_blank')}
                   disabled={!memorialData?.id}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all font-medium text-sm shadow-md hover:shadow-lg disabled:opacity-50"
+                  className="hidden md:flex items-center gap-2 px-3 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all font-medium text-sm shadow-md hover:shadow-lg disabled:opacity-50"
                 >
                   <ExternalLink className="w-4 h-4" />
                   Full Preview
                 </button>
               </div>
+              
+              {/* Mobile: Compact publish button */}
               <button 
                 onClick={handlePublish}
                 disabled={!memorialData?.name.trim() || publishing}
-                className="px-4 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all font-medium text-sm shadow-md hover:shadow-lg disabled:opacity-50"
+                className="px-3 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all font-medium text-sm shadow-md hover:shadow-lg disabled:opacity-50 min-w-[80px]"
               >
-                {publishing ? 'Publishing...' : (memorialData?.isPublished ? 'Published' : 'Publish')}
+                {publishing ? '...' : (memorialData?.isPublished ? '✓' : 'Publish')}
+              </button>
+
+              {/* Mobile: Quick preview icon button */}
+              <button 
+                onClick={handleSaveAndPreview}
+                disabled={saving || !memorialData?.id}
+                className="sm:hidden flex items-center justify-center w-10 h-10 bg-amber-500 text-white rounded-full hover:bg-amber-600 transition-all shadow-md hover:shadow-lg disabled:opacity-50"
+              >
+                <Eye className="w-5 h-5" />
               </button>
             </div>
           </div>
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto p-6 sm:p-8 bg-gradient-to-br from-gray-50 to-gray-100">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-gray-50 to-gray-100">
+          <div className="max-w-7xl mx-auto w-full">
+            {/* Mobile Section Title */}
+            <div className="lg:hidden mb-6">
+              <h2 className="text-2xl font-bold text-gray-800 capitalize">
+                {activeSection.replace('-', ' ')}
+              </h2>
+              {activeSection === 'overview' && (
+                <p className="text-gray-600 mt-1 text-sm">Manage your memorial settings and content</p>
+              )}
+            </div>
+            
             {children}
           </div>
         </main>
@@ -284,24 +335,24 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   );
 };
 
-// Preview Modal Component
+// Preview Modal Component - Responsive
 const PreviewModal: React.FC<{ memorialId?: string; onClose: () => void }> = ({ memorialId, onClose }) => {
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl w-full h-full max-w-6xl max-h-[90vh] flex flex-col">
-        <div className="flex justify-between items-center p-4 border-b">
-          <h3 className="text-xl font-semibold text-gray-800">Memorial Preview</h3>
-          <div className="flex gap-3">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+      <div className="bg-white rounded-xl sm:rounded-2xl w-full h-full max-w-6xl max-h-[95vh] flex flex-col">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 sm:p-4 border-b gap-2">
+          <h3 className="text-lg sm:text-xl font-semibold text-gray-800">Memorial Preview</h3>
+          <div className="flex gap-2">
             <button
               onClick={() => window.open(`/preview/${memorialId}`, '_blank')}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm sm:text-base"
             >
               <ExternalLink className="w-4 h-4" />
-              Open in New Tab
+              <span className="hidden sm:inline">New Tab</span>
             </button>
             <button 
               onClick={onClose}
-              className="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+              className="px-3 sm:px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm sm:text-base"
             >
               Close
             </button>

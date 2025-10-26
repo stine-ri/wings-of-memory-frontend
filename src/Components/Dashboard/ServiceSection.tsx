@@ -69,7 +69,7 @@ export const ServiceSection: React.FC = () => {
           throw new Error('Authentication token not found');
         }
 
-        const response = await fetch(`http://localhost:3000/api/rsvps/${memorialData.id}`, {
+        const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/rsvps/${memorialData.id}`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -133,7 +133,7 @@ export const ServiceSection: React.FC = () => {
       if (memorialData?.id) {
         const token = localStorage.getItem('token');
         if (token) {
-          await fetch(`http://localhost:3000/api/rsvps/${memorialData.id}`, {
+          await fetch(`https://wings-of-memories-backend.onrender.com/api/rsvps/${memorialData.id}`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
