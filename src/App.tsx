@@ -10,6 +10,8 @@ import ContactUs from './Components/Contact';
 import Pricing from './Components/Dashboard/Pricing';
 import HowItWorks from './Components/HowItWorks';
 import MemoryGuide from './Components/MemoryGuide';
+import TermsOfService from './Components/TermsOfService';
+import PrivacyPolicy from './Components/PrivacyPolicy';
 import './App.css';
 
 function App() {
@@ -26,6 +28,8 @@ function App() {
         <Route path="/pricing" element={<Pricing />} />
         <Route path="/how-it-works" element={<HowItWorks />} />
         <Route path="/guide" element={<MemoryGuide />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
 
         {/* Protected dashboard route */}
         <Route
