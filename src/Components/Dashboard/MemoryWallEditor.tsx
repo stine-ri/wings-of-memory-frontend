@@ -13,6 +13,8 @@ interface Memory {
   createdAt: string;
 }
 
+
+
 export const MemoryWallSection: React.FC = () => {
   const { memorialData, updateMemoryWall, saveToBackend } = useMemorial();
   const [memories, setMemories] = useState<Memory[]>([]);

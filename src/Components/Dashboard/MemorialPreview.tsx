@@ -1,25 +1,24 @@
 import React from 'react';
 import { useMemorial } from '../../hooks/useMemorial';
-import { Header } from '../../Components/Header';
+import { Header } from '../../Components/Header'; 
 import { ObituarySection } from '../../Components/ObituarySection';
 import { TimelineSection } from '../../Components/TimelineSection';
 import { FavoritesSection } from '../../Components/FavouriteSection';
 import { FamilyTreeSection } from '../../Components/FamilyTreeSection';
 import { GallerySection } from '../../Components/GallerySection';
-import { ServiceSection } from '../../Components/ServicesSection';
-import { MemoryWallDashboard} from '../../Components/MemoryWallSection';
+import { ServiceSectionPublic } from '../../Components/ServiceSectionPublic';
+
+import { MemoryWallPublic } from '../../Components/MemoryWallPublicDisplay';
 import { useEffect } from 'react';
 
 export const MemorialPreview: React.FC = () => {
   const { memorialData, loading } = useMemorial();
 
-  // Add this debug log
   useEffect(() => {
     console.log('📊 Memorial Data:', memorialData);
     console.log('📝 Memory Wall Data:', memorialData?.memoryWall);
   }, [memorialData]);
 
-  // Show loading state - CHANGED: Added || !memorialData condition
   if (loading || !memorialData) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -31,8 +30,6 @@ export const MemorialPreview: React.FC = () => {
     );
   }
 
-
-  // Transform dashboard data to match public component props - CHANGED: Added fallback values
   const headerData = {
     name: memorialData.name || 'Memorial',
     profileImage: memorialData.profileImage || null,
@@ -43,7 +40,6 @@ export const MemorialPreview: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Pass the required props to each public display component */}
       <Header data={headerData} />
       <ObituarySection text={memorialData.obituary || ''} />
       <TimelineSection events={memorialData.timeline || []} />
@@ -53,12 +49,28 @@ export const MemorialPreview: React.FC = () => {
         deceasedName={memorialData.name || 'Loved One'}
         deceasedImage={memorialData.profileImage || ''}
       />
-      <GallerySection images={memorialData.gallery || []} />
-      <MemoryWallDashboard/>
-     <ServiceSection 
-        service={memorialData.service || {}}
-        memorialName={memorialData.name || 'Loved One'}
-      />
+     <div data-gallery="true">
+  <GallerySection images={memorialData.gallery || []} />
+</div>
+      
+
+      <MemoryWallPublic 
+  memories={memorialData.memoryWall || []}
+  lovedOneName={memorialData.name || 'Loved One'}
+/>
+<div data-service="true">
+   <ServiceSectionPublic 
+  service={memorialData.service || {
+    venue: '',
+    address: '',
+    date: '',
+    time: '',
+    virtualLink: '',
+    virtualPlatform: 'zoom'
+  }}
+  memorialName={memorialData.name || 'Loved One'}
+/>
+</div>
     </div>
   );
 };

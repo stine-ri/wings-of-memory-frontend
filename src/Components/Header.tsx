@@ -1,8 +1,8 @@
 import React from 'react';
-import { Calendar, MapPin } from 'lucide-react';
+import { Calendar, MapPin, Users } from 'lucide-react';
 
 interface HeaderProps {
-  data: {
+  data?: {
     name: string;
     profileImage: string | null;
     birthDate: string;
@@ -12,6 +12,63 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ data }) => {
+  // Landing page mode (no data provided)
+  if (!data) {
+    return (
+      <header className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50"></div>
+        <div className="relative max-w-6xl mx-auto px-3 sm:px-4 py-12 sm:py-16 md:py-24">
+          <div className="flex flex-col items-center text-center animate-fade-in">
+            <div className="relative group mb-6 sm:mb-8">
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-400 rounded-full blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-700"></div>
+              <div className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-56 md:h-56 rounded-full shadow-2xl border-4 border-white transform group-hover:scale-105 transition-transform duration-500 overflow-hidden">
+                <img 
+                  src="https://images.unsplash.com/photo-1490730141103-6cac27aaab94?w=400&h=400&fit=crop" 
+                  alt="Memorial candles" 
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            </div>
+            
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-serif mb-4 sm:mb-6 text-gray-800 tracking-tight">
+              Celebrate Their Legacy
+            </h1>
+            
+            <p className="text-lg sm:text-xl md:text-2xl text-gray-600 font-light mb-6 sm:mb-8 max-w-3xl">
+              Honor the lives of loved ones with beautiful memorial pages that preserve memories for generations
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 text-gray-600 mb-6 sm:mb-8">
+              <div className="flex items-center gap-2 justify-center">
+                <Users className="w-5 h-5 text-amber-500" />
+                <span className="font-light text-sm sm:text-base">Share with Family & Friends</span>
+              </div>
+              <div className="hidden sm:block text-gray-300">•</div>
+              <div className="flex items-center gap-2 justify-center">
+                <Calendar className="w-5 h-5 text-orange-500" />
+                <span className="font-light text-sm sm:text-base">Preserve Precious Moments</span>
+              </div>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button className="px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 font-medium">
+                Create a Memorial
+              </button>
+              <button className="px-8 py-3 bg-white/80 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 font-medium text-gray-700">
+                View Examples
+              </button>
+            </div>
+            
+            <div className="inline-block px-6 sm:px-8 py-2 sm:py-3 bg-white/60 backdrop-blur-sm rounded-full shadow-md mt-8">
+              <p className="text-gray-700 font-light text-sm sm:text-base">Forever in our hearts 🕊️</p>
+            </div>
+          </div>
+        </div>
+      </header>
+    );
+  }
+
+  // Memorial page mode (with data provided)
   return (
     <header className="relative overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50"></div>
@@ -20,7 +77,7 @@ export const Header: React.FC<HeaderProps> = ({ data }) => {
           <div className="relative group mb-6 sm:mb-8">
             <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-orange-400 rounded-full blur-2xl opacity-30 group-hover:opacity-50 transition-opacity duration-700"></div>
             <img 
-                src={data.profileImage || '/default-avatar.png'} 
+              src={data.profileImage || '/default-avatar.png'} 
               alt={data.name} 
               className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-56 md:h-56 rounded-full object-cover shadow-2xl border-4 border-white transform group-hover:scale-105 transition-transform duration-500" 
             />

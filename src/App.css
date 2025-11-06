@@ -1,1 +1,181 @@
 @import "tailwindcss";
+/* Print Styles for Memorial PDF Generation */
+@media print {
+  /* Hide all non-content elements */
+  header:not(.memorial-header),
+  nav,
+  .no-print,
+  button,
+  .fixed,
+  .sticky,
+  .modal-header,
+  [class*="hover:"],
+  .cursor-pointer {
+    display: none !important;
+  }
+
+  /* Reset page for printing */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  @page {
+    size: A4;
+    margin: 0.5cm;
+  }
+
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  /* Page break utilities */
+  .page-break-before {
+    page-break-before: always !important;
+    break-before: page !important;
+  }
+
+  .page-break-after {
+    page-break-after: always !important;
+    break-after: page !important;
+  }
+
+  .no-page-break {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Optimize images for print */
+  img {
+    max-width: 100% !important;
+    height: auto !important;
+    page-break-inside: avoid !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  /* Ensure backgrounds and colors print */
+  .bg-gradient-to-br,
+  .bg-gradient-to-r,
+  .bg-gradient-to-l,
+  .bg-gradient-to-t,
+  .bg-gradient-to-b,
+  .bg-amber-50,
+  .bg-orange-50,
+  .bg-blue-50,
+  .bg-white,
+  .bg-gray-50,
+  [class*="bg-"] {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Full width for content */
+  .container,
+  .max-w-6xl,
+  .max-w-4xl,
+  .max-w-2xl {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Better text rendering */
+  p, h1, h2, h3, h4, h5, h6, span, div {
+    orphans: 3;
+    widows: 3;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  /* Remove shadows and transitions that don't print well */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+
+  /* Keep borders and essential styling */
+  [class*="border-"] {
+    border-color: currentColor !important;
+  }
+
+  /* Ensure proper spacing */
+  section {
+    margin-bottom: 2rem !important;
+  }
+
+  /* Grid layouts should work in print */
+  .grid {
+    display: grid !important;
+  }
+
+  .flex {
+    display: flex !important;
+  }
+}
+
+/* Tailwind print utilities you can use in components */
+@media screen {
+  .print\:hidden {
+    /* Normal display on screen */
+  }
+}
+
+@media print {
+  .print\:hidden {
+    display: none !important;
+  }
+
+  .print\:block {
+    display: block !important;
+  }
+
+  .print\:inline-block {
+    display: inline-block !important;
+  }
+
+  .print\:text-sm {
+    font-size: 0.875rem !important;
+  }
+
+  .print\:text-base {
+    font-size: 1rem !important;
+  }
+
+  .print\:text-lg {
+    font-size: 1.125rem !important;
+  }
+
+  .print\:py-4 {
+    padding-top: 1rem !important;
+    padding-bottom: 1rem !important;
+  }
+
+  .print\:py-6 {
+    padding-top: 1.5rem !important;
+    padding-bottom: 1.5rem !important;
+  }
+
+  .print\:py-8 {
+    padding-top: 2rem !important;
+    padding-bottom: 2rem !important;
+  }
+
+  .print\:mb-4 {
+    margin-bottom: 1rem !important;
+  }
+
+  .print\:bg-white {
+    background-color: white !important;
+  }
+}

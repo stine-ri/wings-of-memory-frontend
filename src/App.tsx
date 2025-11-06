@@ -4,6 +4,12 @@ import { Dashboard } from './Pages/Dashboard';
 import { ProtectedRoute } from './Components/ProtectedRoute'; 
 import { MemorialProvider } from './Contexts/MemorialContext';
 import { PreviewPage } from './Pages/Preview';
+import AboutUs from './Components/AboutUs';
+import WhatWeOffer from './Components/WhatWeOffer';
+import ContactUs from './Components/Contact';
+import Pricing from './Components/Dashboard/Pricing';
+import HowItWorks from './Components/HowItWorks';
+import MemoryGuide from './Components/MemoryGuide';
 import './App.css';
 
 function App() {
@@ -13,7 +19,13 @@ function App() {
       <Routes>
         {/* Public route */}
         <Route path="/" element={<Home />} />
-<Route path="/preview/:memorialId" element={<PreviewPage />} />
+        <Route path="/about" element={<AboutUs />} />
+        <Route path="/preview/:memorialId" element={<PreviewPage />} />
+        <Route path="/services" element={<WhatWeOffer />} />
+        <Route path="/contact" element={<ContactUs />} />
+        <Route path="/pricing" element={<Pricing />} />
+        <Route path="/how-it-works" element={<HowItWorks />} />
+        <Route path="/guide" element={<MemoryGuide />} />
 
         {/* Protected dashboard route */}
         <Route

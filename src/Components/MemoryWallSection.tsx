@@ -13,9 +13,13 @@ interface Memory {
 
 interface MemoryWallSectionProps {
   memories?: Memory[];
+  lovedOneName?: string;
 }
 
-export const MemoryWallDashboard: React.FC<MemoryWallSectionProps> = ({ memories: initialMemories = [] }) => {
+export const MemoryWallDashboard: React.FC<MemoryWallSectionProps> = ({ 
+  memories: initialMemories = [],
+  lovedOneName = "your loved one"
+}) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortNewest, setSortNewest] = useState(true);
   const [showContributeModal, setShowContributeModal] = useState(false);
@@ -26,18 +30,15 @@ export const MemoryWallDashboard: React.FC<MemoryWallSectionProps> = ({ memories
   const [memories, setMemories] = useState<Memory[]>([]);
   const [currentUserId, setCurrentUserId] = useState('');
   const [uploadingImages, setUploadingImages] = useState(false);
+  const [imageStore, setImageStore] = useState<{[key: string]: {data: string, timestamp: number}}>({});
 
   useEffect(() => {
-    loadOrCreateUserId();
-    loadMemories();
-    loadLikes();
-    cleanupExpiredImages();
-  }, []);
+    // Initialize user ID
+    const userId = 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+    setCurrentUserId(userId);
 
-  // Convert initial memories to proper format
-  useEffect(() => {
-    const storedMemories = localStorage.getItem('memories-list');
-    if (!storedMemories && initialMemories.length > 0) {
+    // Convert initial memories to proper format
+    if (initialMemories.length > 0) {
       const convertedMemories = initialMemories.map((m, index) => ({
         ...m,
         id: m.id || 'initial-' + index,
@@ -48,84 +49,10 @@ export const MemoryWallDashboard: React.FC<MemoryWallSectionProps> = ({ memories
       }));
       setMemories(convertedMemories);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const loadOrCreateUserId = () => {
-    try {
-      let userId = localStorage.getItem('current-user-id');
-      if (!userId) {
-        userId = 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-        localStorage.setItem('current-user-id', userId);
-      }
-      setCurrentUserId(userId);
-    } catch {
-      const userId = 'user-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-      setCurrentUserId(userId);
-    }
-  };
-
-  const loadMemories = () => {
-    try {
-      const stored = localStorage.getItem('memories-list');
-      if (stored) {
-        const loadedMemories = JSON.parse(stored);
-        setMemories(loadedMemories);
-      }
-    } catch {
-      console.log('No memories in storage yet');
-    }
-  };
-
-  const loadLikes = () => {
-    try {
-      const stored = localStorage.getItem('user-likes');
-      if (stored) {
-        setLikedMemories(new Set(JSON.parse(stored)));
-      }
-    } catch {
-      console.log('No likes found');
-    }
-  };
+  }, [initialMemories]);
 
   const saveMemories = (updatedMemories: Memory[]) => {
-    try {
-      localStorage.setItem('memories-list', JSON.stringify(updatedMemories));
-      setMemories(updatedMemories);
-    } catch (error) {
-      console.error('Failed to save memories:', error);
-    }
-  };
-
-  const saveLikes = (likes: Set<string>) => {
-    try {
-      localStorage.setItem('user-likes', JSON.stringify([...likes]));
-    } catch (error) {
-      console.error('Failed to save likes:', error);
-    }
-  };
-
-  const cleanupExpiredImages = () => {
-    const now = Date.now();
-    const twentyFourHours = 24 * 60 * 60 * 1000;
-    
-    try {
-      const keys = Object.keys(localStorage);
-      keys.forEach(key => {
-        if (key.startsWith('image:')) {
-          try {
-            const imgData = JSON.parse(localStorage.getItem(key) || '{}');
-            if (imgData.timestamp && now - imgData.timestamp > twentyFourHours) {
-              localStorage.removeItem(key);
-            }
-          } catch {
-            console.log('Error checking image:', key);
-          }
-        }
-      });
-    } catch {
-      console.log('No images to cleanup');
-    }
+    setMemories(updatedMemories);
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, isEdit: boolean = false) => {
@@ -155,7 +82,8 @@ export const MemoryWallDashboard: React.FC<MemoryWallSectionProps> = ({ memories
           timestamp: Date.now()
         };
 
-        localStorage.setItem(imageId, JSON.stringify(imageData));
+        // Store in memory instead of localStorage
+        setImageStore(prev => ({...prev, [imageId]: imageData}));
         imageUrls.push(imageId);
       } catch (error) {
         console.error('Failed to upload image:', error);
@@ -178,16 +106,8 @@ export const MemoryWallDashboard: React.FC<MemoryWallSectionProps> = ({ memories
   };
 
   const getImageUrl = (imageId: string): string => {
-    try {
-      const stored = localStorage.getItem(imageId);
-      if (stored) {
-        const imageData = JSON.parse(stored);
-        return imageData.data;
-      }
-    } catch (error) {
-      console.error('Failed to load image:', error);
-    }
-    return '';
+    const imageData = imageStore[imageId];
+    return imageData ? imageData.data : '';
   };
 
   const toggleLike = (memoryId: string) => {
@@ -198,7 +118,6 @@ export const MemoryWallDashboard: React.FC<MemoryWallSectionProps> = ({ memories
       newLiked.add(memoryId);
     }
     setLikedMemories(newLiked);
-    saveLikes(newLiked);
   };
 
   const handleContribute = () => {
@@ -240,13 +159,14 @@ export const MemoryWallDashboard: React.FC<MemoryWallSectionProps> = ({ memories
     if (window.confirm('Are you sure you want to delete this memory?')) {
       const memory = memories.find(m => m.id === memoryId);
       if (memory?.images) {
-        for (const imageId of memory.images) {
-          try {
-            localStorage.removeItem(imageId);
-          } catch {
-            console.log('Error deleting image:', imageId);
+        // Remove images from in-memory store
+        setImageStore(prev => {
+          const newStore = {...prev};
+          for (const imageId of memory.images || []) {
+            delete newStore[imageId];
           }
-        }
+          return newStore;
+        });
       }
       
       const updatedMemories = memories.filter(m => m.id !== memoryId);
@@ -282,7 +202,6 @@ export const MemoryWallDashboard: React.FC<MemoryWallSectionProps> = ({ memories
 
     useEffect(() => {
       setImageUrl(getImageUrl(imageId));
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [imageId]);
 
     if (!imageUrl) return null;
@@ -299,7 +218,7 @@ export const MemoryWallDashboard: React.FC<MemoryWallSectionProps> = ({ memories
   return (
     <section id="memory" className="py-16 sm:py-20 px-3 sm:px-4 bg-white">
       <div className="max-w-4xl mx-auto">
-        {/* Left-aligned Title with Half Underline - Same as other sections */}
+        {/* Left-aligned Title with Half Underline */}
         <div className="mb-8 sm:mb-12 sm:-ml-32">
           <h2 className="text-4xl sm:text-5xl font-serif text-gray-800 inline-block relative">
             Memory Wall
@@ -309,7 +228,7 @@ export const MemoryWallDashboard: React.FC<MemoryWallSectionProps> = ({ memories
         
         <p className="text-gray-600 mb-6 sm:mb-8 text-base sm:text-lg leading-relaxed sm:-ml-32">
           "To live in the hearts we leave behind is not to die."<br/>
-          Please share your Photos and Memories about Joanne.
+          Please share your photos and memories about {lovedOneName}.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 mb-6 sm:mb-8 items-stretch sm:items-center justify-between">
@@ -432,7 +351,7 @@ export const MemoryWallDashboard: React.FC<MemoryWallSectionProps> = ({ memories
 
                 <div>
                   <label className="block text-gray-700 mb-2 text-sm sm:text-base font-medium">
-                    Add Photos (Optional - max 3, will be deleted after 24 hours)
+                    Add Photos (Optional - max 3)
                   </label>
                   
                   {newMemory.images.length > 0 && (
@@ -523,7 +442,7 @@ export const MemoryWallDashboard: React.FC<MemoryWallSectionProps> = ({ memories
 
                 <div>
                   <label className="block text-gray-700 mb-2 text-sm sm:text-base font-medium">
-                    Photos (max 3, will be deleted after 24 hours)
+                    Photos (max 3)
                   </label>
                   
                   {editingMemory.images && editingMemory.images.length > 0 && (

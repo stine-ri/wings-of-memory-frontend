@@ -57,7 +57,7 @@ const FamilyTreeNode: React.FC<{ member: FamilyMember; index: number }> = ({
 
 export const FamilyTreeSection: React.FC<FamilyTreeSectionProps> = ({ 
   members,
-  deceasedName = "Joanne J. Davis",
+  deceasedName = "Deceased Name",
   deceasedImage
 }) => {
   const [isHovered, setIsHovered] = useState(false);

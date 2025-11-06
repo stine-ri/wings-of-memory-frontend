@@ -1,6 +1,3 @@
-
-
-
 import React, { useState, useEffect } from 'react';
 import { TopNav } from './TopNav';
 import { Header } from './Header';
@@ -95,14 +92,17 @@ const Home: React.FC = () => {
       `}</style>
       
       <TopNav />
-      <Header data={mockMemorialData} />
+      <Header />
       <Navigation activeSection={activeSection} onSectionClick={handleSectionClick} />
       <QuoteSection quote={mockMemorialData.quote} />
       <ObituarySection text={mockMemorialData.obituary} />
       <FavoritesSection favorites={mockMemorialData.favorites} />
       <TimelineSection events={mockMemorialData.timeline} />
       <GallerySection images={mockMemorialData.gallery} />
-      <MemoryWallDashboard memories={mockMemorialData.memoryWall} />
+      <MemoryWallDashboard 
+        memories={mockMemorialData.memoryWall} 
+        lovedOneName={mockMemorialData.name}
+      />
       <FamilyTreeSection members={mockMemorialData.familyTree} />
       <ServiceSection service={mockMemorialData.service} memorialName={mockMemorialData.name} />
       <Footer />
