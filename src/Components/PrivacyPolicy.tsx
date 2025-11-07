@@ -16,6 +16,8 @@ import {
   ArrowRight,
   Calendar,
 } from 'lucide-react';
+import TopNav from '../Components/TopNav';
+import {Footer} from '../Components/Footer';
 
 const PrivacyPolicy: React.FC = () => {
   const [activeSection, setActiveSection] = useState('introduction');
@@ -357,6 +359,8 @@ const PrivacyPolicy: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/20 to-gray-50/20 py-8">
+      <TopNav/>
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Header */}
@@ -613,6 +617,9 @@ const PrivacyPolicy: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <Footer />
+
     </div>
   );
 };

@@ -1,6 +1,6 @@
 // Pages/Dashboard.tsx - FIXED VERSION (No duplicate mobile navigation)
 import React, { useState, useEffect, useCallback } from 'react';
-import { TopNav } from '../Components/TopNav';
+import  TopNav  from '../Components/TopNav';
 import { Footer } from '../Components/Footer';
 import { DashboardLayout } from '../Components/DashboardLayout';
 import { OverviewSection } from '../Components/Dashboard/OverviewSection';

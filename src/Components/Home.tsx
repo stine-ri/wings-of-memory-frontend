@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TopNav } from './TopNav';
+import  TopNav from './TopNav';
 import { Header } from './Header';
 import { Navigation } from './Navigation';
 import { QuoteSection } from './QuoteSection';

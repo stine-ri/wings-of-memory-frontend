@@ -16,7 +16,8 @@ import {
   Users,
   Download
 } from 'lucide-react';
-
+import TopNav from '../Components/TopNav';
+import {Footer} from '../Components/Footer';
 const TermsOfService: React.FC = () => {
   const [activeSection, setActiveSection] = useState('acceptance');
 
@@ -302,8 +303,9 @@ const TermsOfService: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-orange-50/20 to-gray-50/20 py-8">
+            <TopNav/>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        
+     
         {/* Header */}
         <div className="text-center max-w-4xl mx-auto mb-12">
           <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-700 px-4 py-2 rounded-full mb-6">
@@ -519,6 +521,7 @@ const TermsOfService: React.FC = () => {
           </div>
         </div>
       </div>
+          <Footer />
     </div>
   );
 };

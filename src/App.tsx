@@ -7,7 +7,7 @@ import { PreviewPage } from './Pages/Preview';
 import AboutUs from './Components/AboutUs';
 import WhatWeOffer from './Components/WhatWeOffer';
 import ContactUs from './Components/Contact';
-import Pricing from './Components/Dashboard/Pricing';
+import Pricing from './Components/Pricing';
 import HowItWorks from './Components/HowItWorks';
 import MemoryGuide from './Components/MemoryGuide';
 import TermsOfService from './Components/TermsOfService';

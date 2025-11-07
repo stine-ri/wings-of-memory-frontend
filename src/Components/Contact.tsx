@@ -12,7 +12,7 @@ import {
   Heart,
   ArrowRight
 } from 'lucide-react';
-import { TopNav } from '../Components/TopNav';
+import  TopNav  from '../Components/TopNav';
 import { Footer } from '../Components/Footer';
 
 const ContactUs: React.FC = () => {

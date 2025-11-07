@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { 
   Download, 
-  CreditCard, 
   FileText, 
   Users, 
   Shield, 
@@ -14,9 +13,10 @@ import {
   Clock,
   Sparkles,
   User,
-  Crown
+  Crown,
+  Calendar as CalendarIcon
 } from 'lucide-react';
-import { TopNav } from '../Components/TopNav';
+import TopNav from '../Components/TopNav';
 import { Footer } from '../Components/Footer';
 import { useNavigate } from 'react-router-dom';
 
@@ -25,7 +25,7 @@ const WhatWeOffer: React.FC = () => {
   const navigate = useNavigate();
 
   const handleGetStarted = () => {
-    navigate('/register');
+    navigate('/');
   };
 
   const services = [
@@ -66,16 +66,10 @@ const WhatWeOffer: React.FC = () => {
       step: 3,
       title: "Design & Preview",
       icon: Sparkles,
-      description: "Choose from beautiful templates and preview your memorial before payment"
+      description: "Choose from beautiful templates and preview your memorial"
     },
     {
       step: 4,
-      title: "Pay via M-Pesa",
-      icon: CreditCard,
-      description: "Pay KSh 500 via M-Pesa to unlock additional memorials and premium features"
-    },
-    {
-      step: 5,
       title: "Download & Share",
       icon: Download,
       description: "Download your high-quality PDF and share with family and friends"
@@ -84,35 +78,36 @@ const WhatWeOffer: React.FC = () => {
 
   const pricingPlans = [
     {
-      name: "First Memorial",
+      name: "Free Memorial",
       price: "Free",
       description: "Your first memorial template is completely free",
       features: [
         "One free memorial PDF",
         "Digital memorial page",
         "Unlimited photos",
-        "Basic template",
-        "Family collaboration"
+        "Multiple templates",
+        "Family collaboration",
+        "Lifetime access"
       ],
       cta: "Get Started Free",
-      popular: false,
-      note: "Perfect for trying our service"
+      popular: true,
+      note: "Perfect for honoring your loved one"
     },
     {
-      name: "Premium Access",
-      price: "KSh 500",
-      description: "Additional memorials and premium features",
+      name: "Premium Features",
+      price: "Coming Soon",
+      description: "Additional features and multiple memorials",
       features: [
         "Additional memorial PDFs",
         "Premium templates",
         "High-resolution printing",
         "Priority support",
-        "Lifetime access",
-        "M-Pesa payment"
+        "Advanced customization",
+        "Video memorials"
       ],
-      cta: "Create Memorial",
-      popular: true,
-      note: "After your first free memorial"
+      cta: "Join Waitlist",
+      popular: false,
+      note: "Launching later this year"
     }
   ];
 
@@ -143,7 +138,7 @@ const WhatWeOffer: React.FC = () => {
           <div className="text-center max-w-4xl mx-auto">
             <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 py-1.5 rounded-full mb-6">
               <Crown className="w-4 h-4 fill-white" />
-              <span className="text-sm font-semibold">First Memorial Free</span>
+              <span className="text-sm font-semibold">Completely Free</span>
             </div>
             
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold mb-6 leading-tight">
@@ -151,7 +146,7 @@ const WhatWeOffer: React.FC = () => {
             </h1>
             
             <p className="text-xl text-white/90 mb-8 leading-relaxed">
-              Get your first memorial template absolutely free. Honor your loved ones with beautifully designed digital memorials and printable PDF tributes.
+              Honor your loved ones with beautifully designed digital memorials and printable PDF tributes - completely free.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -159,7 +154,7 @@ const WhatWeOffer: React.FC = () => {
                 onClick={handleGetStarted}
                 className="px-8 py-4 bg-white text-orange-600 rounded-xl font-bold text-lg hover:bg-orange-50 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center gap-2"
               >
-                Get First Memorial Free
+                Create Free Memorial
                 <ArrowRight className="w-5 h-5" />
               </button>
               <button className="px-8 py-4 bg-white/10 backdrop-blur-sm text-white rounded-xl font-bold text-lg hover:bg-white/20 transition-all duration-300 border-2 border-white/30 hover:border-white/50">
@@ -171,12 +166,24 @@ const WhatWeOffer: React.FC = () => {
       </section>
 
       {/* Free Offer Banner */}
-      <section className="bg-gradient-to-r from-orange-500 to-amber-500 text-white py-8">
+      <section className="bg-gradient-to-r from-green-500 to-emerald-500 text-white py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="flex items-center justify-center gap-4">
             <Crown className="w-6 h-6 fill-white" />
             <p className="text-lg font-semibold">
-              🎁 Your first memorial template is completely FREE! Register now to get started.
+              🎁 Your memorial creation is completely FREE! No payment required. Register now to get started.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Coming Soon Notice */}
+      <section className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="flex items-center justify-center gap-3">
+            <CalendarIcon className="w-5 h-5" />
+            <p className="text-sm font-medium">
+              <strong>Premium Features Coming Soon:</strong> Additional memorials and enhanced features will be available later this year.
             </p>
           </div>
         </div>
@@ -190,11 +197,11 @@ const WhatWeOffer: React.FC = () => {
               How It Works
             </h2>
             <p className="text-lg text-gray-600">
-              Start with a free memorial, then unlock more with simple M-Pesa payments
+              Create a beautiful memorial in 4 simple steps - completely free
             </p>
           </div>
 
-          <div className="grid md:grid-cols-5 gap-8 mb-12">
+          <div className="grid md:grid-cols-4 gap-8 mb-12">
             {steps.map((step) => {
               const Icon = step.icon;
               return (
@@ -223,13 +230,13 @@ const WhatWeOffer: React.FC = () => {
             <div className="text-center mb-6">
               <div className="inline-flex items-center gap-2 bg-orange-100 text-orange-700 px-4 py-2 rounded-full mb-4">
                 <Crown className="w-4 h-4 fill-orange-600" />
-                <span className="text-sm font-semibold">Free Template Preview</span>
+                <span className="text-sm font-semibold">Free Memorial Creation</span>
               </div>
               <h3 className="text-2xl font-bold text-gray-900 mb-2">
                 Create Your Memorial
               </h3>
               <p className="text-gray-600">
-                Register to access the full memorial creation form
+                Register to access our complete memorial creation tools
               </p>
             </div>
             
@@ -273,7 +280,7 @@ const WhatWeOffer: React.FC = () => {
                 onClick={handleGetStarted}
                 className="px-8 py-4 bg-orange-600 text-white rounded-xl font-bold text-lg hover:bg-orange-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2"
               >
-                Register to Get Started Free
+                Register to Create Free Memorial
                 <ArrowRight className="w-5 h-5" />
               </button>
             </div>
@@ -289,7 +296,7 @@ const WhatWeOffer: React.FC = () => {
               Our Services
             </h2>
             <p className="text-lg text-gray-600">
-              Everything you need to create a meaningful tribute
+              Everything you need to create a meaningful tribute - completely free
             </p>
           </div>
 
@@ -323,10 +330,10 @@ const WhatWeOffer: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
-              Simple & Affordable
+              Simple & Free
             </h2>
             <p className="text-lg text-gray-600">
-              Start free, then pay only for additional memorials
+              Create your first memorial completely free. Additional features coming soon.
             </p>
           </div>
 
@@ -335,42 +342,66 @@ const WhatWeOffer: React.FC = () => {
               <div key={index} className={`relative rounded-2xl p-8 ${
                 plan.popular 
                   ? 'bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200' 
-                  : 'bg-gray-50 border-2 border-gray-200'
+                  : 'bg-gray-50 border-2 border-gray-200 opacity-90'
               }`}>
                 {plan.popular && (
                   <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                     <span className="bg-orange-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                      Most Popular
+                      Available Now
+                    </span>
+                  </div>
+                )}
+                
+                {!plan.popular && (
+                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                    <span className="bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
+                      <CalendarIcon className="w-3 h-3" />
+                      Coming Soon
                     </span>
                   </div>
                 )}
                 
                 <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
                 <div className="mb-4">
-                  <span className="text-4xl font-bold text-gray-900">{plan.price}</span>
-                  {plan.price !== "Free" && <span className="text-gray-600"> per memorial</span>}
+                  <span className={`text-4xl font-bold ${
+                    plan.price === "Coming Soon" ? 'text-gray-500' : 'text-gray-900'
+                  }`}>
+                    {plan.price}
+                  </span>
+                  {plan.price === "Free" && <span className="text-gray-600"> memorial</span>}
                 </div>
                 <p className="text-gray-600 mb-2">{plan.description}</p>
                 {plan.note && (
-                  <p className="text-sm text-orange-600 mb-4 font-semibold">{plan.note}</p>
+                  <p className={`text-sm mb-4 font-semibold ${
+                    plan.popular ? 'text-orange-600' : 'text-blue-600'
+                  }`}>
+                    {plan.note}
+                  </p>
                 )}
                 
                 <ul className="space-y-4 mb-8">
                   {plan.features.map((feature, featureIndex) => (
                     <li key={featureIndex} className="flex items-center gap-3">
-                      <CheckCircle className="w-5 h-5 text-orange-500" />
-                      <span className="text-gray-700">{feature}</span>
+                      <CheckCircle className={`w-5 h-5 ${
+                        plan.popular ? 'text-orange-500' : 'text-gray-400'
+                      }`} />
+                      <span className={`${
+                        plan.popular ? 'text-gray-700' : 'text-gray-500'
+                      }`}>
+                        {feature}
+                      </span>
                     </li>
                   ))}
                 </ul>
                 
                 <button 
-                  onClick={handleGetStarted}
+                  onClick={plan.popular ? handleGetStarted : () => {}}
                   className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-300 ${
                     plan.popular
                       ? 'bg-orange-600 text-white hover:bg-orange-700 shadow-lg hover:shadow-xl'
-                      : 'bg-gray-800 text-white hover:bg-gray-900'
+                      : 'bg-gray-300 text-gray-600 cursor-not-allowed'
                   }`}
+                  disabled={!plan.popular}
                 >
                   {plan.cta}
                 </button>
@@ -378,21 +409,21 @@ const WhatWeOffer: React.FC = () => {
             ))}
           </div>
 
-          {/* M-Pesa Payment Info */}
+          {/* Future Features Info */}
           <div className="max-w-2xl mx-auto mt-12 text-center">
-            <div className="bg-orange-50 rounded-2xl p-6 border border-orange-200">
-              <CreditCard className="w-12 h-12 text-orange-600 mx-auto mb-4" />
-              <h3 className="text-xl font-bold text-gray-900 mb-2">M-Pesa Payments</h3>
+            <div className="bg-blue-50 rounded-2xl p-6 border border-blue-200">
+              <CalendarIcon className="w-12 h-12 text-blue-600 mx-auto mb-4" />
+              <h3 className="text-xl font-bold text-gray-900 mb-2">Future Features</h3>
               <p className="text-gray-600 mb-4">
-                After your free memorial, pay KSh 500 via M-Pesa for additional memorials. Simple, secure, and instant.
+                We're currently focused on providing the best free memorial experience. Premium features for multiple memorials and enhanced customization will be introduced later this year.
               </p>
               <div className="flex items-center justify-center gap-4 text-sm text-gray-700">
-                <Shield className="w-5 h-5 text-orange-600" />
-                <span>Secure & Encrypted</span>
+                <Shield className="w-5 h-5 text-blue-600" />
+                <span>Always Secure</span>
                 <span>•</span>
-                <span>Instant Confirmation</span>
+                <span>Community Focused</span>
                 <span>•</span>
-                <span>24/7 Support</span>
+                <span>Free First Memorial</span>
               </div>
             </div>
           </div>
@@ -407,15 +438,15 @@ const WhatWeOffer: React.FC = () => {
             Ready to Create Your Free Memorial?
           </h2>
           <p className="text-xl text-white/90 mb-8 leading-relaxed">
-            Get your first memorial template completely free. No credit card required. 
-            Beautiful PDF downloads, easy M-Pesa payments for additional memorials.
+            Get started today with our completely free memorial creation tools. 
+            No payment required. Beautiful PDF downloads, family collaboration, and lifetime access.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button 
               onClick={handleGetStarted}
               className="px-8 py-4 bg-orange-500 text-white rounded-xl font-bold text-lg hover:bg-orange-600 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
             >
-              Get First Memorial Free
+              Create Free Memorial
               <ArrowRight className="w-5 h-5" />
             </button>
             <button className="px-8 py-4 bg-white/10 backdrop-blur-sm text-white rounded-xl font-bold text-lg hover:bg-white/20 transition-all duration-300 border-2 border-white/30 hover:border-white/50">

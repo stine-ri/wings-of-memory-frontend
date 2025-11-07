@@ -20,6 +20,8 @@ import {
   Share2,
   CheckCircle
 } from 'lucide-react';
+import TopNav from '../Components/TopNav';
+import {Footer} from '../Components/Footer';
 
 const MemoryGuide: React.FC = () => {
   const [activeSection, setActiveSection] = useState('getting-started');
@@ -290,6 +292,7 @@ const MemoryGuide: React.FC = () => {
 const activeContent: Record<string, React.ReactNode> = {
     'getting-started': (
       <div className="space-y-8">
+        
         <div className="grid md:grid-cols-2 gap-8">
           {gettingStarted.steps.map((step) => {
             const Icon = step.icon;
@@ -635,6 +638,7 @@ const activeContent: Record<string, React.ReactNode> = {
 
   return (
     <div className="py-16 sm:py-20 lg:py-24 bg-linear-to-b from-white via-orange-50/20 to-gray-50/20">
+            <TopNav/>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Header */}
@@ -707,6 +711,7 @@ const activeContent: Record<string, React.ReactNode> = {
           </div>
         </div>
       </div>
+         <Footer />
     </div>
   );
 };

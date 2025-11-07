@@ -18,52 +18,65 @@ export const Navigation: React.FC<NavigationProps> = ({ activeSection, onSection
   ];
 
   return (
-    <nav className="sticky top-16 bg-white shadow-md z-40">
-      <style>{`
-        .scrollbar-hide::-webkit-scrollbar {
-          display: none;
-        }
-        .scrollbar-hide {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
-        
-        /* Smooth scroll behavior */
-        .nav-container {
-          scroll-behavior: smooth;
-        }
-        
-        /* Active indicator animation */
-        @keyframes slide-up {
-          from {
-            transform: scaleX(0);
-          }
-          to {
-            transform: scaleX(1);
-          }
-        }
-        
-        .active-indicator {
-          animation: slide-up 0.3s ease-out;
-        }
-      `}</style>
-      
-      <div className="max-w-7xl mx-auto px-2 sm:px-4">
-        <div className="flex overflow-x-auto scrollbar-hide nav-container snap-x snap-mandatory">
+    <nav className="sticky top-16 bg-white shadow-lg z-40 border-b border-gray-100 w-full">
+      <div className="w-full">
+        {/* Desktop - Full width grid */}
+        <div className="hidden sm:grid grid-cols-7 w-full">
           {sections.map(({ id, label, icon: Icon }) => (
             <button 
               key={id} 
               onClick={() => onSectionClick(id)} 
-              className={`flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 md:px-6 py-3 sm:py-4 whitespace-nowrap transition-all flex-shrink-0 snap-center min-w-[80px] sm:min-w-0 relative ${
-                activeSection === id 
-                  ? 'text-amber-600 bg-amber-50' 
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              }`}
+              className={`
+                flex flex-col items-center justify-center 
+                gap-2 lg:gap-3 
+                px-2 py-4 lg:py-5
+                whitespace-nowrap transition-all duration-300 
+                relative w-full
+                ${
+                  activeSection === id 
+                    ? 'text-amber-700 bg-amber-50/80 font-semibold' 
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50/70 font-medium'
+                }
+              `}
             >
-              <Icon className="w-4 h-4 sm:w-4 sm:h-4 md:w-5 md:h-5" />
-              <span className="text-xs sm:text-sm md:text-base font-medium">{label}</span>
+              <Icon className="w-5 h-5 lg:w-5.5 lg:h-5.5 transition-transform duration-300" />
+              <span className="text-sm lg:text-base font-medium tracking-wide text-center">
+                {label}
+              </span>
               {activeSection === id && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 sm:h-1 bg-amber-600 active-indicator"></div>
+                <div className="absolute bottom-0 left-4 right-4 h-1.5 bg-amber-600 rounded-t-full shadow-sm"></div>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Mobile - Scrollable but full width items */}
+        <div className="sm:hidden flex overflow-x-auto scrollbar-hide snap-x snap-mandatory w-full">
+          {sections.map(({ id, label, icon: Icon }) => (
+            <button 
+              key={id} 
+              onClick={() => onSectionClick(id)} 
+              className={`
+                flex flex-col items-center justify-center 
+                gap-2 
+                px-6 py-4
+                whitespace-nowrap transition-all duration-300 
+                flex-shrink-0 snap-center 
+                min-w-[120px]
+                relative
+                ${
+                  activeSection === id 
+                    ? 'text-amber-700 bg-amber-50/80 font-semibold' 
+                    : 'text-gray-700 hover:text-gray-900 hover:bg-gray-50/70 font-medium'
+                }
+              `}
+            >
+              <Icon className="w-5 h-5 transition-transform duration-300" />
+              <span className="text-sm font-medium tracking-wide text-center">
+                {label}
+              </span>
+              {activeSection === id && (
+                <div className="absolute bottom-0 left-4 right-4 h-1.5 bg-amber-600 rounded-t-full shadow-sm"></div>
               )}
             </button>
           ))}
@@ -71,8 +84,8 @@ export const Navigation: React.FC<NavigationProps> = ({ activeSection, onSection
       </div>
       
       {/* Scroll indicators for mobile */}
-      <div className="sm:hidden absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none"></div>
-      <div className="sm:hidden absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent pointer-events-none"></div>
+      <div className="sm:hidden absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white to-transparent pointer-events-none" />
+      <div className="sm:hidden absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white to-transparent pointer-events-none" />
     </nav>
   );
 };

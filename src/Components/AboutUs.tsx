@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Heart, Users, BookOpen, Download, Shield, Clock, Award, Sparkles, ArrowRight, CheckCircle } from 'lucide-react';
-import {TopNav} from '../Components/TopNav';
+import TopNav from '../Components/TopNav';
 import {Footer} from '../Components/Footer';
 
 const AboutUs: React.FC = () => {
