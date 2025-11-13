@@ -25,14 +25,12 @@ export const DownloadSection: React.FC = () => {
   const [pdfSuccess, setPdfSuccess] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
-  // Reset messages when memorial data changes
   useEffect(() => {
     setPdfError(null);
     setPdfSuccess(false);
     setPreviewError(null);
   }, [memorialData?.id]);
 
-  // Show loading state
   if (loading) {
     return (
       <div className="flex justify-center items-center py-12">
@@ -41,7 +39,6 @@ export const DownloadSection: React.FC = () => {
     );
   }
 
-  // Show error state if no data
   if (!memorialData) {
     return (
       <div className="text-center py-12">
@@ -52,10 +49,9 @@ export const DownloadSection: React.FC = () => {
     );
   }
 
-  // Updated memorial URL to point to PDF preview
-  const memorialUrl = `${window.location.origin}/memorial/${memorialData.customUrl || memorialData.id}/pdf-preview`;
+  // FIXED: Point to the proper preview page that will fetch data
+  const memorialUrl = `${window.location.origin}/memorial/${memorialData.customUrl || memorialData.id}`;
 
-  // Calculate memorial statistics
   const memorialStats = {
     photos: memorialData.gallery?.length || 0,
     family: memorialData.familyTree?.length || 0,
@@ -64,7 +60,7 @@ export const DownloadSection: React.FC = () => {
     memoryWall: memorialData.memoryWall?.length || 0
   };
 
-  // NEW: PDF Preview using your exact backend route
+  // FIXED: Preview now sends complete memorial data to backend
   const handlePreviewPDF = async () => {
     if (!memorialData) return;
 
@@ -72,19 +68,43 @@ export const DownloadSection: React.FC = () => {
     setPreviewError(null);
 
     try {
-      // Use your exact backend preview endpoint
-      const previewUrl = `https://wings-of-memories-backend.onrender.com/api/memorials/${memorialData.id}/preview-pdf`;
+      console.log('🚀 Generating preview with complete data:', {
+        name: memorialData.name,
+        timeline: memorialData.timeline?.length || 0,
+        favorites: memorialData.favorites?.length || 0,
+        family: memorialData.familyTree?.length || 0,
+        gallery: memorialData.gallery?.length || 0,
+        memoryWall: memorialData.memoryWall?.length || 0
+      });
+
+      // Send memorial data to backend for preview generation
+      const response = await fetch('https://wings-of-memories-backend.onrender.com/api/memorials/generate-preview-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          memorialId: memorialData.id,
+          data: memorialData
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate preview');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       
-      console.log('🚀 Opening PDF preview using backend route:', previewUrl);
-      
-      // Open in new tab - your backend streams PDF directly with inline display
-      const newWindow = window.open(previewUrl, '_blank');
+      // Open PDF in new window
+      const newWindow = window.open(url, '_blank');
       
       if (!newWindow) {
         throw new Error('Popup blocked. Please allow popups for this site.');
       }
 
-      console.log('✅ PDF preview window opened successfully');
+      console.log('✅ PDF preview opened successfully');
 
     } catch (error: unknown) {
       console.error('❌ Preview failed:', error);
@@ -105,7 +125,6 @@ export const DownloadSection: React.FC = () => {
     }
   };
 
-  // Enhanced PDF generation with comprehensive error handling
   const handleGeneratePDF = async () => {
     if (!memorialData) {
       setPdfError('No memorial data available');
@@ -117,17 +136,23 @@ export const DownloadSection: React.FC = () => {
     setPdfSuccess(false);
 
     try {
-      // Validate memorial data before sending
       const validationErrors = validateMemorialData(memorialData);
       if (validationErrors.length > 0) {
         console.warn('Memorial data validation warnings:', validationErrors);
       }
 
-      // Create abort controller for timeout
+      console.log('📤 Sending complete memorial data for PDF:', {
+        name: memorialData.name,
+        timeline: memorialData.timeline?.length || 0,
+        favorites: memorialData.favorites?.length || 0,
+        family: memorialData.familyTree?.length || 0,
+        gallery: memorialData.gallery?.length || 0,
+        memoryWall: memorialData.memoryWall?.length || 0
+      });
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 60000);
 
-      // Send memorial data to backend for PDF generation
       const response = await fetch('https://wings-of-memories-backend.onrender.com/api/memorials/generate-pdf', {
         method: 'POST',
         headers: {
@@ -152,7 +177,6 @@ export const DownloadSection: React.FC = () => {
 
       const blob = await response.blob();
       
-      // Validate blob
       if (blob.size === 0) {
         throw new Error('Generated PDF is empty');
       }
@@ -172,7 +196,6 @@ export const DownloadSection: React.FC = () => {
     } catch (error: unknown) {
       console.error('PDF generation failed:', error);
       
-      // Handle specific error types
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
           setPdfError('PDF generation timed out. Please try again.');
@@ -204,7 +227,6 @@ export const DownloadSection: React.FC = () => {
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Clipboard copy failed:', err);
-      // Fallback for older browsers
       const textArea = document.createElement('textarea');
       textArea.value = memorialUrl;
       document.body.appendChild(textArea);
@@ -243,30 +265,17 @@ export const DownloadSection: React.FC = () => {
     }
   };
 
-  // Validate memorial data before PDF generation
   const validateMemorialData = (data: MemorialData): string[] => {
     const warnings: string[] = [];
     
-    if (!data.name) {
-      warnings.push('Memorial name is missing');
-    }
-    
-    if (!data.obituary || data.obituary.trim().length === 0) {
-      warnings.push('Obituary is empty');
-    }
-    
-    if (data.gallery && data.gallery.length === 0) {
-      warnings.push('No photos in gallery');
-    }
-    
-    if (data.timeline && data.timeline.length === 0) {
-      warnings.push('No timeline events');
-    }
+    if (!data.name) warnings.push('Memorial name is missing');
+    if (!data.obituary || data.obituary.trim().length === 0) warnings.push('Obituary is empty');
+    if (data.gallery && data.gallery.length === 0) warnings.push('No photos in gallery');
+    if (data.timeline && data.timeline.length === 0) warnings.push('No timeline events');
     
     return warnings;
   };
 
-  // Enhanced QR code data pointing to PDF preview
   const getQRCodeData = () => {
     return memorialUrl;
   };
@@ -275,7 +284,7 @@ export const DownloadSection: React.FC = () => {
     {
       icon: Eye,
       title: 'Preview Memorial',
-      description: 'See how your memorial booklet will look using the exact backend styling - opens PDF in browser',
+      description: 'See how your memorial booklet will look with all your data - opens PDF in browser',
       action: handlePreviewPDF,
       color: 'from-amber-500 to-orange-500',
       buttonText: generatingPreview ? 'Opening Preview...' : 'Preview PDF',
@@ -294,7 +303,7 @@ export const DownloadSection: React.FC = () => {
     {
       icon: QrCode,
       title: 'QR Code',
-      description: 'Generate QR code that opens PDF preview - scan to view and download the memorial booklet',
+      description: 'Generate QR code that links to memorial page - scan to view and share the memorial',
       action: handleGenerateQRCode,
       color: 'from-green-500 to-green-600',
       buttonText: 'Create QR Code'
@@ -302,7 +311,7 @@ export const DownloadSection: React.FC = () => {
     {
       icon: Share2,
       title: 'Shareable Link',
-      description: 'Copy link to PDF preview page - share with family and friends to view and download',
+      description: 'Copy link to memorial page - share with family and friends to view the memorial',
       action: handleCopyLink,
       color: 'from-purple-500 to-purple-600',
       buttonText: copied ? 'Copied!' : 'Copy Link'
@@ -311,7 +320,6 @@ export const DownloadSection: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6 sm:space-y-8">
-      {/* Header */}
       <div className="text-center">
         <h2 className="text-2xl sm:text-3xl font-serif font-bold text-gray-800 mb-3">Download & Share</h2>
         <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
@@ -319,7 +327,6 @@ export const DownloadSection: React.FC = () => {
         </p>
       </div>
 
-      {/* Status Messages */}
       {pdfError && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
           <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
@@ -350,7 +357,6 @@ export const DownloadSection: React.FC = () => {
         </div>
       )}
 
-      {/* Memorial Completion Status */}
       <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 border-2 border-amber-200">
         <h3 className="text-lg sm:text-xl font-serif font-bold text-amber-800 mb-3 sm:mb-4">Memorial Completion</h3>
         <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 sm:gap-4">
@@ -385,7 +391,6 @@ export const DownloadSection: React.FC = () => {
         </div>
       </div>
 
-      {/* Download Options - Updated to 4 columns */}
       <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-amber-200 p-4 sm:p-6">
         <h3 className="text-lg sm:text-xl font-serif font-bold text-gray-800 mb-4 sm:mb-6">Ready to Share Your Memorial?</h3>
         <p className="text-gray-600 text-sm sm:text-base mb-6 text-center">
@@ -424,7 +429,6 @@ export const DownloadSection: React.FC = () => {
                   </div>
                 </button>
                 
-                {/* Status indicators */}
                 {isError && (
                   <div className="absolute -top-2 -right-2">
                     <div className="bg-red-500 text-white rounded-full p-1">
@@ -446,7 +450,6 @@ export const DownloadSection: React.FC = () => {
         </div>
       </div>
 
-      {/* Publish Status Section */}
       <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-amber-200 p-4 sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="text-center sm:text-left">
@@ -472,12 +475,11 @@ export const DownloadSection: React.FC = () => {
         </div>
       </div>
 
-      {/* Enhanced QR Code Modal */}
       {showQRCode && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl sm:rounded-2xl max-w-sm w-full p-4 sm:p-6 text-center">
             <div className="flex justify-between items-center mb-3 sm:mb-4">
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-800">Memorial PDF QR Code</h3>
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-800">Memorial QR Code</h3>
               <button
                 onClick={() => setShowQRCode(false)}
                 className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
@@ -499,7 +501,7 @@ export const DownloadSection: React.FC = () => {
             <div className="text-left mb-4 p-3 bg-blue-50 rounded-lg">
               <h4 className="font-semibold text-blue-800 mb-2 text-sm">Scan to:</h4>
               <ul className="text-xs text-blue-600 space-y-1">
-                <li>• View PDF preview in browser</li>
+                <li>• View memorial page</li>
                 <li>• Download memorial booklet</li>
                 <li>• Share with others</li>
                 <li>• Access full memorial details</li>
@@ -507,7 +509,7 @@ export const DownloadSection: React.FC = () => {
             </div>
             
             <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 break-words">
-              Scan to preview {memorialData.name}'s memorial PDF
+              Scan to view {memorialData.name}'s memorial
             </p>
             
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
