@@ -1,5 +1,5 @@
-// Contexts/MemorialContext.tsx - FIXED VERSION
-import React, { createContext, useState, useEffect, useCallback } from 'react';
+// Contexts/MemorialContext.tsx - FIXED RACE CONDITION
+import React, { createContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { MemorialData, TimelineEvent, Favorite, FamilyMember, GalleryImage, ServiceInfo, Memory } from '../types/memorial';
 
@@ -53,8 +53,16 @@ interface MemorialProviderProps {
 const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialId }) => {
   const [memorialData, setMemorialData] = useState<MemorialData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [autoSaveTimeout, setAutoSaveTimeout] = useState<number>();
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Use ref to track the latest data for saves
+  const memorialDataRef = useRef<MemorialData | null>(null);
+  const autoSaveTimeoutRef = useRef<number | undefined>(undefined);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    memorialDataRef.current = memorialData;
+  }, [memorialData]);
 
   const loadMemorialData = useCallback(async () => {
     if (!memorialId) {
@@ -104,10 +112,13 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
     await loadMemorialData();
   }, [loadMemorialData]);
 
+  // FIXED: Save function now uses the ref to get the latest data
   const saveToBackend = useCallback(async () => {
-    if (!memorialData?.id || isSaving) {
+    const currentData = memorialDataRef.current;
+    
+    if (!currentData?.id || isSaving) {
       console.log('⚠️ Skipping save:', { 
-        hasId: !!memorialData?.id, 
+        hasId: !!currentData?.id, 
         isSaving 
       });
       return;
@@ -116,36 +127,29 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
     try {
       setIsSaving(true);
       
-      // CRITICAL: Log the actual memorialData state at the moment of save
-      console.log('🔍 CURRENT memorialData state:', {
-        id: memorialData.id,
-        name: memorialData.name,
-        timeline: memorialData.timeline,
-        favorites: memorialData.favorites,
-        familyTree: memorialData.familyTree,
-        gallery: memorialData.gallery,
-        memoryWall: memorialData.memoryWall,
-        timelineLength: Array.isArray(memorialData.timeline) ? memorialData.timeline.length : 0,
-        favoritesLength: Array.isArray(memorialData.favorites) ? memorialData.favorites.length : 0,
-        familyTreeLength: Array.isArray(memorialData.familyTree) ? memorialData.familyTree.length : 0,
-        galleryLength: Array.isArray(memorialData.gallery) ? memorialData.gallery.length : 0,
-        memoryWallLength: Array.isArray(memorialData.memoryWall) ? memorialData.memoryWall.length : 0,
+      console.log('🔍 SAVING - Current data from ref:', {
+        id: currentData.id,
+        name: currentData.name,
+        timelineLength: Array.isArray(currentData.timeline) ? currentData.timeline.length : 0,
+        favoritesLength: Array.isArray(currentData.favorites) ? currentData.favorites.length : 0,
+        familyTreeLength: Array.isArray(currentData.familyTree) ? currentData.familyTree.length : 0,
+        galleryLength: Array.isArray(currentData.gallery) ? currentData.gallery.length : 0,
+        memoryWallLength: Array.isArray(currentData.memoryWall) ? currentData.memoryWall.length : 0,
       });
       
-      // Build the payload directly from memorialData - no intermediate cleaning
       const backendData = {
-        name: memorialData.name || '',
-        profileImage: memorialData.profileImage || '',
-        birthDate: memorialData.birthDate || '',
-        deathDate: memorialData.deathDate || '',
-        location: memorialData.location || '',
-        obituary: memorialData.obituary || '',
-        timeline: Array.isArray(memorialData.timeline) ? memorialData.timeline : [],
-        favorites: Array.isArray(memorialData.favorites) ? memorialData.favorites : [],
-        familyTree: Array.isArray(memorialData.familyTree) ? memorialData.familyTree : [],
-        gallery: Array.isArray(memorialData.gallery) ? memorialData.gallery : [],
-        memoryWall: Array.isArray(memorialData.memoryWall) ? memorialData.memoryWall : [],
-        service: memorialData.service || {
+        name: currentData.name || '',
+        profileImage: currentData.profileImage || '',
+        birthDate: currentData.birthDate || '',
+        deathDate: currentData.deathDate || '',
+        location: currentData.location || '',
+        obituary: currentData.obituary || '',
+        timeline: Array.isArray(currentData.timeline) ? currentData.timeline : [],
+        favorites: Array.isArray(currentData.favorites) ? currentData.favorites : [],
+        familyTree: Array.isArray(currentData.familyTree) ? currentData.familyTree : [],
+        gallery: Array.isArray(currentData.gallery) ? currentData.gallery : [],
+        memoryWall: Array.isArray(currentData.memoryWall) ? currentData.memoryWall : [],
+        service: currentData.service || {
           venue: '',
           address: '',
           date: '',
@@ -153,21 +157,20 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
           virtualLink: '',
           virtualPlatform: 'zoom'
         },
-        theme: memorialData.theme || 'default',
-        customUrl: memorialData.customUrl || ''
+        theme: currentData.theme || 'default',
+        customUrl: currentData.customUrl || ''
       };
 
       console.log('💾 Sending to backend:', {
-        id: memorialData.id,
+        id: currentData.id,
         timelineLength: backendData.timeline.length,
         favoritesLength: backendData.favorites.length,
         familyTreeLength: backendData.familyTree.length,
         galleryLength: backendData.gallery.length,
         memoryWallLength: backendData.memoryWall.length,
-        fullPayload: JSON.stringify(backendData).substring(0, 200) + '...'
       });
 
-      const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${memorialData.id}`, {
+      const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${currentData.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -191,23 +194,22 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
     } finally {
       setIsSaving(false);
     }
-  }, [memorialData, isSaving]);
+  }, [isSaving]);
 
+  // FIXED: Debounced save now always uses the latest ref data
   const debouncedSave = useCallback(() => {
-    if (autoSaveTimeout) {
-      clearTimeout(autoSaveTimeout);
+    if (autoSaveTimeoutRef.current) {
+      clearTimeout(autoSaveTimeoutRef.current);
     }
     
-    if (!isSaving && memorialData?.id) {
-      const timeout = setTimeout(() => {
+    if (!isSaving && memorialDataRef.current?.id) {
+      autoSaveTimeoutRef.current = setTimeout(() => {
         saveToBackend().catch(error => {
           console.error('Auto-save failed:', error);
         });
       }, 2000) as unknown as number;
-
-      setAutoSaveTimeout(timeout);
     }
-  }, [autoSaveTimeout, isSaving, memorialData, saveToBackend]);
+  }, [isSaving, saveToBackend]);
 
   const hasOwnProperty = (obj: object, prop: string): boolean => {
     return Object.prototype.hasOwnProperty.call(obj, prop);
@@ -244,11 +246,15 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
         memoryWallLength: Array.isArray(newData.memoryWall) ? newData.memoryWall.length : 0,
       });
       
+      // Trigger save AFTER state update
       const shouldAutoSave = !hasOwnProperty(updates, 'loading') && 
                             !hasOwnProperty(updates, 'isSaving');
       
       if (shouldAutoSave) {
-        debouncedSave();
+        // Use setTimeout to ensure the ref is updated before save
+        setTimeout(() => {
+          debouncedSave();
+        }, 0);
       }
       
       return newData;
@@ -290,13 +296,14 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
     updateMemorialData({ memoryWall });
   }, [updateMemorialData]);
 
+  // Cleanup
   useEffect(() => {
     return () => {
-      if (autoSaveTimeout) {
-        clearTimeout(autoSaveTimeout);
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
       }
     };
-  }, [autoSaveTimeout]);
+  }, []);
 
   return (
     <MemorialContext.Provider value={{
