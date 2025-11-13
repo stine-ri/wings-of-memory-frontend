@@ -32,7 +32,7 @@ function App() {
         <Route path="/guide" element={<MemoryGuide />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
-        <Route path="/memorial/:id/pdf-preview" element={<PDFPreviewPage />} />
+        <Route path="/memorial/:id" element={<PDFPreviewPage />} />
 
         {/* Protected dashboard route */}
         <Route

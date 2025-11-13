@@ -1,5 +1,6 @@
+// Components/Dashboard/DownloadSection.tsx
 import React, { useState, useEffect } from 'react';
-import { FileText, QrCode, Share2, Download, ExternalLink, AlertCircle, CheckCircle, X, Eye } from 'lucide-react';
+import { FileText, QrCode, Share2, Download, ExternalLink, AlertCircle, CheckCircle, X, Eye, Info, SquareArrowOutUpRight  } from 'lucide-react';
 import { useMemorial } from '../../hooks/useMemorial';
 import { QRCodeCanvas } from 'qrcode.react';
 import type { MemorialData } from '../../types/memorial';
@@ -13,6 +14,7 @@ interface DownloadOption {
   buttonText: string;
   disabled?: boolean;
   status?: 'default' | 'success' | 'error';
+  popupWarning?: boolean;
 }
 
 export const DownloadSection: React.FC = () => {
@@ -24,6 +26,7 @@ export const DownloadSection: React.FC = () => {
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [pdfSuccess, setPdfSuccess] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+  const [showPopupWarning, setShowPopupWarning] = useState(false);
 
   useEffect(() => {
     setPdfError(null);
@@ -49,7 +52,7 @@ export const DownloadSection: React.FC = () => {
     );
   }
 
-  // FIXED: Point to the proper preview page that will fetch data
+  // FIXED: Use the correct public route for shared memorials
   const memorialUrl = `${window.location.origin}/memorial/${memorialData.customUrl || memorialData.id}`;
 
   const memorialStats = {
@@ -60,7 +63,7 @@ export const DownloadSection: React.FC = () => {
     memoryWall: memorialData.memoryWall?.length || 0
   };
 
-  // FIXED: Preview now sends complete memorial data to backend
+  // IMPROVED: Better pop-up handling with user guidance
   const handlePreviewPDF = async () => {
     if (!memorialData) return;
 
@@ -97,14 +100,19 @@ export const DownloadSection: React.FC = () => {
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       
-      // Open PDF in new window
-      const newWindow = window.open(url, '_blank');
+      // IMPROVED: Show pop-up warning first
+      setShowPopupWarning(true);
       
-      if (!newWindow) {
-        throw new Error('Popup blocked. Please allow popups for this site.');
-      }
+      // Open PDF in new window after user acknowledges
+      setTimeout(() => {
+        const newWindow = window.open(url, '_blank', 'width=1200,height=800,scrollbars=yes');
+        
+        if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+          throw new Error('Popup blocked. Please allow popups for this site.');
+        }
 
-      console.log('✅ PDF preview opened successfully');
+        console.log('✅ PDF preview opened successfully');
+      }, 500);
 
     } catch (error: unknown) {
       console.error('❌ Preview failed:', error);
@@ -112,7 +120,7 @@ export const DownloadSection: React.FC = () => {
       let errorMessage = 'Failed to generate preview. Please try again.';
       if (error instanceof Error) {
         if (error.message.includes('Popup blocked')) {
-          errorMessage = 'Popup blocked. Please allow popups for this site to view the preview.';
+          errorMessage = 'Popup was blocked. Please allow popups for this site, then try again.';
         } else {
           errorMessage = error.message || errorMessage;
         }
@@ -125,6 +133,7 @@ export const DownloadSection: React.FC = () => {
     }
   };
 
+  // Rest of your existing functions remain the same...
   const handleGeneratePDF = async () => {
     if (!memorialData) {
       setPdfError('No memorial data available');
@@ -288,7 +297,8 @@ export const DownloadSection: React.FC = () => {
       action: handlePreviewPDF,
       color: 'from-amber-500 to-orange-500',
       buttonText: generatingPreview ? 'Opening Preview...' : 'Preview PDF',
-      disabled: generatingPreview
+      disabled: generatingPreview,
+      popupWarning: true
     },
     {
       icon: FileText,
@@ -357,6 +367,36 @@ export const DownloadSection: React.FC = () => {
         </div>
       )}
 
+      {/* Pop-up Warning Modal */}
+      {showPopupWarning && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl sm:rounded-2xl max-w-md w-full p-6 text-center">
+            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <SquareArrowOutUpRight  className="w-6 h-6 text-blue-600" />
+            </div>
+            <h3 className="text-xl font-semibold text-gray-800 mb-3">Opening Preview</h3>
+            <p className="text-gray-600 mb-4">
+              Your PDF preview will open in a new window. 
+              <strong className="block mt-2 text-amber-600">
+                Please allow pop-ups for this site if prompted.
+              </strong>
+            </p>
+            <div className="bg-blue-50 rounded-lg p-3 mb-4 text-left">
+              <p className="text-sm text-blue-700 flex items-start gap-2">
+                <Info className="w-4 h-4 mt-0.5 shrink-0" />
+                <span>If the preview doesn't open, check your browser's address bar for pop-up blocking icons.</span>
+              </p>
+            </div>
+            <button
+              onClick={() => setShowPopupWarning(false)}
+              className="w-full px-4 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-semibold"
+            >
+              Got it, continue
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 border-2 border-amber-200">
         <h3 className="text-lg sm:text-xl font-serif font-bold text-amber-800 mb-3 sm:mb-4">Memorial Completion</h3>
         <div className="grid grid-cols-4 sm:grid-cols-7 gap-2 sm:gap-4">
@@ -411,15 +451,28 @@ export const DownloadSection: React.FC = () => {
                     isError ? 'border-red-200' : isSuccess ? 'border-green-200' : 'border-amber-200'
                   } p-4 sm:p-6 text-left hover:shadow-xl transition-all duration-300 group hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 w-full h-full flex flex-col`}
                 >
-                  <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r ${
-                    isError ? 'from-red-500 to-red-600' : 
-                    isSuccess ? 'from-green-500 to-green-600' : 
-                    option.color
-                  } rounded-lg sm:rounded-xl flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                    <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  <div className="flex items-start justify-between mb-3">
+                    <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r ${
+                      isError ? 'from-red-500 to-red-600' : 
+                      isSuccess ? 'from-green-500 to-green-600' : 
+                      option.color
+                    } rounded-lg sm:rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
+                      <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                    </div>
+                    {option.popupWarning && (
+                      <SquareArrowOutUpRight  className="w-4 h-4 text-amber-500 mt-1" />
+                    )}
                   </div>
                   <h3 className="font-semibold text-gray-800 text-sm sm:text-base mb-2">{option.title}</h3>
                   <p className="text-xs sm:text-sm text-gray-600 leading-relaxed mb-3 sm:mb-4 flex-grow">{option.description}</p>
+                  {option.popupWarning && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 mb-3">
+                      <p className="text-xs text-amber-700 flex items-center gap-1">
+                        <Info className="w-3 h-3" />
+                        Opens in new window
+                      </p>
+                    </div>
+                  )}
                   <div className={`px-3 py-2 sm:px-4 sm:py-2 bg-gradient-to-r ${
                     isError ? 'from-red-500 to-red-600' : 
                     isSuccess ? 'from-green-500 to-green-600' : 
