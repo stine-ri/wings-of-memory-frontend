@@ -3,7 +3,6 @@ import React, { createContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { MemorialData, TimelineEvent, Favorite, FamilyMember, GalleryImage, ServiceInfo, Memory } from '../types/memorial';
 
-// Export the interface separately at the top level
 export interface MemorialContextType {
   memorialData: MemorialData | null;
   updateMemorialData: (updates: Partial<MemorialData>) => void;
@@ -44,7 +43,6 @@ const defaultMemorialData: MemorialData = {
   theme: 'default'
 };
 
-// Create context without exporting it directly
 const MemorialContext = createContext<MemorialContextType | undefined>(undefined);
 
 interface MemorialProviderProps {
@@ -52,14 +50,12 @@ interface MemorialProviderProps {
   memorialId?: string;
 }
 
-// Export only the provider component
 const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialId }) => {
   const [memorialData, setMemorialData] = useState<MemorialData | null>(null);
   const [loading, setLoading] = useState(true);
   const [autoSaveTimeout, setAutoSaveTimeout] = useState<number>();
   const [isSaving, setIsSaving] = useState(false);
 
-  // Load memorial data from backend
   const loadMemorialData = useCallback(async () => {
     if (!memorialId) {
       setLoading(false);
@@ -77,11 +73,14 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
       if (response.ok) {
         const data = await response.json();
         
-        // Log what we receive from backend
-        console.log('📥 Received from backend:', {
-          memorialKeys: Object.keys(data.memorial),
-          hasService: 'service' in data.memorial,
-          hasServiceInfo: 'serviceInfo' in data.memorial
+        console.log('📥 Loaded memorial from backend:', {
+          id: data.memorial.id,
+          name: data.memorial.name,
+          timelineCount: data.memorial.timeline?.length || 0,
+          favoritesCount: data.memorial.favorites?.length || 0,
+          familyTreeCount: data.memorial.familyTree?.length || 0,
+          galleryCount: data.memorial.gallery?.length || 0,
+          memoryWallCount: data.memorial.memoryWall?.length || 0,
         });
         
         setMemorialData(data.memorial);
@@ -105,115 +104,125 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
     await loadMemorialData();
   }, [loadMemorialData]);
 
-const saveToBackend = useCallback(async () => {
-  if (!memorialData?.id || isSaving) return;
-
-  try {
-    setIsSaving(true);
-    
-    // ADD THIS DEBUG LOGGING - check what we have BEFORE cleaning
-    console.log('🔍 Frontend data BEFORE cleaning:', {
-      timeline: memorialData.timeline,
-      favorites: memorialData.favorites,
-      familyTree: memorialData.familyTree,
-      gallery: memorialData.gallery,
-      memoryWall: memorialData.memoryWall,
-      service: memorialData.service,
-      serviceInfo: memorialData.serviceInfo
-    });
-    
-    // Create backend data with ALL arrays preserved, even if empty
-    const backendData = {
-      name: memorialData.name,
-      profileImage: memorialData.profileImage,
-      birthDate: memorialData.birthDate,
-      deathDate: memorialData.deathDate,
-      location: memorialData.location,
-      obituary: memorialData.obituary,
-      // PRESERVE ALL ARRAYS - never delete them!
-      timeline: memorialData.timeline || [],
-      favorites: memorialData.favorites || [],
-      familyTree: memorialData.familyTree || [],
-      gallery: memorialData.gallery || [],
-      memoryWall: memorialData.memoryWall || [],
-      // Use serviceInfo if it exists, otherwise fall back to service
-      serviceInfo: memorialData.serviceInfo || memorialData.service || {
-        venue: '',
-        address: '',
-        date: '',
-        time: '',
-        virtualLink: '',
-        virtualPlatform: 'zoom'
-      },
-      theme: memorialData.theme,
-      customUrl: memorialData.customUrl
-    };
-
-    // ADD THIS LOGGING - check final data being sent
-    console.log('💾 Saving to backend - FINAL data:', {
-      memorialId: memorialData.id,
-      timelineLength: backendData.timeline.length,
-      favoritesLength: backendData.favorites.length,
-      familyTreeLength: backendData.familyTree.length,
-      galleryLength: backendData.gallery.length,
-      memoryWallLength: backendData.memoryWall.length,
-      hasServiceInfo: !!backendData.serviceInfo
-    });
-
-    const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${memorialData.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('token')}`
-      },
-      body: JSON.stringify(backendData)
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Backend error response:', errorText);
-      throw new Error(`Failed to save memorial: ${errorText}`);
+  const saveToBackend = useCallback(async () => {
+    if (!memorialData?.id || isSaving) {
+      console.log('⚠️ Skipping save:', { 
+        hasId: !!memorialData?.id, 
+        isSaving 
+      });
+      return;
     }
 
-    const result = await response.json();
-    console.log('✅ Memorial saved successfully');
-    return result;
-  } catch (error) {
-    console.error('❌ Error saving memorial:', error);
-    throw error;
-  } finally {
-    setIsSaving(false);
-  }
-}, [memorialData, isSaving]);
-  // Debounced auto-save - FIXED to prevent infinite loops
+    try {
+      setIsSaving(true);
+      
+      // CRITICAL: Log the actual memorialData state at the moment of save
+      console.log('🔍 CURRENT memorialData state:', {
+        id: memorialData.id,
+        name: memorialData.name,
+        timeline: memorialData.timeline,
+        favorites: memorialData.favorites,
+        familyTree: memorialData.familyTree,
+        gallery: memorialData.gallery,
+        memoryWall: memorialData.memoryWall,
+        timelineLength: Array.isArray(memorialData.timeline) ? memorialData.timeline.length : 0,
+        favoritesLength: Array.isArray(memorialData.favorites) ? memorialData.favorites.length : 0,
+        familyTreeLength: Array.isArray(memorialData.familyTree) ? memorialData.familyTree.length : 0,
+        galleryLength: Array.isArray(memorialData.gallery) ? memorialData.gallery.length : 0,
+        memoryWallLength: Array.isArray(memorialData.memoryWall) ? memorialData.memoryWall.length : 0,
+      });
+      
+      // Build the payload directly from memorialData - no intermediate cleaning
+      const backendData = {
+        name: memorialData.name || '',
+        profileImage: memorialData.profileImage || '',
+        birthDate: memorialData.birthDate || '',
+        deathDate: memorialData.deathDate || '',
+        location: memorialData.location || '',
+        obituary: memorialData.obituary || '',
+        timeline: Array.isArray(memorialData.timeline) ? memorialData.timeline : [],
+        favorites: Array.isArray(memorialData.favorites) ? memorialData.favorites : [],
+        familyTree: Array.isArray(memorialData.familyTree) ? memorialData.familyTree : [],
+        gallery: Array.isArray(memorialData.gallery) ? memorialData.gallery : [],
+        memoryWall: Array.isArray(memorialData.memoryWall) ? memorialData.memoryWall : [],
+        service: memorialData.service || {
+          venue: '',
+          address: '',
+          date: '',
+          time: '',
+          virtualLink: '',
+          virtualPlatform: 'zoom'
+        },
+        theme: memorialData.theme || 'default',
+        customUrl: memorialData.customUrl || ''
+      };
+
+      console.log('💾 Sending to backend:', {
+        id: memorialData.id,
+        timelineLength: backendData.timeline.length,
+        favoritesLength: backendData.favorites.length,
+        familyTreeLength: backendData.familyTree.length,
+        galleryLength: backendData.gallery.length,
+        memoryWallLength: backendData.memoryWall.length,
+        fullPayload: JSON.stringify(backendData).substring(0, 200) + '...'
+      });
+
+      const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${memorialData.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify(backendData)
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Backend error response:', errorText);
+        throw new Error(`Failed to save memorial: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Memorial saved successfully');
+      return result;
+    } catch (error) {
+      console.error('❌ Error saving memorial:', error);
+      throw error;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [memorialData, isSaving]);
+
   const debouncedSave = useCallback(() => {
     if (autoSaveTimeout) {
       clearTimeout(autoSaveTimeout);
     }
     
-    // Only save if not already saving and we have valid data
     if (!isSaving && memorialData?.id) {
       const timeout = setTimeout(() => {
         saveToBackend().catch(error => {
           console.error('Auto-save failed:', error);
         });
-      }, 2000) as unknown as number; // 2 second debounce
+      }, 2000) as unknown as number;
 
       setAutoSaveTimeout(timeout);
     }
   }, [autoSaveTimeout, isSaving, memorialData, saveToBackend]);
 
-  // Safe way to check if object has property
   const hasOwnProperty = (obj: object, prop: string): boolean => {
     return Object.prototype.hasOwnProperty.call(obj, prop);
   };
 
-  // FIXED: Update memorial data without causing infinite loops
   const updateMemorialData = useCallback((updates: Partial<MemorialData>) => {
+    console.log('📝 updateMemorialData called with:', {
+      updateKeys: Object.keys(updates),
+      timelineLength: Array.isArray(updates.timeline) ? updates.timeline.length : 'not-updated',
+      favoritesLength: Array.isArray(updates.favorites) ? updates.favorites.length : 'not-updated',
+    });
+
     setMemorialData(prev => {
       if (!prev) return prev;
       
-      // Check if there are actual changes to prevent unnecessary updates
       const hasChanges = Object.keys(updates).some(key => {
         const prevValue = prev[key as keyof MemorialData];
         const newValue = updates[key as keyof MemorialData];
@@ -221,12 +230,20 @@ const saveToBackend = useCallback(async () => {
       });
       
       if (!hasChanges) {
-        return prev; // No changes, return previous data to prevent re-renders
+        return prev;
       }
       
       const newData = { ...prev, ...updates };
       
-      // Only trigger auto-save for meaningful data changes, not UI state changes
+      console.log('✅ State updated. New data:', {
+        id: newData.id,
+        timelineLength: Array.isArray(newData.timeline) ? newData.timeline.length : 0,
+        favoritesLength: Array.isArray(newData.favorites) ? newData.favorites.length : 0,
+        familyTreeLength: Array.isArray(newData.familyTree) ? newData.familyTree.length : 0,
+        galleryLength: Array.isArray(newData.gallery) ? newData.gallery.length : 0,
+        memoryWallLength: Array.isArray(newData.memoryWall) ? newData.memoryWall.length : 0,
+      });
+      
       const shouldAutoSave = !hasOwnProperty(updates, 'loading') && 
                             !hasOwnProperty(updates, 'isSaving');
       
@@ -239,34 +256,40 @@ const saveToBackend = useCallback(async () => {
   }, [debouncedSave]);
 
   const updateTimeline = useCallback((events: TimelineEvent[]) => {
+    console.log('📅 updateTimeline called with', events.length, 'events');
     updateMemorialData({ timeline: events });
   }, [updateMemorialData]);
 
   const updateFavorites = useCallback((favorites: Favorite[]) => {
+    console.log('⭐ updateFavorites called with', favorites.length, 'favorites');
     updateMemorialData({ favorites });
   }, [updateMemorialData]);
 
   const updateFamilyTree = useCallback((members: FamilyMember[]) => {
+    console.log('👨‍👩‍👧‍👦 updateFamilyTree called with', members.length, 'members');
     updateMemorialData({ familyTree: members });
   }, [updateMemorialData]);
 
   const updateGallery = useCallback((images: GalleryImage[]) => {
+    console.log('🖼️ updateGallery called with', images.length, 'images');
     updateMemorialData({ gallery: images });
   }, [updateMemorialData]);
 
   const updateService = useCallback((service: ServiceInfo) => {
+    console.log('⛪ updateService called');
     updateMemorialData({ service });
   }, [updateMemorialData]);
 
   const updateMemories = useCallback((memories: Memory[]) => {
+    console.log('💭 updateMemories called with', memories.length, 'memories');
     updateMemorialData({ memories });
   }, [updateMemorialData]);
 
   const updateMemoryWall = useCallback((memoryWall: Memory[]) => {
+    console.log('🧱 updateMemoryWall called with', memoryWall.length, 'memories');
     updateMemorialData({ memoryWall });
   }, [updateMemorialData]);
 
-  // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (autoSaveTimeout) {
@@ -295,6 +318,5 @@ const saveToBackend = useCallback(async () => {
   );
 };
 
-// Export only what's needed - remove the duplicate type export
 export { MemorialContext };
 export default MemorialProvider;
