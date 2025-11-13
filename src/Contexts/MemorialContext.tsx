@@ -1,8 +1,9 @@
-// Contexts/MemorialContext.tsx - UPDATED with memoryWall
+// Contexts/MemorialContext.tsx - FIXED VERSION
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import type { MemorialData, TimelineEvent, Favorite, FamilyMember, GalleryImage, ServiceInfo, Memory } from '../types/memorial';
 
+// Export the interface separately at the top level
 export interface MemorialContextType {
   memorialData: MemorialData | null;
   updateMemorialData: (updates: Partial<MemorialData>) => void;
@@ -12,7 +13,7 @@ export interface MemorialContextType {
   updateGallery: (images: GalleryImage[]) => void;
   updateService: (service: ServiceInfo) => void;
   updateMemories: (memories: Memory[]) => void;
-  updateMemoryWall: (memoryWall: Memory[]) => void; // ADD THIS LINE
+  updateMemoryWall: (memoryWall: Memory[]) => void;
   saveToBackend: () => Promise<void>;
   loading: boolean;
   refreshMemorial: () => Promise<void>;
@@ -37,23 +38,26 @@ const defaultMemorialData: MemorialData = {
     time: ''
   },
   memories: [],
-  memoryWall: [], // ADD THIS LINE
+  memoryWall: [],
   isPublished: false,
   customUrl: '',
   theme: 'default'
 };
 
-export const MemorialContext = createContext<MemorialContextType | undefined>(undefined);
+// Create context without exporting it directly
+const MemorialContext = createContext<MemorialContextType | undefined>(undefined);
 
 interface MemorialProviderProps {
   children: ReactNode;
   memorialId?: string;
 }
 
-export const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialId }) => {
+// Export only the provider component
+const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialId }) => {
   const [memorialData, setMemorialData] = useState<MemorialData | null>(null);
   const [loading, setLoading] = useState(true);
   const [autoSaveTimeout, setAutoSaveTimeout] = useState<number>();
+  const [isSaving, setIsSaving] = useState(false);
 
   // Load memorial data from backend
   const loadMemorialData = useCallback(async () => {
@@ -72,15 +76,21 @@ export const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, me
       
       if (response.ok) {
         const data = await response.json();
+        
+        // Log what we receive from backend
+        console.log('📥 Received from backend:', {
+          memorialKeys: Object.keys(data.memorial),
+          hasService: 'service' in data.memorial,
+          hasServiceInfo: 'serviceInfo' in data.memorial
+        });
+        
         setMemorialData(data.memorial);
       } else {
         console.error('Failed to load memorial');
-        // Set default data if load fails
         setMemorialData({ ...defaultMemorialData, id: memorialId });
       }
     } catch (error) {
       console.error('Error loading memorial:', error);
-      // Set default data on error
       setMemorialData({ ...defaultMemorialData, id: memorialId });
     } finally {
       setLoading(false);
@@ -96,50 +106,124 @@ export const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, me
   }, [loadMemorialData]);
 
   const saveToBackend = useCallback(async () => {
-    if (!memorialData?.id) return;
+    if (!memorialData?.id || isSaving) return;
 
     try {
-      const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${memorialData.id}`, {
+      setIsSaving(true);
+      
+      // Create a clean copy without the duplicate fields that cause issues
+      const cleanData: Omit<MemorialData, 'service' | 'memories'> & {
+        serviceInfo?: ServiceInfo;
+      } = { ...memorialData };
+      
+      // Remove the problematic duplicate fields
+      delete (cleanData as Partial<MemorialData>).service;
+      delete (cleanData as Partial<MemorialData>).memories;
+      
+      const backendData = {
+        name: cleanData.name,
+        profileImage: cleanData.profileImage,
+        birthDate: cleanData.birthDate,
+        deathDate: cleanData.deathDate,
+        location: cleanData.location,
+        obituary: cleanData.obituary,
+        timeline: cleanData.timeline || [],
+        favorites: cleanData.favorites || [],
+        familyTree: cleanData.familyTree || [],
+        gallery: cleanData.gallery || [],
+        memoryWall: cleanData.memoryWall || [],
+        serviceInfo: cleanData.serviceInfo || {
+          venue: '',
+          address: '',
+          date: '',
+          time: '',
+          virtualLink: '',
+          virtualPlatform: 'zoom'
+        },
+        theme: cleanData.theme,
+        customUrl: cleanData.customUrl
+      };
+
+      console.log('💾 Saving to backend - clean data:', {
+        memorialId: cleanData.id,
+        hasServiceInfo: !!backendData.serviceInfo
+      });
+
+      const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${cleanData.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify(memorialData)
+        body: JSON.stringify(backendData)
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save memorial');
+        const errorText = await response.text();
+        console.error('❌ Backend error response:', errorText);
+        throw new Error(`Failed to save memorial: ${errorText}`);
       }
 
-      console.log('Memorial saved successfully');
+      const result = await response.json();
+      console.log('✅ Memorial saved successfully');
+      return result;
     } catch (error) {
-      console.error('Error saving memorial:', error);
+      console.error('❌ Error saving memorial:', error);
       throw error;
+    } finally {
+      setIsSaving(false);
     }
-  }, [memorialData]);
+  }, [memorialData, isSaving]);
 
-  // Debounced auto-save
+  // Debounced auto-save - FIXED to prevent infinite loops
   const debouncedSave = useCallback(() => {
     if (autoSaveTimeout) {
       clearTimeout(autoSaveTimeout);
     }
     
-    const timeout = setTimeout(() => {
-      saveToBackend().catch(error => {
-        console.error('Auto-save failed:', error);
-      });
-    }, 2000) as unknown as number; // 2 second debounce
+    // Only save if not already saving and we have valid data
+    if (!isSaving && memorialData?.id) {
+      const timeout = setTimeout(() => {
+        saveToBackend().catch(error => {
+          console.error('Auto-save failed:', error);
+        });
+      }, 2000) as unknown as number; // 2 second debounce
 
-    setAutoSaveTimeout(timeout);
-  }, [autoSaveTimeout, saveToBackend]);
+      setAutoSaveTimeout(timeout);
+    }
+  }, [autoSaveTimeout, isSaving, memorialData, saveToBackend]);
 
+  // Safe way to check if object has property
+  const hasOwnProperty = (obj: object, prop: string): boolean => {
+    return Object.prototype.hasOwnProperty.call(obj, prop);
+  };
+
+  // FIXED: Update memorial data without causing infinite loops
   const updateMemorialData = useCallback((updates: Partial<MemorialData>) => {
     setMemorialData(prev => {
       if (!prev) return prev;
+      
+      // Check if there are actual changes to prevent unnecessary updates
+      const hasChanges = Object.keys(updates).some(key => {
+        const prevValue = prev[key as keyof MemorialData];
+        const newValue = updates[key as keyof MemorialData];
+        return JSON.stringify(prevValue) !== JSON.stringify(newValue);
+      });
+      
+      if (!hasChanges) {
+        return prev; // No changes, return previous data to prevent re-renders
+      }
+      
       const newData = { ...prev, ...updates };
-      // Auto-save to backend with debounce
-      debouncedSave();
+      
+      // Only trigger auto-save for meaningful data changes, not UI state changes
+      const shouldAutoSave = !hasOwnProperty(updates, 'loading') && 
+                            !hasOwnProperty(updates, 'isSaving');
+      
+      if (shouldAutoSave) {
+        debouncedSave();
+      }
+      
       return newData;
     });
   }, [debouncedSave]);
@@ -168,7 +252,6 @@ export const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, me
     updateMemorialData({ memories });
   }, [updateMemorialData]);
 
-  // ADD THIS METHOD
   const updateMemoryWall = useCallback((memoryWall: Memory[]) => {
     updateMemorialData({ memoryWall });
   }, [updateMemorialData]);
@@ -192,7 +275,7 @@ export const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, me
       updateGallery,
       updateService,
       updateMemories,
-      updateMemoryWall, // ADD THIS LINE
+      updateMemoryWall,
       saveToBackend,
       loading,
       refreshMemorial
@@ -201,3 +284,7 @@ export const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, me
     </MemorialContext.Provider>
   );
 };
+
+// Export only what's needed - remove the duplicate type export
+export { MemorialContext };
+export default MemorialProvider;

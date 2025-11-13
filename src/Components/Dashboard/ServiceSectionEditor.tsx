@@ -146,11 +146,13 @@ export const ServiceSection: React.FC = () => {
     setService(prev => ({ ...prev, ...updates }));
   };
 
-  const handleSaveService = async () => {
+const handleSaveService = async () => {
     setSaving(true);
     try {
       await updateService(service);
       await saveToBackend();
+      // Update the initialized state to reflect the saved changes
+      setHasInitialized(true);
       alert('Service details saved successfully!');
     } catch (error) {
       console.error('Error saving service details:', error);

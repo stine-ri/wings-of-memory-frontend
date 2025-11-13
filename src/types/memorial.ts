@@ -10,7 +10,8 @@ export interface MemorialData {
   favorites: Favorite[];
   familyTree: FamilyMember[];
   gallery: GalleryImage[];
-  service: ServiceInfo;
+   serviceInfo?: ServiceInfo; // From backend
+  service?: ServiceInfo; // For frontend convenience
   memories: Memory[];
   memoryWall: Memory[];
   isPublished: boolean;

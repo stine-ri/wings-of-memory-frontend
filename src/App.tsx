@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './Components/Home';
 import { Dashboard } from './Pages/Dashboard';
 import { ProtectedRoute } from './Components/ProtectedRoute'; 
-import { MemorialProvider } from './Contexts/MemorialContext';
+import MemorialProvider  from './Contexts/MemorialContext';
 import { PreviewPage } from './Pages/Preview';
 import AboutUs from './Components/AboutUs';
 import WhatWeOffer from './Components/WhatWeOffer';

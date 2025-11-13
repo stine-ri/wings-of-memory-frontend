@@ -2,7 +2,7 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { MemorialPreview } from '../Components/Dashboard/MemorialPreview';
-import { MemorialProvider } from '../Contexts/MemorialContext';
+import  MemorialProvider  from '../Contexts/MemorialContext';
 
 export const PreviewPage: React.FC = () => {
   const { memorialId } = useParams<{ memorialId: string }>();

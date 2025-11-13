@@ -12,7 +12,7 @@ import { GallerySection } from '../Components/Dashboard/GallerySection';
 import { ServiceSection } from '../Components/Dashboard/ServiceSectionEditor';
 import { MemoryWallSection } from '../Components/Dashboard/MemoryWallEditor';
 import { DownloadSection } from '../Components/Dashboard/DownloadSection';
-import { MemorialProvider } from '../Contexts/MemorialContext';
+import  MemorialProvider  from '../Contexts/MemorialContext';
 import { useMemorial } from '../hooks/useMemorial';
 
 // Inner component that has access to MemorialContext
