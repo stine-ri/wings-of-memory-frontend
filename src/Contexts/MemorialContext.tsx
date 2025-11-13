@@ -81,17 +81,38 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
       if (response.ok) {
         const data = await response.json();
         
-        console.log('📥 Loaded memorial from backend:', {
+        console.log('📥 COMPLETE memorial data loaded:', {
           id: data.memorial.id,
           name: data.memorial.name,
-          timelineCount: data.memorial.timeline?.length || 0,
-          favoritesCount: data.memorial.favorites?.length || 0,
-          familyTreeCount: data.memorial.familyTree?.length || 0,
-          galleryCount: data.memorial.gallery?.length || 0,
-          memoryWallCount: data.memorial.memoryWall?.length || 0,
+          timeline: data.memorial.timeline?.length || 0,
+          favorites: data.memorial.favorites?.length || 0,
+          familyTree: data.memorial.familyTree?.length || 0,
+          gallery: data.memorial.gallery?.length || 0,
+          memoryWall: data.memorial.memoryWall?.length || 0,
+          obituary: data.memorial.obituary?.length || 0,
+          service: !!data.memorial.service?.venue
         });
         
-        setMemorialData(data.memorial);
+        // Ensure all arrays exist
+        const completeMemorialData = {
+          ...data.memorial,
+          timeline: Array.isArray(data.memorial.timeline) ? data.memorial.timeline : [],
+          favorites: Array.isArray(data.memorial.favorites) ? data.memorial.favorites : [],
+          familyTree: Array.isArray(data.memorial.familyTree) ? data.memorial.familyTree : [],
+          gallery: Array.isArray(data.memorial.gallery) ? data.memorial.gallery : [],
+          memoryWall: Array.isArray(data.memorial.memoryWall) ? data.memorial.memoryWall : [],
+          memories: Array.isArray(data.memorial.memories) ? data.memorial.memories : [],
+          service: data.memorial.service || {
+            venue: '',
+            address: '',
+            date: '',
+            time: '',
+            virtualLink: '',
+            virtualPlatform: 'zoom'
+          }
+        };
+        
+        setMemorialData(completeMemorialData);
       } else {
         console.error('Failed to load memorial');
         setMemorialData({ ...defaultMemorialData, id: memorialId });
@@ -112,7 +133,7 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
     await loadMemorialData();
   }, [loadMemorialData]);
 
-  // FIXED: Save function now uses the ref to get the latest data
+  // ENHANCED: Save function that sends COMPLETE data
   const saveToBackend = useCallback(async () => {
     const currentData = memorialDataRef.current;
     
@@ -127,28 +148,36 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
     try {
       setIsSaving(true);
       
-      console.log('🔍 SAVING - Current data from ref:', {
+      console.log('🔍 SAVING - Complete data snapshot:', {
         id: currentData.id,
         name: currentData.name,
-        timelineLength: Array.isArray(currentData.timeline) ? currentData.timeline.length : 0,
-        favoritesLength: Array.isArray(currentData.favorites) ? currentData.favorites.length : 0,
-        familyTreeLength: Array.isArray(currentData.familyTree) ? currentData.familyTree.length : 0,
-        galleryLength: Array.isArray(currentData.gallery) ? currentData.gallery.length : 0,
-        memoryWallLength: Array.isArray(currentData.memoryWall) ? currentData.memoryWall.length : 0,
+        timeline: Array.isArray(currentData.timeline) ? currentData.timeline.length : 0,
+        favorites: Array.isArray(currentData.favorites) ? currentData.favorites.length : 0,
+        familyTree: Array.isArray(currentData.familyTree) ? currentData.familyTree.length : 0,
+        gallery: Array.isArray(currentData.gallery) ? currentData.gallery.length : 0,
+        memoryWall: Array.isArray(currentData.memoryWall) ? currentData.memoryWall.length : 0,
+        obituary: currentData.obituary?.length || 0,
+        service: !!currentData.service?.venue
       });
       
+      // ALWAYS send COMPLETE data to backend
       const backendData = {
+        // Basic info
         name: currentData.name || '',
         profileImage: currentData.profileImage || '',
         birthDate: currentData.birthDate || '',
         deathDate: currentData.deathDate || '',
         location: currentData.location || '',
         obituary: currentData.obituary || '',
+        
+        // Arrays - ALWAYS include them
         timeline: Array.isArray(currentData.timeline) ? currentData.timeline : [],
         favorites: Array.isArray(currentData.favorites) ? currentData.favorites : [],
         familyTree: Array.isArray(currentData.familyTree) ? currentData.familyTree : [],
         gallery: Array.isArray(currentData.gallery) ? currentData.gallery : [],
         memoryWall: Array.isArray(currentData.memoryWall) ? currentData.memoryWall : [],
+        
+        // Service info - ALWAYS include it
         service: currentData.service || {
           venue: '',
           address: '',
@@ -157,17 +186,20 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
           virtualLink: '',
           virtualPlatform: 'zoom'
         },
+        
+        // Other fields
         theme: currentData.theme || 'default',
-        customUrl: currentData.customUrl || ''
+        customUrl: currentData.customUrl || '',
+        isPublished: currentData.isPublished || false
       };
 
-      console.log('💾 Sending to backend:', {
-        id: currentData.id,
-        timelineLength: backendData.timeline.length,
-        favoritesLength: backendData.favorites.length,
-        familyTreeLength: backendData.familyTree.length,
-        galleryLength: backendData.gallery.length,
-        memoryWallLength: backendData.memoryWall.length,
+      console.log('💾 Sending COMPLETE data to backend:', {
+        timeline: backendData.timeline.length,
+        favorites: backendData.favorites.length,
+        familyTree: backendData.familyTree.length,
+        gallery: backendData.gallery.length,
+        memoryWall: backendData.memoryWall.length,
+        hasService: !!backendData.service.venue
       });
 
       const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${currentData.id}`, {
@@ -186,7 +218,7 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
       }
 
       const result = await response.json();
-      console.log('✅ Memorial saved successfully');
+      console.log('✅ Memorial saved successfully with ALL data preserved');
       return result;
     } catch (error) {
       console.error('❌ Error saving memorial:', error);
