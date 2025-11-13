@@ -118,40 +118,26 @@ const saveToBackend = useCallback(async () => {
       familyTree: memorialData.familyTree,
       gallery: memorialData.gallery,
       memoryWall: memorialData.memoryWall,
+      service: memorialData.service,
       serviceInfo: memorialData.serviceInfo
     });
     
-    // Create a clean copy without the duplicate fields that cause issues
-    const cleanData: Omit<MemorialData, 'service' | 'memories'> & {
-      serviceInfo?: ServiceInfo;
-    } = { ...memorialData };
-    
-    // Remove the problematic duplicate fields
-    delete (cleanData as Partial<MemorialData>).service;
-    delete (cleanData as Partial<MemorialData>).memories;
-    
-    // ADD THIS LOGGING - check what we have AFTER cleaning
-    console.log('🔍 Frontend data AFTER cleaning:', {
-      timeline: cleanData.timeline,
-      favorites: cleanData.favorites,
-      familyTree: cleanData.familyTree,
-      gallery: cleanData.gallery,
-      memoryWall: cleanData.memoryWall
-    });
-    
+    // Create backend data with ALL arrays preserved, even if empty
     const backendData = {
-      name: cleanData.name,
-      profileImage: cleanData.profileImage,
-      birthDate: cleanData.birthDate,
-      deathDate: cleanData.deathDate,
-      location: cleanData.location,
-      obituary: cleanData.obituary,
-      timeline: cleanData.timeline || [],
-      favorites: cleanData.favorites || [],
-      familyTree: cleanData.familyTree || [],
-      gallery: cleanData.gallery || [],
-      memoryWall: cleanData.memoryWall || [],
-      serviceInfo: cleanData.serviceInfo || {
+      name: memorialData.name,
+      profileImage: memorialData.profileImage,
+      birthDate: memorialData.birthDate,
+      deathDate: memorialData.deathDate,
+      location: memorialData.location,
+      obituary: memorialData.obituary,
+      // PRESERVE ALL ARRAYS - never delete them!
+      timeline: memorialData.timeline || [],
+      favorites: memorialData.favorites || [],
+      familyTree: memorialData.familyTree || [],
+      gallery: memorialData.gallery || [],
+      memoryWall: memorialData.memoryWall || [],
+      // Use serviceInfo if it exists, otherwise fall back to service
+      serviceInfo: memorialData.serviceInfo || memorialData.service || {
         venue: '',
         address: '',
         date: '',
@@ -159,22 +145,22 @@ const saveToBackend = useCallback(async () => {
         virtualLink: '',
         virtualPlatform: 'zoom'
       },
-      theme: cleanData.theme,
-      customUrl: cleanData.customUrl
+      theme: memorialData.theme,
+      customUrl: memorialData.customUrl
     };
 
     // ADD THIS LOGGING - check final data being sent
     console.log('💾 Saving to backend - FINAL data:', {
-      memorialId: cleanData.id,
-      timeline: backendData.timeline,
-      favorites: backendData.favorites,
-      familyTree: backendData.familyTree,
-      gallery: backendData.gallery,
-      memoryWall: backendData.memoryWall,
+      memorialId: memorialData.id,
+      timelineLength: backendData.timeline.length,
+      favoritesLength: backendData.favorites.length,
+      familyTreeLength: backendData.familyTree.length,
+      galleryLength: backendData.gallery.length,
+      memoryWallLength: backendData.memoryWall.length,
       hasServiceInfo: !!backendData.serviceInfo
     });
 
-    const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${cleanData.id}`, {
+    const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${memorialData.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -199,7 +185,6 @@ const saveToBackend = useCallback(async () => {
     setIsSaving(false);
   }
 }, [memorialData, isSaving]);
-
   // Debounced auto-save - FIXED to prevent infinite loops
   const debouncedSave = useCallback(() => {
     if (autoSaveTimeout) {
