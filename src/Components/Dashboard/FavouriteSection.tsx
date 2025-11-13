@@ -1,15 +1,32 @@
-// Components/Dashboard/FavouriteSection.tsx - COMPLETE
-import React, { useState, useEffect } from 'react';
+// Components/Dashboard/FavouriteSection.tsx - FIXED
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, Edit2, Save } from 'lucide-react';
 import { useMemorial } from '../../hooks/useMemorial';
 
 interface Favorite {
   id: string;
-  category: string;
-  icon: string;
+  category: string; // Now stores the category name (e.g., 'food', 'music')
+  icon: string; // Emoji for display in frontend
   question: string;
   answer: string;
 }
+
+// Debounce hook for auto-saving
+const useDebounce = <T,>(value: T, delay: number): T => {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
 
 export const FavoritesSection: React.FC = () => {
   const { memorialData, updateFavorites, saveToBackend } = useMemorial();
@@ -17,41 +34,136 @@ export const FavoritesSection: React.FC = () => {
   const [editingFavorite, setEditingFavorite] = useState<Favorite | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
-  // Initialize with memorial data from backend
+  const debouncedFavorites = useDebounce(favorites, 1000);
+
+  // Updated icon options with category names that match backend
+  const iconOptions = [
+    { value: '🍕', label: 'Food', category: 'food' },
+    { value: '🎵', label: 'Music', category: 'music' },
+    { value: '🎬', label: 'Movies', category: 'movie' },
+    { value: '📚', label: 'Books', category: 'book' },
+    { value: '⚽', label: 'Sports', category: 'sport' },
+    { value: '✈️', label: 'Travel', category: 'travel' },
+    { value: '🎨', label: 'Hobbies', category: 'hobby' },
+    { value: '🐾', label: 'Animals', category: 'animal' },
+    { value: '🏖️', label: 'Places', category: 'place' },
+    { value: '☕', label: 'Drinks', category: 'drink' },
+    { value: '🌸', label: 'Flowers', category: 'flower' },
+    { value: '🎭', label: 'Activities', category: 'hobby' },
+    { value: '🎶', label: 'Songs', category: 'song' },
+    { value: '🌈', label: 'Colors', category: 'color' },
+    { value: '🎄', label: 'Holidays', category: 'holiday' },
+    { value: '🌞', label: 'Seasons', category: 'season' },
+  ];
+
+  // Migrate old emoji-based categories to new category names
+  const migrateOldFavorites = (oldFavorites: Favorite[]): Favorite[] => {
+    const emojiToCategoryMap: Record<string, string> = {
+      '🍕': 'food',
+      '🎵': 'music',
+      '🎬': 'movie',
+      '📚': 'book',
+      '⚽': 'sport',
+      '✈️': 'travel',
+      '🎨': 'hobby',
+      '🐾': 'animal',
+      '🏖️': 'place',
+      '☕': 'drink',
+      '🌸': 'flower',
+      '🎭': 'hobby',
+      '🎶': 'song',
+      '🌈': 'color',
+      '🎄': 'holiday',
+      '🌞': 'season',
+      '❤️': 'memory',
+    };
+
+    return oldFavorites.map(fav => {
+      // If category is already a proper category name (not 'personal'), keep it
+      const validCategories = ['food', 'drink', 'movie', 'book', 'song', 'music', 'hobby', 
+        'sport', 'travel', 'place', 'flower', 'animal', 'season', 'holiday', 'color', 'memory'];
+      
+      if (validCategories.includes(fav.category?.toLowerCase())) {
+        return fav;
+      }
+
+      // Try to migrate based on icon emoji
+      const migratedCategory = emojiToCategoryMap[fav.icon] || 'memory';
+      
+      return {
+        ...fav,
+        category: migratedCategory,
+        icon: fav.icon || '⭐' // Keep the original icon
+      };
+    });
+  };
+
+  // Initialize with memorial data from backend (only once)
   useEffect(() => {
-    if (memorialData?.favorites) {
-      setFavorites(memorialData.favorites as Favorite[]);
+    if (memorialData?.favorites && !hasInitialized) {
+      const migratedFavorites = migrateOldFavorites((memorialData.favorites || []) as Favorite[]);
+      setFavorites(migratedFavorites);
+      setHasInitialized(true);
+      
+      // Auto-save migrated data if changes were made
+      const needsMigration = JSON.stringify(migratedFavorites) !== JSON.stringify(memorialData.favorites);
+      if (needsMigration && migratedFavorites.length > 0) {
+        console.log('Migrating old favorites data to new format...');
+        updateFavorites(migratedFavorites);
+      }
     }
+  }, [memorialData, hasInitialized, updateFavorites]);
+
+  // Memoize the comparison function
+  const hasChanges = useCallback((currentFavorites: Favorite[]) => {
+    if (!memorialData?.favorites) return currentFavorites.length > 0;
+    return JSON.stringify(currentFavorites) !== JSON.stringify(memorialData.favorites);
   }, [memorialData]);
 
-  const iconOptions = [
-    { value: '🍕', label: 'Food' },
-    { value: '🎵', label: 'Music' },
-    { value: '🎬', label: 'Movies' },
-    { value: '📚', label: 'Books' },
-    { value: '⚽', label: 'Sports' },
-    { value: '✈️', label: 'Travel' },
-    { value: '🎨', label: 'Art' },
-    { value: '🐾', label: 'Animals' },
-    { value: '🎮', label: 'Games' },
-    { value: '☕', label: 'Drinks' },
-    { value: '🏡', label: 'Home' },
-    { value: '🎭', label: 'Hobbies' },
-  ];
+  // Auto-save debounced changes
+  useEffect(() => {
+    if (hasInitialized && hasChanges(debouncedFavorites)) {
+      updateFavorites(debouncedFavorites);
+    }
+  }, [debouncedFavorites, hasInitialized, hasChanges, updateFavorites]);
+
+  // Warn about unsaved changes
+  useEffect(() => {
+    const hasUnsavedChanges = hasChanges(favorites);
+    
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [favorites, hasChanges]);
 
   const handleAddFavorite = () => {
     setEditingFavorite({
       id: 'new-' + Date.now(),
-      category: 'personal',
-      icon: '❤️',
+      category: 'food', // Default category
+      icon: '🍕', // Default emoji
       question: '',
       answer: ''
     });
     setShowForm(true);
   };
 
-  const handleSaveFavorite = async () => {
+  const handleIconSelect = (iconOption: typeof iconOptions[0]) => {
+    setEditingFavorite(prev => prev ? {
+      ...prev,
+      icon: iconOption.value,
+      category: iconOption.category
+    } : null);
+  };
+
+  const handleSaveFavorite = () => {
     if (!editingFavorite) return;
 
     let newFavorites: Favorite[];
@@ -64,33 +176,11 @@ export const FavoritesSection: React.FC = () => {
     setFavorites(newFavorites);
     setShowForm(false);
     setEditingFavorite(null);
-    
-    // Save to backend
-    setSaving(true);
-    try {
-      await updateFavorites(newFavorites);
-      await saveToBackend();
-    } catch (error) {
-      console.error('Error saving favorites:', error);
-    } finally {
-      setSaving(false);
-    }
   };
 
-  const handleDeleteFavorite = async (id: string) => {
+  const handleDeleteFavorite = (id: string) => {
     const newFavorites = favorites.filter(f => f.id !== id);
     setFavorites(newFavorites);
-    
-    // Save to backend
-    setSaving(true);
-    try {
-      await updateFavorites(newFavorites);
-      await saveToBackend();
-    } catch (error) {
-      console.error('Error deleting favorite:', error);
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handleManualSave = async () => {
@@ -107,6 +197,17 @@ export const FavoritesSection: React.FC = () => {
     }
   };
 
+  // Show loading state while initializing
+  if (!hasInitialized && !memorialData) {
+    return (
+      <div className="max-w-6xl space-y-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="animate-pulse text-center py-8">Loading favorites data...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-6xl space-y-6">
       {/* Header */}
@@ -118,14 +219,14 @@ export const FavoritesSection: React.FC = () => {
         <div className="flex gap-3">
           <button
             onClick={handleAddFavorite}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full hover:from-amber-600 hover:to-orange-600 transition-all"
+            className="flex items-center gap-2 px-4 py-2 bg-linear-to-r from-amber-500 to-orange-500 text-white rounded-full hover:from-amber-600 hover:to-orange-600 transition-all"
           >
             <Plus className="w-4 h-4" />
             Add Favorite
           </button>
           <button
             onClick={handleManualSave}
-            disabled={saving}
+            disabled={saving || !hasChanges(favorites)}
             className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
@@ -168,20 +269,21 @@ export const FavoritesSection: React.FC = () => {
           </h3>
           
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Icon</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Icon & Category</label>
             <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-              {iconOptions.map(icon => (
+              {iconOptions.map(iconOption => (
                 <button
-                  key={icon.value}
-                  onClick={() => setEditingFavorite(prev => prev ? { ...prev, icon: icon.value } : null)}
+                  key={iconOption.category + iconOption.value}
+                  type="button"
+                  onClick={() => handleIconSelect(iconOption)}
                   className={`p-3 rounded-lg border-2 text-center transition-all ${
-                    editingFavorite.icon === icon.value
+                    editingFavorite.icon === iconOption.value && editingFavorite.category === iconOption.category
                       ? 'border-amber-500 bg-amber-50'
                       : 'border-gray-200 hover:border-amber-300'
                   }`}
                 >
-                  <span className="text-2xl">{icon.value}</span>
-                  <div className="text-xs text-gray-600 mt-1">{icon.label}</div>
+                  <span className="text-2xl">{iconOption.value}</span>
+                  <div className="text-xs text-gray-600 mt-1">{iconOption.label}</div>
                 </button>
               ))}
             </div>
@@ -256,20 +358,21 @@ export const FavoritesSection: React.FC = () => {
             </div>
             <h3 className="font-semibold text-gray-800 mb-2 text-lg">{favorite.question}</h3>
             <p className="text-gray-700 leading-relaxed">{favorite.answer}</p>
+            <div className="mt-2 text-xs text-gray-500 capitalize">Category: {favorite.category}</div>
           </div>
         ))}
       </div>
 
       {favorites.length === 0 && (
         <div className="text-center py-12">
-          <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-400 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 bg-linear-to-br from-amber-400 to-orange-400 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl text-white">❤️</span>
           </div>
           <h3 className="text-lg font-semibold text-gray-600 mb-2">No favorites added yet</h3>
           <p className="text-gray-500 mb-4">Share their personality through their favorite things and memories.</p>
           <button
             onClick={handleAddFavorite}
-            className="px-6 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full hover:from-amber-600 hover:to-orange-600 transition-all"
+            className="px-6 py-2 bg-linear-to-r from-amber-500 to-orange-500 text-white rounded-full hover:from-amber-600 hover:to-orange-600 transition-all"
           >
             Add First Favorite
           </button>

@@ -1,5 +1,5 @@
 // Components/Dashboard/FamilyTreeSection.tsx - COMPLETE
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, Edit2, Upload, Save } from 'lucide-react';
 import { useMemorial } from '../../hooks/useMemorial';
 
@@ -10,6 +10,23 @@ interface FamilyMember {
   relation: string;
 }
 
+// Debounce hook for auto-saving
+const useDebounce = <T,>(value: T, delay: number): T => {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
 export const FamilyTreeSection: React.FC = () => {
   const { memorialData, updateFamilyTree, saveToBackend } = useMemorial();
   const [members, setMembers] = useState<FamilyMember[]>([]);
@@ -17,13 +34,45 @@ export const FamilyTreeSection: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
-  // Initialize with memorial data from backend
+  const debouncedMembers = useDebounce(members, 1000);
+
+  // Initialize with memorial data from backend (only once)
   useEffect(() => {
-    if (memorialData?.familyTree) {
+    if (memorialData?.familyTree && !hasInitialized) {
       setMembers(memorialData.familyTree as FamilyMember[]);
+      setHasInitialized(true);
     }
+  }, [memorialData, hasInitialized]);
+
+  // Memoize the comparison function
+  const hasChanges = useCallback((currentMembers: FamilyMember[]) => {
+    if (!memorialData?.familyTree) return currentMembers.length > 0;
+    return JSON.stringify(currentMembers) !== JSON.stringify(memorialData.familyTree);
   }, [memorialData]);
+
+  // Auto-save debounced changes
+  useEffect(() => {
+    if (hasInitialized && hasChanges(debouncedMembers)) {
+      updateFamilyTree(debouncedMembers);
+    }
+  }, [debouncedMembers, hasInitialized, hasChanges, updateFamilyTree]);
+
+  // Warn about unsaved changes
+  useEffect(() => {
+    const hasUnsavedChanges = hasChanges(members);
+    
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [members, hasChanges]);
 
   const relationOptions = [
     'Father', 'Mother', 'Spouse', 'Son', 'Daughter', 'Brother', 'Sister',
@@ -104,7 +153,7 @@ export const FamilyTreeSection: React.FC = () => {
     }
   };
 
-  const handleSaveMember = async () => {
+  const handleSaveMember = () => {
     if (!editingMember || !editingMember.name.trim()) {
       alert('Please enter a name for the family member.');
       return;
@@ -120,33 +169,11 @@ export const FamilyTreeSection: React.FC = () => {
     setMembers(newMembers);
     setShowForm(false);
     setEditingMember(null);
-    
-    // Save to backend
-    setSaving(true);
-    try {
-      await updateFamilyTree(newMembers);
-      await saveToBackend();
-    } catch (error) {
-      console.error('Error saving family tree:', error);
-    } finally {
-      setSaving(false);
-    }
   };
 
-  const handleDeleteMember = async (id: string) => {
+  const handleDeleteMember = (id: string) => {
     const newMembers = members.filter(m => m.id !== id);
     setMembers(newMembers);
-    
-    // Save to backend
-    setSaving(true);
-    try {
-      await updateFamilyTree(newMembers);
-      await saveToBackend();
-    } catch (error) {
-      console.error('Error deleting family member:', error);
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handleManualSave = async () => {
@@ -162,6 +189,17 @@ export const FamilyTreeSection: React.FC = () => {
       setSaving(false);
     }
   };
+
+  // Show loading state while initializing
+  if (!hasInitialized && !memorialData) {
+    return (
+      <div className="max-w-6xl space-y-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="animate-pulse text-center py-8">Loading family tree data...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl space-y-6">
@@ -181,7 +219,7 @@ export const FamilyTreeSection: React.FC = () => {
           </button>
           <button
             onClick={handleManualSave}
-            disabled={saving}
+            disabled={saving || !hasChanges(members)}
             className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all disabled:opacity-50"
           >
             <Save className="w-4 h-4" />

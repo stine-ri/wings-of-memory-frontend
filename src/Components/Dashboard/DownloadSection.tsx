@@ -1,13 +1,36 @@
-import React, { useState } from 'react';
-import { FileText, QrCode, Share2, Download, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { FileText, QrCode, Share2, Download, ExternalLink, AlertCircle, CheckCircle, X, Eye } from 'lucide-react';
 import { useMemorial } from '../../hooks/useMemorial';
 import { QRCodeCanvas } from 'qrcode.react';
+import type { MemorialData } from '../../types/memorial';
+
+interface DownloadOption {
+  icon: React.ComponentType<React.SVGProps<SVGSVGElement>>; 
+  title: string;
+  description: string;
+  action: () => void;
+  color: string;
+  buttonText: string;
+  disabled?: boolean;
+  status?: 'default' | 'success' | 'error';
+}
 
 export const DownloadSection: React.FC = () => {
   const { memorialData, loading } = useMemorial();
   const [generatingPDF, setGeneratingPDF] = useState(false);
+  const [generatingPreview, setGeneratingPreview] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [pdfSuccess, setPdfSuccess] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+
+  // Reset messages when memorial data changes
+  useEffect(() => {
+    setPdfError(null);
+    setPdfSuccess(false);
+    setPreviewError(null);
+  }, [memorialData?.id]);
 
   // Show loading state
   if (loading) {
@@ -22,12 +45,15 @@ export const DownloadSection: React.FC = () => {
   if (!memorialData) {
     return (
       <div className="text-center py-12">
-        <p className="text-gray-600">Unable to load memorial data.</p>
+        <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+        <p className="text-gray-600 text-lg mb-2">Unable to load memorial data</p>
+        <p className="text-gray-500">Please try refreshing the page or check your connection</p>
       </div>
     );
   }
 
-  const memorialUrl = `${window.location.origin}/memorial/${memorialData.customUrl || memorialData.id}`;
+  // Updated memorial URL to point to PDF preview
+  const memorialUrl = `${window.location.origin}/memorial/${memorialData.customUrl || memorialData.id}/pdf-preview`;
 
   // Calculate memorial statistics
   const memorialStats = {
@@ -38,12 +64,69 @@ export const DownloadSection: React.FC = () => {
     memoryWall: memorialData.memoryWall?.length || 0
   };
 
-  const handleGeneratePDF = async () => {
+  // NEW: PDF Preview using your exact backend route
+  const handlePreviewPDF = async () => {
     if (!memorialData) return;
-    
-    setGeneratingPDF(true);
-    
+
+    setGeneratingPreview(true);
+    setPreviewError(null);
+
     try {
+      // Use your exact backend preview endpoint
+      const previewUrl = `https://wings-of-memories-backend.onrender.com/api/memorials/${memorialData.id}/preview-pdf`;
+      
+      console.log('🚀 Opening PDF preview using backend route:', previewUrl);
+      
+      // Open in new tab - your backend streams PDF directly with inline display
+      const newWindow = window.open(previewUrl, '_blank');
+      
+      if (!newWindow) {
+        throw new Error('Popup blocked. Please allow popups for this site.');
+      }
+
+      console.log('✅ PDF preview window opened successfully');
+
+    } catch (error: unknown) {
+      console.error('❌ Preview failed:', error);
+      
+      let errorMessage = 'Failed to generate preview. Please try again.';
+      if (error instanceof Error) {
+        if (error.message.includes('Popup blocked')) {
+          errorMessage = 'Popup blocked. Please allow popups for this site to view the preview.';
+        } else {
+          errorMessage = error.message || errorMessage;
+        }
+      }
+      
+      setPreviewError(errorMessage);
+      setTimeout(() => setPreviewError(null), 8000);
+    } finally {
+      setGeneratingPreview(false);
+    }
+  };
+
+  // Enhanced PDF generation with comprehensive error handling
+  const handleGeneratePDF = async () => {
+    if (!memorialData) {
+      setPdfError('No memorial data available');
+      return;
+    }
+
+    setGeneratingPDF(true);
+    setPdfError(null);
+    setPdfSuccess(false);
+
+    try {
+      // Validate memorial data before sending
+      const validationErrors = validateMemorialData(memorialData);
+      if (validationErrors.length > 0) {
+        console.warn('Memorial data validation warnings:', validationErrors);
+      }
+
+      // Create abort controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+
       // Send memorial data to backend for PDF generation
       const response = await fetch('https://wings-of-memories-backend.onrender.com/api/memorials/generate-pdf', {
         method: 'POST',
@@ -53,13 +136,27 @@ export const DownloadSection: React.FC = () => {
         },
         body: JSON.stringify({
           memorialId: memorialData.id,
-          data: memorialData
-        })
+          data: memorialData,
+          timestamp: new Date().toISOString(),
+          version: '1.0'
+        }),
+        signal: controller.signal
       });
 
-      if (!response.ok) throw new Error('PDF generation failed');
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`PDF generation failed: ${response.status} - ${errorData}`);
+      }
 
       const blob = await response.blob();
+      
+      // Validate blob
+      if (blob.size === 0) {
+        throw new Error('Generated PDF is empty');
+      }
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -69,9 +166,28 @@ export const DownloadSection: React.FC = () => {
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
       
-    } catch (error) {
+      setPdfSuccess(true);
+      setTimeout(() => setPdfSuccess(false), 5000);
+      
+    } catch (error: unknown) {
       console.error('PDF generation failed:', error);
-      alert('Failed to generate PDF. Please try again.');
+      
+      // Handle specific error types
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          setPdfError('PDF generation timed out. Please try again.');
+        } else if (error.message.includes('Failed to fetch')) {
+          setPdfError('Network error. Please check your connection and try again.');
+        } else if (error.message.includes('401') || error.message.includes('403')) {
+          setPdfError('Authentication failed. Please log in again.');
+        } else {
+          setPdfError(error.message || 'Failed to generate PDF. Please try again.');
+        }
+      } else {
+        setPdfError('Failed to generate PDF. Please try again.');
+      }
+      
+      setTimeout(() => setPdfError(null), 8000);
     } finally {
       setGeneratingPDF(false);
     }
@@ -88,7 +204,19 @@ export const DownloadSection: React.FC = () => {
       setTimeout(() => setCopied(false), 2000);
     } catch (err) {
       console.error('Clipboard copy failed:', err);
-      alert('Failed to copy link');
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = memorialUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch {
+        setPdfError('Failed to copy link. Please copy it manually.');
+      }
+      document.body.removeChild(textArea);
     }
   };
 
@@ -110,11 +238,49 @@ export const DownloadSection: React.FC = () => {
       }
     } catch (error) {
       console.error('Error publishing memorial:', error);
-      alert('Failed to publish memorial');
+      setPdfError('Failed to publish memorial. Please try again.');
+      setTimeout(() => setPdfError(null), 5000);
     }
   };
 
-  const downloadOptions = [
+  // Validate memorial data before PDF generation
+  const validateMemorialData = (data: MemorialData): string[] => {
+    const warnings: string[] = [];
+    
+    if (!data.name) {
+      warnings.push('Memorial name is missing');
+    }
+    
+    if (!data.obituary || data.obituary.trim().length === 0) {
+      warnings.push('Obituary is empty');
+    }
+    
+    if (data.gallery && data.gallery.length === 0) {
+      warnings.push('No photos in gallery');
+    }
+    
+    if (data.timeline && data.timeline.length === 0) {
+      warnings.push('No timeline events');
+    }
+    
+    return warnings;
+  };
+
+  // Enhanced QR code data pointing to PDF preview
+  const getQRCodeData = () => {
+    return memorialUrl;
+  };
+
+  const downloadOptions: DownloadOption[] = [
+    {
+      icon: Eye,
+      title: 'Preview Memorial',
+      description: 'See how your memorial booklet will look using the exact backend styling - opens PDF in browser',
+      action: handlePreviewPDF,
+      color: 'from-amber-500 to-orange-500',
+      buttonText: generatingPreview ? 'Opening Preview...' : 'Preview PDF',
+      disabled: generatingPreview
+    },
     {
       icon: FileText,
       title: 'Memorial Booklet (PDF)',
@@ -122,12 +288,13 @@ export const DownloadSection: React.FC = () => {
       action: handleGeneratePDF,
       color: 'from-blue-500 to-blue-600',
       buttonText: generatingPDF ? 'Generating...' : 'Download PDF',
-      disabled: generatingPDF
+      disabled: generatingPDF,
+      status: pdfSuccess ? 'success' : pdfError ? 'error' : 'default'
     },
     {
       icon: QrCode,
       title: 'QR Code',
-      description: 'Generate QR code for memorial programs, announcements, and easy sharing',
+      description: 'Generate QR code that opens PDF preview - scan to view and download the memorial booklet',
       action: handleGenerateQRCode,
       color: 'from-green-500 to-green-600',
       buttonText: 'Create QR Code'
@@ -135,7 +302,7 @@ export const DownloadSection: React.FC = () => {
     {
       icon: Share2,
       title: 'Shareable Link',
-      description: 'Copy memorial link to share with family and friends via message or email',
+      description: 'Copy link to PDF preview page - share with family and friends to view and download',
       action: handleCopyLink,
       color: 'from-purple-500 to-purple-600',
       buttonText: copied ? 'Copied!' : 'Copy Link'
@@ -148,9 +315,40 @@ export const DownloadSection: React.FC = () => {
       <div className="text-center">
         <h2 className="text-2xl sm:text-3xl font-serif font-bold text-gray-800 mb-3">Download & Share</h2>
         <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
-          Your memorial is ready! Share it with family and friends or download keepsakes.
+          Your memorial is ready! Preview the design, download keepsakes, or share with loved ones.
         </p>
       </div>
+
+      {/* Status Messages */}
+      {pdfError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+          <div>
+            <p className="text-red-800 font-medium">PDF Generation Failed</p>
+            <p className="text-red-600 text-sm">{pdfError}</p>
+          </div>
+        </div>
+      )}
+
+      {previewError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-center gap-3">
+          <AlertCircle className="w-5 h-5 text-red-500 shrink-0" />
+          <div>
+            <p className="text-red-800 font-medium">Preview Failed</p>
+            <p className="text-red-600 text-sm">{previewError}</p>
+          </div>
+        </div>
+      )}
+
+      {pdfSuccess && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+          <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />
+          <div>
+            <p className="text-green-800 font-medium">PDF Downloaded Successfully!</p>
+            <p className="text-green-600 text-sm">Your memorial booklet has been downloaded.</p>
+          </div>
+        </div>
+      )}
 
       {/* Memorial Completion Status */}
       <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 border-2 border-amber-200">
@@ -187,31 +385,62 @@ export const DownloadSection: React.FC = () => {
         </div>
       </div>
 
-      {/* Download Options */}
+      {/* Download Options - Updated to 4 columns */}
       <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-amber-200 p-4 sm:p-6">
         <h3 className="text-lg sm:text-xl font-serif font-bold text-gray-800 mb-4 sm:mb-6">Ready to Share Your Memorial?</h3>
         <p className="text-gray-600 text-sm sm:text-base mb-6 text-center">
-          Download as PDF, generate QR code, or share the link with family and friends
+          Preview the design, download as PDF, generate QR code, or share the link
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
           {downloadOptions.map((option, index) => {
             const Icon = option.icon;
+            const isError = option.status === 'error';
+            const isSuccess = option.status === 'success';
+            
             return (
-              <button
-                key={index}
-                onClick={option.action}
-                disabled={option.disabled}
-                className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-amber-200 p-4 sm:p-6 text-left hover:shadow-xl transition-all duration-300 group hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
-              >
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r ${option.color} rounded-lg sm:rounded-xl flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform duration-300`}>
-                  <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                </div>
-                <h3 className="font-semibold text-gray-800 text-sm sm:text-base mb-2">{option.title}</h3>
-                <p className="text-xs sm:text-sm text-gray-600 leading-relaxed mb-3 sm:mb-4">{option.description}</p>
-                <div className={`px-3 py-2 sm:px-4 sm:py-2 bg-gradient-to-r ${option.color} text-white rounded-lg text-xs sm:text-sm font-medium text-center transition-all duration-300 group-hover:shadow-lg`}>
-                  {option.buttonText}
-                </div>
-              </button>
+              <div key={index} className="relative">
+                <button
+                  onClick={option.action}
+                  disabled={option.disabled}
+                  className={`bg-white rounded-xl sm:rounded-2xl shadow-lg border ${
+                    isError ? 'border-red-200' : isSuccess ? 'border-green-200' : 'border-amber-200'
+                  } p-4 sm:p-6 text-left hover:shadow-xl transition-all duration-300 group hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 w-full h-full flex flex-col`}
+                >
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r ${
+                    isError ? 'from-red-500 to-red-600' : 
+                    isSuccess ? 'from-green-500 to-green-600' : 
+                    option.color
+                  } rounded-lg sm:rounded-xl flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform duration-300`}>
+                    <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  </div>
+                  <h3 className="font-semibold text-gray-800 text-sm sm:text-base mb-2">{option.title}</h3>
+                  <p className="text-xs sm:text-sm text-gray-600 leading-relaxed mb-3 sm:mb-4 flex-grow">{option.description}</p>
+                  <div className={`px-3 py-2 sm:px-4 sm:py-2 bg-gradient-to-r ${
+                    isError ? 'from-red-500 to-red-600' : 
+                    isSuccess ? 'from-green-500 to-green-600' : 
+                    option.color
+                  } text-white rounded-lg text-xs sm:text-sm font-medium text-center transition-all duration-300 group-hover:shadow-lg`}>
+                    {option.buttonText}
+                  </div>
+                </button>
+                
+                {/* Status indicators */}
+                {isError && (
+                  <div className="absolute -top-2 -right-2">
+                    <div className="bg-red-500 text-white rounded-full p-1">
+                      <AlertCircle className="w-4 h-4" />
+                    </div>
+                  </div>
+                )}
+                
+                {isSuccess && (
+                  <div className="absolute -top-2 -right-2">
+                    <div className="bg-green-500 text-white rounded-full p-1">
+                      <CheckCircle className="w-4 h-4" />
+                    </div>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
@@ -243,38 +472,62 @@ export const DownloadSection: React.FC = () => {
         </div>
       </div>
 
-      {/* QR Code Modal */}
+      {/* Enhanced QR Code Modal */}
       {showQRCode && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl sm:rounded-2xl max-w-sm w-full p-4 sm:p-6 text-center">
-            <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-3 sm:mb-4">Memorial QR Code</h3>
+            <div className="flex justify-between items-center mb-3 sm:mb-4">
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-800">Memorial PDF QR Code</h3>
+              <button
+                onClick={() => setShowQRCode(false)}
+                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            
             <div className="bg-gray-50 p-4 sm:p-6 rounded-xl mb-3 sm:mb-4">
               <QRCodeCanvas 
-                value={memorialUrl}
+                value={getQRCodeData()}
                 size={200}
                 level="H"
                 includeMargin
+                style={{ height: "auto", maxWidth: "100%", width: "100%" }}
               />
             </div>
-            <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">
-              Scan to visit {memorialData.name}'s memorial
+            
+            <div className="text-left mb-4 p-3 bg-blue-50 rounded-lg">
+              <h4 className="font-semibold text-blue-800 mb-2 text-sm">Scan to:</h4>
+              <ul className="text-xs text-blue-600 space-y-1">
+                <li>• View PDF preview in browser</li>
+                <li>• Download memorial booklet</li>
+                <li>• Share with others</li>
+                <li>• Access full memorial details</li>
+              </ul>
+            </div>
+            
+            <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4 break-words">
+              Scan to preview {memorialData.name}'s memorial PDF
             </p>
+            
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button 
                 onClick={() => {
                   const canvas = document.querySelector('canvas');
                   if (canvas) {
-                    const url = canvas.toDataURL();
+                    const url = canvas.toDataURL('image/png', 1.0);
                     const a = document.createElement('a');
                     a.href = url;
-                    a.download = `${memorialData.customUrl}-qrcode.png`;
+                    a.download = `${memorialData.name.replace(/\s+/g, '-').toLowerCase()}-memorial-qr.png`;
+                    document.body.appendChild(a);
                     a.click();
+                    document.body.removeChild(a);
                   }
                 }}
                 className="flex-1 px-3 py-2 sm:px-4 sm:py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors flex items-center justify-center gap-2 text-sm sm:text-base"
               >
                 <Download className="w-3 h-3 sm:w-4 sm:h-4" />
-                Download
+                Download QR
               </button>
               <button 
                 onClick={() => setShowQRCode(false)}

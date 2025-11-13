@@ -19,7 +19,7 @@ export const Footer: React.FC = () => {
 
   const contactInfo = [
     { icon: Mail, text: 'support@4revah.com', href: 'mailto:support@4revah.com' },
-    { icon: Phone, text: '+254 (700) 123-456', href: 'tel:+254700123456' },
+    { icon: Phone, text: '+254 (702) 727-450', href: 'tel:+254702727450' },
     { icon: MapPin, text: 'Nairobi, Kenya', href: '#' }
   ];
 

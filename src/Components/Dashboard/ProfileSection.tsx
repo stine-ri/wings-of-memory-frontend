@@ -1,5 +1,5 @@
 // Components/Dashboard/ProfileSection.tsx - COMPLETE with ImageKit.io
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Upload, User, MapPin, Calendar, Save } from 'lucide-react';
 import { useMemorial } from '../../hooks/useMemorial';
 
@@ -12,8 +12,26 @@ interface ProfileData {
   obituary: string;
 }
 
+// Add the useDebounce hook at the top of your file
+const useDebounce = <T,>(value: T, delay: number): T => {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
 export const ProfileSection: React.FC = () => {
   const { memorialData, updateMemorialData, saveToBackend } = useMemorial();
+  const [hasInitialized, setHasInitialized] = useState(false);
   const [profile, setProfile] = useState<ProfileData>({
     name: '',
     profileImage: '',
@@ -25,9 +43,11 @@ export const ProfileSection: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Initialize form with memorial data
+  const debouncedProfile = useDebounce(profile, 1000);
+
+  // Initialize form with memorial data (only once)
   useEffect(() => {
-    if (memorialData) {
+    if (memorialData && !hasInitialized) {
       setProfile({
         name: memorialData.name || '',
         profileImage: memorialData.profileImage || '',
@@ -36,90 +56,118 @@ export const ProfileSection: React.FC = () => {
         location: memorialData.location || '',
         obituary: memorialData.obituary || ''
       });
+      setHasInitialized(true);
     }
+  }, [memorialData, hasInitialized]);
+
+  // Memoize the comparison function to avoid unnecessary re-renders
+  const hasChanges = useCallback((currentProfile: ProfileData) => {
+    if (!memorialData) return true;
+    return JSON.stringify(currentProfile) !== JSON.stringify(memorialData);
   }, [memorialData]);
 
-const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-
-  console.log("🖼️ Selected file:", {
-    name: file.name,
-    size: file.size,
-    type: file.type,
-  });
-
-  if (file.size > 5 * 1024 * 1024) {
-    alert('Image size should be less than 5MB');
-    return;
-  }
-
-  if (!file.type.startsWith('image/')) {
-    alert('Please upload an image file');
-    return;
-  }
-
-  setUploading(true);
-
-  try {
-    console.log("⬆️ Uploading image to backend...");
-
-    // Get token from localStorage
-    const token = localStorage.getItem('token');
-    console.log("🔑 Token present:", !!token);
-
-    if (!token) {
-      throw new Error('Authentication token not found. Please log in again.');
+  // Auto-save debounced changes
+  useEffect(() => {
+    if (hasInitialized && debouncedProfile.name.trim() && hasChanges(debouncedProfile)) {
+      updateMemorialData(debouncedProfile);
     }
+  }, [debouncedProfile, hasInitialized, hasChanges, updateMemorialData]);
 
-    // Upload directly to your backend, which will handle ImageKit upload
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('folder', 'memorials/profiles');
+  // Warn about unsaved changes
+  useEffect(() => {
+    const hasUnsavedChanges = hasChanges(profile);
+    
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
 
-    const uploadResponse = await fetch('https://wings-of-memories-backend.onrender.com/api/imagekit/upload', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
-      body: formData,
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [profile, hasChanges]);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    console.log("🖼️ Selected file:", {
+      name: file.name,
+      size: file.size,
+      type: file.type,
     });
 
-    console.log("📡 Upload response status:", uploadResponse.status);
-
-    if (!uploadResponse.ok) {
-      const errorText = await uploadResponse.text();
-      console.error("❌ Upload error response:", errorText);
-      
-      // Handle authentication errors
-      if (uploadResponse.status === 401 || uploadResponse.status === 403) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        throw new Error('Session expired. Please log in again.');
-      }
-      
-      throw new Error(`Upload failed (${uploadResponse.status}): ${errorText}`);
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image size should be less than 5MB');
+      return;
     }
 
-    const data = await uploadResponse.json();
-    console.log("✅ Upload success:", data);
+    if (!file.type.startsWith('image/')) {
+      alert('Please upload an image file');
+      return;
+    }
 
-    const newProfile = { ...profile, profileImage: data.url };
-    console.log("🧠 Updated profile object:", newProfile);
+    setUploading(true);
 
-    setProfile(newProfile);
-    await updateMemorialData(newProfile);
+    try {
+      console.log("⬆️ Uploading image to backend...");
 
-    alert('✅ Image uploaded successfully!');
-  } catch (error) {
-    console.error('❌ Upload failed:', error);
-    alert('Failed to upload image. Please try again.');
-  } finally {
-    setUploading(false);
-    console.log("🏁 Upload process completed.");
-  }
-};
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      console.log("🔑 Token present:", !!token);
 
+      if (!token) {
+        throw new Error('Authentication token not found. Please log in again.');
+      }
+
+      // Upload directly to your backend, which will handle ImageKit upload
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('folder', 'memorials/profiles');
+
+      const uploadResponse = await fetch('https://wings-of-memories-backend.onrender.com/api/imagekit/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData,
+      });
+
+      console.log("📡 Upload response status:", uploadResponse.status);
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error("❌ Upload error response:", errorText);
+        
+        // Handle authentication errors
+        if (uploadResponse.status === 401 || uploadResponse.status === 403) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          throw new Error('Session expired. Please log in again.');
+        }
+        
+        throw new Error(`Upload failed (${uploadResponse.status}): ${errorText}`);
+      }
+
+      const data = await uploadResponse.json();
+      console.log("✅ Upload success:", data);
+
+      const newProfile = { ...profile, profileImage: data.url };
+      console.log("🧠 Updated profile object:", newProfile);
+
+      setProfile(newProfile);
+      await updateMemorialData(newProfile);
+
+      alert('✅ Image uploaded successfully!');
+    } catch (error) {
+      console.error('❌ Upload failed:', error);
+      alert('Failed to upload image. Please try again.');
+    } finally {
+      setUploading(false);
+      console.log("🏁 Upload process completed.");
+    }
+  };
 
   const handleSave = async () => {
     if (!profile.name.trim()) {
@@ -143,9 +191,18 @@ const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
   const handleFieldChange = (field: keyof ProfileData, value: string) => {
     const newProfile = { ...profile, [field]: value };
     setProfile(newProfile);
-    // Auto-save on change (debounced in context)
-    updateMemorialData(newProfile);
   };
+
+  // Show loading state while initializing
+  if (!hasInitialized && !memorialData) {
+    return (
+      <div className="max-w-4xl space-y-8">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+          <div className="animate-pulse text-center py-8">Loading profile data...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl space-y-8">

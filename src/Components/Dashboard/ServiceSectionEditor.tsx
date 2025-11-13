@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Users, Download, QrCode, Save, Plus, X } from 'lucide-react';
 import { useMemorial } from '../../hooks/useMemorial';
-import { QRCodeSVG } from 'qrcode.react'; // Changed to named import
+import { QRCodeSVG } from 'qrcode.react';
 
 interface ServiceInfo {
   venue: string;
@@ -23,6 +23,23 @@ interface RSVP {
   createdAt: string;
 }
 
+// Debounce hook for auto-saving
+const useDebounce = <T,>(value: T, delay: number): T => {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
 export const ServiceSection: React.FC = () => {
   const { memorialData, updateService, saveToBackend } = useMemorial();
   const [service, setService] = useState<ServiceInfo>({
@@ -33,13 +50,13 @@ export const ServiceSection: React.FC = () => {
     virtualLink: '',
     virtualPlatform: 'zoom'
   });
-
   const [rsvps, setRsvps] = useState<RSVP[]>([]);
   const [showQRCode, setShowQRCode] = useState(false);
   const [showRSVPForm, setShowRSVPForm] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadingRsvps, setLoadingRsvps] = useState(true);
   const [submittingRSVP, setSubmittingRSVP] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   const [newRSVP, setNewRSVP] = useState({
     firstName: '',
@@ -50,12 +67,43 @@ export const ServiceSection: React.FC = () => {
     guests: 1
   });
 
-  // Initialize service info from memorial data
+  const debouncedService = useDebounce(service, 1000);
+
+  // Initialize service info from memorial data (only once)
   useEffect(() => {
-    if (memorialData?.service) {
+    if (memorialData?.service && !hasInitialized) {
       setService(memorialData.service);
+      setHasInitialized(true);
     }
+  }, [memorialData, hasInitialized]);
+
+  // Memoize the comparison function
+  const hasChanges = useCallback((currentService: ServiceInfo) => {
+    if (!memorialData?.service) return true;
+    return JSON.stringify(currentService) !== JSON.stringify(memorialData.service);
   }, [memorialData]);
+
+  // Auto-save debounced changes
+  useEffect(() => {
+    if (hasInitialized && hasChanges(debouncedService)) {
+      updateService(debouncedService);
+    }
+  }, [debouncedService, hasInitialized, hasChanges, updateService]);
+
+  // Warn about unsaved changes
+  useEffect(() => {
+    const hasUnsavedChanges = hasChanges(service);
+    
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [service, hasChanges]);
 
   // Load RSVPs from backend
   useEffect(() => {
@@ -188,32 +236,53 @@ export const ServiceSection: React.FC = () => {
     window.URL.revokeObjectURL(url);
   };
 
-const downloadQRCode = () => {
-  const element = document.getElementById('memorial-qr-code');
+  const downloadQRCode = () => {
+    const element = document.getElementById('memorial-qr-code');
 
-  if (element && element instanceof SVGSVGElement) {
-    const svgData = new XMLSerializer().serializeToString(element);
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
+    if (element && element instanceof SVGSVGElement) {
+      const svgData = new XMLSerializer().serializeToString(element);
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
 
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
-      ctx?.drawImage(img, 0, 0);
-      const pngUrl = canvas.toDataURL('image/png');
-      const downloadLink = document.createElement('a');
-      downloadLink.href = pngUrl;
-      downloadLink.download = `memorial-qr-${memorialData?.name || 'service'}.png`;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
+      img.onload = () => {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx?.drawImage(img, 0, 0);
+        const pngUrl = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        downloadLink.href = pngUrl;
+        downloadLink.download = `memorial-service-qr-${memorialData?.name || 'service'}.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+      };
+
+      img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
+    }
+  };
+
+  // Enhanced QR code data with service information
+  const getQRCodeData = () => {
+    const memorialUrl = getMemorialUrl();
+    const serviceDetails = {
+      title: `${memorialData?.name || 'Memorial'} Service`,
+      venue: service.venue,
+      address: service.address,
+      date: service.date,
+      time: service.time,
+      virtualLink: service.virtualLink,
+      virtualPlatform: service.virtualPlatform
     };
 
-    img.src = 'data:image/svg+xml;base64,' + btoa(svgData);
-  }
-};
-
+    // Create a structured data object for the QR code
+    return JSON.stringify({
+      type: 'memorial_service',
+      url: memorialUrl,
+      service: serviceDetails,
+      timestamp: new Date().toISOString()
+    });
+  };
 
   const getMemorialUrl = () => {
     // Replace with your actual memorial URL structure
@@ -228,6 +297,17 @@ const downloadQRCode = () => {
     virtual: rsvps.filter(r => r.attending === 'virtual').length,
     totalGuests: rsvps.reduce((sum, rsvp) => sum + rsvp.guests, 0)
   };
+
+  // Show loading state while initializing
+  if (!hasInitialized && !memorialData) {
+    return (
+      <div className="max-w-6xl space-y-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="animate-pulse text-center py-8">Loading service data...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl space-y-6">
@@ -247,7 +327,8 @@ const downloadQRCode = () => {
           </button>
           <button
             onClick={handleGenerateQRCode}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all"
+            disabled={!service.venue || !service.date}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all disabled:opacity-50"
           >
             <QrCode className="w-4 h-4" />
             QR Code
@@ -271,7 +352,7 @@ const downloadQRCode = () => {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Venue Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Venue Name *</label>
                 <input
                   type="text"
                   value={service.venue}
@@ -282,7 +363,7 @@ const downloadQRCode = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Address *</label>
                 <textarea
                   value={service.address}
                   onChange={(e) => handleServiceChange({ address: e.target.value })}
@@ -294,7 +375,7 @@ const downloadQRCode = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
                   <input
                     type="date"
                     value={service.date}
@@ -304,7 +385,7 @@ const downloadQRCode = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Time</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Time *</label>
                   <input
                     type="time"
                     value={service.time}
@@ -360,7 +441,7 @@ const downloadQRCode = () => {
 
             <button 
               onClick={handleSaveService}
-              disabled={saving}
+              disabled={saving || !hasChanges(service)}
               className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2"
             >
               <Save className="w-4 h-4" />
@@ -544,7 +625,7 @@ const downloadQRCode = () => {
             <div className="flex gap-3 mt-6">
               <button
                 onClick={handleAddRSVP}
-                disabled={submittingRSVP}
+                disabled={submittingRSVP || !newRSVP.firstName.trim() || !newRSVP.lastName.trim() || !newRSVP.email.trim()}
                 className="flex-1 px-6 py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50"
               >
                 {submittingRSVP ? 'Adding...' : 'Add RSVP'}
@@ -565,7 +646,7 @@ const downloadQRCode = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-sm w-full p-6 text-center">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold text-gray-800">Memorial QR Code</h3>
+              <h3 className="text-xl font-semibold text-gray-800">Memorial Service QR Code</h3>
               <button
                 onClick={() => setShowQRCode(false)}
                 className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
@@ -577,18 +658,27 @@ const downloadQRCode = () => {
             <div className="bg-white p-6 rounded-lg mb-4 flex items-center justify-center">
               <QRCodeSVG 
                 id="memorial-qr-code"
-                value={getMemorialUrl()}
+                value={getQRCodeData()}
                 size={200}
                 level="H"
                 includeMargin
               />
             </div>
             
-            <p className="text-sm text-gray-600 mb-4 break-words">
-              {getMemorialUrl()}
-            </p>
+            <div className="text-left mb-4">
+              <h4 className="font-semibold text-gray-800 mb-2">Service Details:</h4>
+              <div className="text-sm text-gray-600 space-y-1">
+                <p><strong>Venue:</strong> {service.venue || 'Not set'}</p>
+                <p><strong>Date:</strong> {service.date || 'Not set'}</p>
+                <p><strong>Time:</strong> {service.time || 'Not set'}</p>
+                {service.virtualLink && (
+                  <p><strong>Virtual:</strong> Available</p>
+                )}
+              </div>
+            </div>
+            
             <p className="text-sm text-gray-500 mb-4">
-              Scan this code to visit the memorial page directly
+              Scan this code to view memorial service details and RSVP
             </p>
             
             <div className="flex gap-3">

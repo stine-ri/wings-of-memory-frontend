@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { MessageCircle, Heart, Trash2, Upload, Plus, Save } from 'lucide-react';
 import { useMemorial } from '../../hooks/useMemorial';
 
@@ -13,7 +13,22 @@ interface Memory {
   createdAt: string;
 }
 
+// Debounce hook for auto-saving
+const useDebounce = <T,>(value: T, delay: number): T => {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
 
 export const MemoryWallSection: React.FC = () => {
   const { memorialData, updateMemoryWall, saveToBackend } = useMemorial();
@@ -26,13 +41,45 @@ export const MemoryWallSection: React.FC = () => {
   });
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
-  // Initialize with memorial data from backend
+  const debouncedMemories = useDebounce(memories, 1000);
+
+  // Initialize with memorial data from backend (only once)
   useEffect(() => {
-    if (memorialData?.memoryWall) {
+    if (memorialData?.memoryWall && !hasInitialized) {
       setMemories(memorialData.memoryWall as Memory[]);
+      setHasInitialized(true);
     }
+  }, [memorialData, hasInitialized]);
+
+  // Memoize the comparison function
+  const hasChanges = useCallback((currentMemories: Memory[]) => {
+    if (!memorialData?.memoryWall) return currentMemories.length > 0;
+    return JSON.stringify(currentMemories) !== JSON.stringify(memorialData.memoryWall);
   }, [memorialData]);
+
+  // Auto-save debounced changes
+  useEffect(() => {
+    if (hasInitialized && hasChanges(debouncedMemories)) {
+      updateMemoryWall(debouncedMemories);
+    }
+  }, [debouncedMemories, hasInitialized, hasChanges, updateMemoryWall]);
+
+  // Warn about unsaved changes
+  useEffect(() => {
+    const hasUnsavedChanges = hasChanges(memories);
+    
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [memories, hasChanges]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -109,13 +156,16 @@ export const MemoryWallSection: React.FC = () => {
     }
   };
 
-  const handleAddMemory = async () => {
-    if (!newMemory.text.trim() || !newMemory.author.trim()) return;
+  const handleAddMemory = () => {
+    if (!newMemory.text.trim() || !newMemory.author.trim()) {
+      alert('Please fill in both your name and memory text.');
+      return;
+    }
 
     const memory: Memory = {
       id: Date.now().toString(),
-      text: newMemory.text,
-      author: newMemory.author,
+      text: newMemory.text.trim(),
+      author: newMemory.author.trim(),
       date: new Date().toISOString().split('T')[0],
       images: newMemory.images,
       likes: 0,
@@ -127,51 +177,18 @@ export const MemoryWallSection: React.FC = () => {
     setMemories(newMemories);
     setNewMemory({ text: '', author: '', images: [] });
     setShowMemoryForm(false);
-
-    // Save to backend
-    setSaving(true);
-    try {
-      await updateMemoryWall(newMemories);
-      await saveToBackend();
-    } catch (error) {
-      console.error('Error saving memory:', error);
-    } finally {
-      setSaving(false);
-    }
   };
 
-  const handleDeleteMemory = async (id: string) => {
+  const handleDeleteMemory = (id: string) => {
     const newMemories = memories.filter(memory => memory.id !== id);
     setMemories(newMemories);
-
-    // Save to backend
-    setSaving(true);
-    try {
-      await updateMemoryWall(newMemories);
-      await saveToBackend();
-    } catch (error) {
-      console.error('Error deleting memory:', error);
-    } finally {
-      setSaving(false);
-    }
   };
 
-  const handleToggleFeatured = async (id: string) => {
+  const handleToggleFeatured = (id: string) => {
     const newMemories = memories.map(memory =>
       memory.id === id ? { ...memory, isFeatured: !memory.isFeatured } : memory
     );
     setMemories(newMemories);
-
-    // Save to backend
-    setSaving(true);
-    try {
-      await updateMemoryWall(newMemories);
-      await saveToBackend();
-    } catch (error) {
-      console.error('Error updating memory:', error);
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handleManualSave = async () => {
@@ -188,12 +205,30 @@ export const MemoryWallSection: React.FC = () => {
     }
   };
 
+  const removeImageFromNewMemory = (index: number) => {
+    setNewMemory(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
+  };
+
   const stats = {
     total: memories.length,
     featured: memories.filter(m => m.isFeatured).length,
     withImages: memories.filter(m => m.images.length > 0).length,
     totalLikes: memories.reduce((sum, memory) => sum + memory.likes, 0)
   };
+
+  // Show loading state while initializing
+  if (!hasInitialized && !memorialData) {
+    return (
+      <div className="max-w-4xl space-y-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="animate-pulse text-center py-8">Loading memory wall data...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -213,7 +248,7 @@ export const MemoryWallSection: React.FC = () => {
           </button>
           <button
             onClick={handleManualSave}
-            disabled={saving}
+            disabled={saving || !hasChanges(memories)}
             className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
@@ -249,7 +284,7 @@ export const MemoryWallSection: React.FC = () => {
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Your Name</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Your Name *</label>
               <input
                 type="text"
                 value={newMemory.author}
@@ -260,7 +295,7 @@ export const MemoryWallSection: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Your Memory</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Your Memory *</label>
               <textarea
                 value={newMemory.text}
                 onChange={(e) => setNewMemory(prev => ({ ...prev, text: e.target.value }))}
@@ -278,12 +313,18 @@ export const MemoryWallSection: React.FC = () => {
               {newMemory.images.length > 0 && (
                 <div className="flex gap-3 mb-4 flex-wrap">
                   {newMemory.images.map((image, index) => (
-                    <div key={index} className="relative">
+                    <div key={index} className="relative group">
                       <img
                         src={image}
                         alt=""
                         className="w-16 h-16 object-cover rounded"
                       />
+                      <button
+                        onClick={() => removeImageFromNewMemory(index)}
+                        className="absolute -top-2 -right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -302,6 +343,9 @@ export const MemoryWallSection: React.FC = () => {
                   <Upload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
                   <p className="text-gray-500">
                     {uploading ? 'Uploading...' : 'Click to upload photos'}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    Max 3 images, 5MB each
                   </p>
                 </label>
               )}

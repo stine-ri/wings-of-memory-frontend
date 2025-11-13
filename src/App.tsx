@@ -12,6 +12,8 @@ import HowItWorks from './Components/HowItWorks';
 import MemoryGuide from './Components/MemoryGuide';
 import TermsOfService from './Components/TermsOfService';
 import PrivacyPolicy from './Components/PrivacyPolicy';
+import { PDFPreviewPage } from './Pages/PDFPreviewPage';
+
 import './App.css';
 
 function App() {
@@ -30,6 +32,7 @@ function App() {
         <Route path="/guide" element={<MemoryGuide />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/memorial/:id/pdf-preview" element={<PDFPreviewPage />} />
 
         {/* Protected dashboard route */}
         <Route

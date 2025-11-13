@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Plus, Trash2, Edit2, Upload, Save, Play, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useMemorial } from '../../hooks/useMemorial';
 
@@ -10,6 +10,23 @@ interface GalleryImage {
   uploadedAt: string;
 }
 
+// Debounce hook for auto-saving
+const useDebounce = <T,>(value: T, delay: number): T => {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
 export const GallerySection: React.FC = () => {
   const { memorialData, updateGallery, saveToBackend } = useMemorial();
   const [images, setImages] = useState<GalleryImage[]>([]);
@@ -19,13 +36,45 @@ export const GallerySection: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [slideshowOpen, setSlideshowOpen] = useState(false);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
-  // Initialize with memorial data from backend
+  const debouncedImages = useDebounce(images, 1000);
+
+  // Initialize with memorial data from backend (only once)
   useEffect(() => {
-    if (memorialData?.gallery) {
+    if (memorialData?.gallery && !hasInitialized) {
       setImages(memorialData.gallery as GalleryImage[]);
+      setHasInitialized(true);
     }
+  }, [memorialData, hasInitialized]);
+
+  // Memoize the comparison function
+  const hasChanges = useCallback((currentImages: GalleryImage[]) => {
+    if (!memorialData?.gallery) return currentImages.length > 0;
+    return JSON.stringify(currentImages) !== JSON.stringify(memorialData.gallery);
   }, [memorialData]);
+
+  // Auto-save debounced changes
+  useEffect(() => {
+    if (hasInitialized && hasChanges(debouncedImages)) {
+      updateGallery(debouncedImages);
+    }
+  }, [debouncedImages, hasInitialized, hasChanges, updateGallery]);
+
+  // Warn about unsaved changes
+  useEffect(() => {
+    const hasUnsavedChanges = hasChanges(images);
+    
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [images, hasChanges]);
 
   const categories = [
     'Portraits',
@@ -96,7 +145,7 @@ export const GallerySection: React.FC = () => {
     }
   };
 
-  const handleSaveImage = async () => {
+  const handleSaveImage = () => {
     if (!editingImage || !editingImage.caption.trim()) {
       alert('Please enter a caption for the image.');
       return;
@@ -130,33 +179,11 @@ export const GallerySection: React.FC = () => {
     setImages(newImages);
     setShowForm(false);
     setEditingImage(null);
-    
-    // Save to backend with proper category data
-    setSaving(true);
-    try {
-      await updateGallery(newImages);
-      await saveToBackend();
-    } catch (error) {
-      console.error('Error saving gallery:', error);
-    } finally {
-      setSaving(false);
-    }
   };
 
-  const handleDeleteImage = async (id: string) => {
+  const handleDeleteImage = (id: string) => {
     const newImages = images.filter(img => img.id !== id);
     setImages(newImages);
-    
-    // Save to backend
-    setSaving(true);
-    try {
-      await updateGallery(newImages);
-      await saveToBackend();
-    } catch (error) {
-      console.error('Error deleting image:', error);
-    } finally {
-      setSaving(false);
-    }
   };
 
   const handleManualSave = async () => {
@@ -190,6 +217,18 @@ export const GallerySection: React.FC = () => {
     );
   };
 
+  // Close slideshow on Escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && slideshowOpen) {
+        setSlideshowOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [slideshowOpen]);
+
   // Group images by category for PDF organization
   const imagesByCategory = images.reduce((acc, image) => {
     if (!acc[image.category]) {
@@ -198,6 +237,17 @@ export const GallerySection: React.FC = () => {
     acc[image.category].push(image);
     return acc;
   }, {} as Record<string, GalleryImage[]>);
+
+  // Show loading state while initializing
+  if (!hasInitialized && !memorialData) {
+    return (
+      <div className="max-w-6xl space-y-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="animate-pulse text-center py-8">Loading gallery data...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl space-y-6">
@@ -226,7 +276,7 @@ export const GallerySection: React.FC = () => {
           )}
           <button
             onClick={handleManualSave}
-            disabled={saving}
+            disabled={saving || !hasChanges(images)}
             className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all disabled:opacity-50"
           >
             <Save className="w-4 h-4" />
