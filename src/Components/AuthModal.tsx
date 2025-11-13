@@ -5,9 +5,15 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   mode: 'login' | 'register';
+  onAuthSuccess?: () => void; // Add this callback prop
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ 
+  isOpen, 
+  onClose, 
+  mode,
+  onAuthSuccess 
+}) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -56,20 +62,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode }) =
       localStorage.setItem('user', JSON.stringify(responseData.user));
       
       // Show success message
-      alert(`${mode === 'login' ? 'Login' : 'Registration'} successful! Redirecting to dashboard...`);
-      
-      // Close modal first
-      onClose();
+      console.log(`${mode === 'login' ? 'Login' : 'Registration'} successful! Redirecting to dashboard...`);
       
       // Clear form
       setEmail('');
       setPassword('');
       setName('');
+      setError('');
       
-      // Redirect to dashboard after a brief delay
+      // Close modal first
+      onClose();
+      
+      // Call success callback if provided
+      if (onAuthSuccess) {
+        onAuthSuccess();
+      }
+      
+      // Redirect to dashboard - using window.location for reliable navigation
       setTimeout(() => {
+        // Force a hard navigation to ensure clean state
         window.location.href = '/dashboard';
-      }, 500);
+      }, 300);
       
     } catch (err) {
       console.error('❌ Auth error:', err);
@@ -217,6 +230,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode }) =
                   type="button"
                   onClick={() => window.location.reload()} // This will trigger the mode change in parent
                   className="text-amber-600 hover:text-amber-700 font-medium underline"
+                  disabled={loading}
                 >
                   Register here
                 </button>
@@ -228,6 +242,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode }) =
                   type="button"
                   onClick={() => window.location.reload()} // This will trigger the mode change in parent
                   className="text-amber-600 hover:text-amber-700 font-medium underline"
+                  disabled={loading}
                 >
                   Sign in here
                 </button>
@@ -243,7 +258,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode }) =
         </div>
       </div>
 
-      <style >{`
+      <style>{`
         @keyframes fade-in {
           from { opacity: 0; }
           to { opacity: 1; }

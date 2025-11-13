@@ -213,63 +213,68 @@ export const ProfileSection: React.FC = () => {
   }, [getUserData, showToast, refreshMemorial]);
 
   // GET OR CREATE MEMORIAL - NEW USER FRIENDLY
-  const ensureMemorialExists = useCallback(async (): Promise<boolean> => {
-    const userData = getUserData();
-    const token = localStorage.getItem('token');
+const ensureMemorialExists = useCallback(async (): Promise<boolean> => {
+  const userData = getUserData();
+  const token = localStorage.getItem('token');
+  
+  if (!userData || !token) {
+    showToast('Please log in to continue', 'error');
+    return false;
+  }
+
+  try {
+    console.log('🔍 Checking for user memorials...');
     
-    if (!userData || !token) {
-      showToast('Please log in to continue', 'error');
-      return false;
+    // Get user's memorials
+    const response = await fetch('https://wings-of-memories-backend.onrender.com/api/memorials', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch memorials: ${response.status}`);
     }
 
-    try {
-      console.log('🔍 Checking for user memorials...');
+    const data = await response.json();
+    console.log('📋 User memorials found:', data.memorials?.length || 0);
+
+    if (data.memorials && data.memorials.length > 0) {
+      // Existing user - use first memorial
+      const firstMemorial = data.memorials[0];
+      console.log('✅ Using existing memorial:', firstMemorial.id);
       
-      // Get user's memorials
-      const response = await fetch('https://wings-of-memories-backend.onrender.com/api/memorials', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch memorials: ${response.status}`);
+      const initialProfile = {
+        name: firstMemorial.name || '',
+        profileImage: firstMemorial.profileImage || '',
+        birthDate: firstMemorial.birthDate || '',
+        deathDate: firstMemorial.deathDate || '',
+        location: firstMemorial.location || '',
+        obituary: firstMemorial.obituary || ''
+      };
+      
+      setProfile(initialProfile);
+      lastSavedDataRef.current = JSON.stringify(initialProfile);
+      setHasInitialized(true);
+      
+      // Ensure the memorial ID is properly set in context
+      if (updateMemorialData) {
+        await updateMemorialData({ ...initialProfile, id: firstMemorial.id });
       }
-
-      const data = await response.json();
-      console.log('📋 User memorials found:', data.memorials?.length || 0);
-
-      if (data.memorials && data.memorials.length > 0) {
-        // Existing user - use first memorial
-        const firstMemorial = data.memorials[0];
-        console.log('✅ Using existing memorial:', firstMemorial.id);
-        
-        const initialProfile = {
-          name: firstMemorial.name || '',
-          profileImage: firstMemorial.profileImage || '',
-          birthDate: firstMemorial.birthDate || '',
-          deathDate: firstMemorial.deathDate || '',
-          location: firstMemorial.location || '',
-          obituary: firstMemorial.obituary || ''
-        };
-        
-        setProfile(initialProfile);
-        lastSavedDataRef.current = JSON.stringify(initialProfile);
-        setHasInitialized(true);
-        
-        showToast('Welcome back! Memorial loaded.', 'success');
-        return true;
-      } else {
-        // NEW USER - Create first memorial
-        console.log('🆕 No memorials found - creating first memorial for new user');
-        return await createMemorialForNewUser();
-      }
-    } catch (error) {
-      console.error('❌ Error checking memorials:', error);
-      showToast(`Failed to load: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
-      return false;
+      
+      showToast('Welcome back! Memorial loaded.', 'success');
+      return true;
+    } else {
+      // NEW USER - Create first memorial
+      console.log('🆕 No memorials found - creating first memorial for new user');
+      return await createMemorialForNewUser();
     }
-  }, [getUserData, showToast, createMemorialForNewUser]);
+  } catch (error) {
+    console.error('❌ Error checking memorials:', error);
+    showToast(`Failed to load: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+    return false;
+  }
+}, [getUserData, showToast, createMemorialForNewUser, updateMemorialData]);
 
   // Check if there are actual changes
   const hasChanges = useCallback((currentProfile: ProfileData) => {
@@ -360,98 +365,127 @@ export const ProfileSection: React.FC = () => {
   }, [memorialData, hasInitialized, creatingMemorial, ensureMemorialExists, getUserData, showToast]);
 
   // Enhanced image upload with automatic memorial handling
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const file = e.target.files?.[0];
+  if (!file) return;
+  e.target.value = '';
 
-    // Reset file input
-    e.target.value = '';
+  // Validation
+  if (file.size > 5 * 1024 * 1024) {
+    showToast('Image size should be less than 5MB', 'error');
+    return;
+  }
 
-    // Validation
-    if (file.size > 5 * 1024 * 1024) {
-      showToast('Image size should be less than 5MB', 'error');
-      return;
+  if (!file.type.startsWith('image/')) {
+    showToast('Please upload an image file (JPEG, PNG, etc.)', 'error');
+    return;
+  }
+
+  setUploading(true);
+  showToast('Uploading image...', 'info');
+
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Please log in again to upload images');
     }
 
-    if (!file.type.startsWith('image/')) {
-      showToast('Please upload an image file (JPEG, PNG, etc.)', 'error');
-      return;
+    // Get current memorial ID - with better error handling
+    const currentMemorialId = memorialData?.id;
+    if (!currentMemorialId) {
+      console.log('🆔 No memorial ID found, refreshing...');
+      // Force refresh memorial data
+      if (refreshMemorial) {
+        await refreshMemorial();
+      }
+      throw new Error('Memorial not found. Please refresh and try again.');
     }
 
-    // Ensure we have a memorial before uploading
-    if (!memorialData?.id) {
-      showToast('Setting up memorial...', 'info');
-      const memorialExists = await ensureMemorialExists();
-      if (!memorialExists) {
-        showToast('Cannot upload: No memorial available', 'error');
-        return;
-      }
-      // Wait a moment for context to update
-      await new Promise(resolve => setTimeout(resolve, 1000));
-    }
+    console.log("🖼️ Starting upload for memorial:", currentMemorialId);
 
-    setUploading(true);
-    showToast('Uploading image...', 'info');
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', 'memorials/profiles');
 
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('Please log in again to upload images');
-      }
+    // Step 1: Upload image to ImageKit
+    const uploadResponse = await fetch('https://wings-of-memories-backend.onrender.com/api/imagekit/upload', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      body: formData,
+    });
 
-      console.log("🖼️ Starting upload for memorial:", memorialData?.id);
-
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('folder', 'memorials/profiles');
-
-      // Step 1: Upload image to ImageKit
-      const uploadResponse = await fetch('https://wings-of-memories-backend.onrender.com/api/imagekit/upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData,
-      });
-
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        console.error("❌ Image upload failed:", uploadResponse.status, errorText);
-        
-        if (uploadResponse.status === 401 || uploadResponse.status === 403) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          throw new Error('Session expired. Please log in again.');
-        }
-        
-        throw new Error(`Upload failed: ${errorText}`);
-      }
-
-      const imageData = await uploadResponse.json();
-      console.log("✅ Image upload successful:", imageData);
-
-      // Step 2: Update profile with new image
-      const newProfile = { ...profile, profileImage: imageData.url };
-      setProfile(newProfile);
+    if (!uploadResponse.ok) {
+      const errorText = await uploadResponse.text();
+      console.error("❌ Image upload failed:", uploadResponse.status, errorText);
       
-      showToast('✅ Image uploaded! Saving profile...', 'success');
+      if (uploadResponse.status === 401 || uploadResponse.status === 403) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        throw new Error('Session expired. Please log in again.');
+      }
+      
+      throw new Error(`Upload failed: ${errorText}`);
+    }
 
-      // Step 3: Save to memorial
+    const imageData = await uploadResponse.json();
+    console.log("✅ Image upload successful:", imageData);
+
+    // Step 2: Update profile with new image - DIRECT API CALL
+    const newProfile = { ...profile, profileImage: imageData.url };
+    
+    // Update via direct API call to ensure memorial ID is used
+    const updateResponse = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${currentMemorialId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        profileImage: imageData.url,
+        name: profile.name, // Include other fields to prevent data loss
+        birthDate: profile.birthDate,
+        deathDate: profile.deathDate,
+        location: profile.location,
+        obituary: profile.obituary
+      })
+    });
+
+    if (!updateResponse.ok) {
+      const errorText = await updateResponse.text();
+      throw new Error(`Failed to update memorial: ${errorText}`);
+    }
+
+    const updatedMemorial = await updateResponse.json();
+    console.log("✅ Memorial updated successfully:", updatedMemorial);
+
+    // Step 3: Update local state and context
+    setProfile(newProfile);
+    
+    // Update context
+    if (updateMemorialData) {
       await updateMemorialData(newProfile);
-      await saveToBackend();
-      
-      // Update last saved reference
-      lastSavedDataRef.current = JSON.stringify(newProfile);
-      
-      showToast('🎉 Profile image updated successfully!', 'success');
-
-    } catch (error) {
-      console.error('❌ Upload process failed:', error);
-      showToast(`❌ Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
-    } finally {
-      setUploading(false);
     }
-  };
+    
+    // Refresh memorial data
+    if (refreshMemorial) {
+      await refreshMemorial();
+    }
+    
+    // Update last saved reference
+    lastSavedDataRef.current = JSON.stringify(newProfile);
+    
+    showToast('🎉 Profile image updated successfully!', 'success');
+
+  } catch (error) {
+    console.error('❌ Upload process failed:', error);
+    showToast(`❌ Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+  } finally {
+    setUploading(false);
+  }
+};
 
   // Manual save with enhanced error handling
   const handleSave = async () => {
