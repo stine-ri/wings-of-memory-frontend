@@ -59,7 +59,6 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
   const memorialDataRef = useRef<MemorialData | null>(null);
   const autoSaveTimeoutRef = useRef<number | undefined>(undefined);
 
-  
   // Keep ref in sync with state
   useEffect(() => {
     memorialDataRef.current = memorialData;
