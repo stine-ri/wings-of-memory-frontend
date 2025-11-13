@@ -59,6 +59,7 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
   const memorialDataRef = useRef<MemorialData | null>(null);
   const autoSaveTimeoutRef = useRef<number | undefined>(undefined);
 
+  
   // Keep ref in sync with state
   useEffect(() => {
     memorialDataRef.current = memorialData;
@@ -215,51 +216,61 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
     return Object.prototype.hasOwnProperty.call(obj, prop);
   };
 
-  const updateMemorialData = useCallback((updates: Partial<MemorialData>) => {
-    console.log('📝 updateMemorialData called with:', {
-      updateKeys: Object.keys(updates),
-      timelineLength: Array.isArray(updates.timeline) ? updates.timeline.length : 'not-updated',
-      favoritesLength: Array.isArray(updates.favorites) ? updates.favorites.length : 'not-updated',
-    });
+ // FIXED: Optimized updateMemorialData with proper change detection
+const updateMemorialData = useCallback((updates: Partial<MemorialData>) => {
+  console.log('📝 updateMemorialData called with:', {
+    updateKeys: Object.keys(updates),
+    timelineLength: Array.isArray(updates.timeline) ? updates.timeline.length : 'not-updated',
+    favoritesLength: Array.isArray(updates.favorites) ? updates.favorites.length : 'not-updated',
+  });
 
-    setMemorialData(prev => {
-      if (!prev) return prev;
+  setMemorialData(prev => {
+    if (!prev) return prev;
+    
+    // DEEP COMPARISON: Only update if data actually changed
+    const hasActualChanges = Object.keys(updates).some(key => {
+      const prevValue = prev[key as keyof MemorialData];
+      const newValue = updates[key as keyof MemorialData];
       
-      const hasChanges = Object.keys(updates).some(key => {
-        const prevValue = prev[key as keyof MemorialData];
-        const newValue = updates[key as keyof MemorialData];
+      // Special handling for arrays and objects
+      if (Array.isArray(prevValue) && Array.isArray(newValue)) {
         return JSON.stringify(prevValue) !== JSON.stringify(newValue);
-      });
-      
-      if (!hasChanges) {
-        return prev;
+      }
+      if (typeof prevValue === 'object' && typeof newValue === 'object') {
+        return JSON.stringify(prevValue) !== JSON.stringify(newValue);
       }
       
-      const newData = { ...prev, ...updates };
-      
-      console.log('✅ State updated. New data:', {
-        id: newData.id,
-        timelineLength: Array.isArray(newData.timeline) ? newData.timeline.length : 0,
-        favoritesLength: Array.isArray(newData.favorites) ? newData.favorites.length : 0,
-        familyTreeLength: Array.isArray(newData.familyTree) ? newData.familyTree.length : 0,
-        galleryLength: Array.isArray(newData.gallery) ? newData.gallery.length : 0,
-        memoryWallLength: Array.isArray(newData.memoryWall) ? newData.memoryWall.length : 0,
-      });
-      
-      // Trigger save AFTER state update
-      const shouldAutoSave = !hasOwnProperty(updates, 'loading') && 
-                            !hasOwnProperty(updates, 'isSaving');
-      
-      if (shouldAutoSave) {
-        // Use setTimeout to ensure the ref is updated before save
-        setTimeout(() => {
-          debouncedSave();
-        }, 0);
-      }
-      
-      return newData;
+      return prevValue !== newValue;
     });
-  }, [debouncedSave]);
+    
+    if (!hasActualChanges) {
+      console.log('🔄 No actual changes detected, skipping update');
+      return prev;
+    }
+    
+    const newData = { ...prev, ...updates };
+    
+    console.log('✅ State updated with actual changes. New data:', {
+      id: newData.id,
+      timelineLength: Array.isArray(newData.timeline) ? newData.timeline.length : 0,
+      favoritesLength: Array.isArray(newData.favorites) ? newData.favorites.length : 0,
+    });
+    
+    // CRITICAL FIX: Only auto-save for meaningful updates
+    const shouldAutoSave = !hasOwnProperty(updates, 'loading') && 
+                          !hasOwnProperty(updates, 'isSaving') &&
+                          hasActualChanges;
+    
+    if (shouldAutoSave) {
+      // Use setTimeout to ensure the ref is updated before save
+      setTimeout(() => {
+        debouncedSave();
+      }, 0);
+    }
+    
+    return newData;
+  });
+}, [debouncedSave]);
 
   const updateTimeline = useCallback((events: TimelineEvent[]) => {
     console.log('📅 updateTimeline called with', events.length, 'events');

@@ -23,7 +23,7 @@ interface RSVP {
   createdAt: string;
 }
 
-// Debounce hook for auto-saving
+// Enhanced debounce hook with better cleanup
 const useDebounce = <T,>(value: T, delay: number): T => {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
@@ -57,6 +57,7 @@ export const ServiceSection: React.FC = () => {
   const [loadingRsvps, setLoadingRsvps] = useState(true);
   const [submittingRSVP, setSubmittingRSVP] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [lastSavedService, setLastSavedService] = useState<ServiceInfo | null>(null);
 
   const [newRSVP, setNewRSVP] = useState({
     firstName: '',
@@ -67,43 +68,38 @@ export const ServiceSection: React.FC = () => {
     guests: 1
   });
 
-  const debouncedService = useDebounce(service, 1000);
+  // Use a longer debounce time to reduce flickering
+  const debouncedService = useDebounce(service, 1500);
 
   // Initialize service info from memorial data (only once)
   useEffect(() => {
     if (memorialData?.service && !hasInitialized) {
-      setService(memorialData.service);
+      const initialService = memorialData.service;
+      setService(initialService);
+      setLastSavedService(initialService);
       setHasInitialized(true);
     }
   }, [memorialData, hasInitialized]);
 
-  // Memoize the comparison function
-  const hasChanges = useCallback((currentService: ServiceInfo) => {
-    if (!memorialData?.service) return true;
-    return JSON.stringify(currentService) !== JSON.stringify(memorialData.service);
-  }, [memorialData]);
+  // Stable comparison function - only considers meaningful changes
+  const hasMeaningfulChanges = useCallback((currentService: ServiceInfo, savedService: ServiceInfo | null) => {
+    if (!savedService) return true;
+    
+    // Only check fields that users actually care about
+    const meaningfulFields: (keyof ServiceInfo)[] = ['venue', 'address', 'date', 'time', 'virtualLink', 'virtualPlatform'];
+    
+    return meaningfulFields.some(field => 
+      currentService[field] !== savedService[field]
+    );
+  }, []);
 
-  // Auto-save debounced changes
+  // Auto-save debounced changes - with better change detection
   useEffect(() => {
-    if (hasInitialized && hasChanges(debouncedService)) {
+    if (hasInitialized && hasMeaningfulChanges(debouncedService, lastSavedService)) {
+      console.log('🔄 Auto-saving service changes...');
       updateService(debouncedService);
     }
-  }, [debouncedService, hasInitialized, hasChanges, updateService]);
-
-  // Warn about unsaved changes
-  useEffect(() => {
-    const hasUnsavedChanges = hasChanges(service);
-    
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [service, hasChanges]);
+  }, [debouncedService, hasInitialized, lastSavedService, hasMeaningfulChanges, updateService]);
 
   // Load RSVPs from backend
   useEffect(() => {
@@ -127,12 +123,10 @@ export const ServiceSection: React.FC = () => {
           const data = await response.json();
           setRsvps(data.rsvps || []);
         } else {
-          // If no RSVPs endpoint, use mock data for demo
           setRsvps([]);
         }
       } catch (error) {
         console.error('Error loading RSVPs:', error);
-        // Fallback to empty array if endpoint doesn't exist
         setRsvps([]);
       } finally {
         setLoadingRsvps(false);
@@ -146,17 +140,22 @@ export const ServiceSection: React.FC = () => {
     setService(prev => ({ ...prev, ...updates }));
   };
 
-const handleSaveService = async () => {
+  // Enhanced save function with better state management
+  const handleSaveService = async () => {
     setSaving(true);
     try {
       await updateService(service);
       await saveToBackend();
-      // Update the initialized state to reflect the saved changes
+      
+      // Update the saved state to prevent flickering
+      setLastSavedService(service);
       setHasInitialized(true);
-      alert('Service details saved successfully!');
+      
+      // Show subtle success feedback instead of alert
+      console.log('✅ Service details saved successfully');
     } catch (error) {
       console.error('Error saving service details:', error);
-      alert('Failed to save service details. Please try again.');
+      // Could show a toast notification here instead of alert
     } finally {
       setSaving(false);
     }
@@ -179,7 +178,6 @@ const handleSaveService = async () => {
       const updatedRsvps = [newRsvp, ...rsvps];
       setRsvps(updatedRsvps);
       
-      // Save to backend if you have an API endpoint
       if (memorialData?.id) {
         const token = localStorage.getItem('token');
         if (token) {
@@ -203,7 +201,6 @@ const handleSaveService = async () => {
         guests: 1
       });
       setShowRSVPForm(false);
-      alert('RSVP added successfully!');
     } catch (error) {
       console.error('Error adding RSVP:', error);
       alert('Failed to add RSVP. Please try again.');
@@ -240,7 +237,6 @@ const handleSaveService = async () => {
 
   const downloadQRCode = () => {
     const element = document.getElementById('memorial-qr-code');
-
     if (element && element instanceof SVGSVGElement) {
       const svgData = new XMLSerializer().serializeToString(element);
       const canvas = document.createElement('canvas');
@@ -264,7 +260,6 @@ const handleSaveService = async () => {
     }
   };
 
-  // Enhanced QR code data with service information
   const getQRCodeData = () => {
     const memorialUrl = getMemorialUrl();
     const serviceDetails = {
@@ -277,7 +272,6 @@ const handleSaveService = async () => {
       virtualPlatform: service.virtualPlatform
     };
 
-    // Create a structured data object for the QR code
     return JSON.stringify({
       type: 'memorial_service',
       url: memorialUrl,
@@ -287,7 +281,6 @@ const handleSaveService = async () => {
   };
 
   const getMemorialUrl = () => {
-    // Replace with your actual memorial URL structure
     return memorialData?.customUrl 
       ? `${window.location.origin}/memorial/${memorialData.customUrl}`
       : `${window.location.origin}/memorial/${memorialData?.id}`;
@@ -300,11 +293,16 @@ const handleSaveService = async () => {
     totalGuests: rsvps.reduce((sum, rsvp) => sum + rsvp.guests, 0)
   };
 
+  // Calculate if save button should be enabled
+  const shouldEnableSave = hasInitialized && 
+                          hasMeaningfulChanges(service, lastSavedService) && 
+                          !saving;
+
   // Show loading state while initializing
   if (!hasInitialized && !memorialData) {
     return (
-      <div className="max-w-6xl space-y-6">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+      <div className="max-w-6xl space-y-6 px-4 sm:px-6">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-6">
           <div className="animate-pulse text-center py-8">Loading service data...</div>
         </div>
       </div>
@@ -312,44 +310,46 @@ const handleSaveService = async () => {
   }
 
   return (
-    <div className="max-w-6xl space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-semibold text-gray-800">Service Details</h2>
-          <p className="text-gray-600 mt-1">Manage memorial service information and RSVPs</p>
+    <div className="max-w-6xl space-y-6 px-4 sm:px-6">
+      {/* Header - Improved mobile responsiveness */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div className="text-center sm:text-left">
+          <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Service Details</h2>
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">Manage memorial service information and RSVPs</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap justify-center sm:justify-end gap-2">
           <button
             onClick={() => setShowRSVPForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-full hover:bg-amber-600 transition-all"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-amber-500 text-white rounded-full hover:bg-amber-600 transition-all text-sm"
           >
             <Plus className="w-4 h-4" />
-            Add RSVP
+            <span className="hidden sm:inline">Add RSVP</span>
+            <span className="sm:hidden">RSVP</span>
           </button>
           <button
             onClick={handleGenerateQRCode}
             disabled={!service.venue || !service.date}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all disabled:opacity-50 text-sm"
           >
             <QrCode className="w-4 h-4" />
-            QR Code
+            <span className="hidden sm:inline">QR Code</span>
           </button>
           <button
             onClick={handleExportRSVPs}
             disabled={rsvps.length === 0}
-            className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all disabled:opacity-50"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all disabled:opacity-50 text-sm"
           >
             <Download className="w-4 h-4" />
-            Export RSVPs
+            <span className="hidden sm:inline">Export</span>
           </button>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-8">
+      {/* Main Content Grid - Improved mobile layout */}
+      <div className="grid lg:grid-cols-2 gap-6">
         {/* Service Details Form */}
         <div className="space-y-6">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
             <h3 className="text-lg font-semibold text-gray-800 mb-4">Service Information</h3>
             
             <div className="space-y-4">
@@ -359,7 +359,7 @@ const handleSaveService = async () => {
                   type="text"
                   value={service.venue}
                   onChange={(e) => handleServiceChange({ venue: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm sm:text-base"
                   placeholder="Enter venue name"
                 />
               </div>
@@ -370,19 +370,19 @@ const handleSaveService = async () => {
                   value={service.address}
                   onChange={(e) => handleServiceChange({ address: e.target.value })}
                   rows={3}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none text-sm sm:text-base"
                   placeholder="Full address"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Date *</label>
                   <input
                     type="date"
                     value={service.date}
                     onChange={(e) => handleServiceChange({ date: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm sm:text-base"
                   />
                 </div>
 
@@ -392,7 +392,7 @@ const handleSaveService = async () => {
                     type="time"
                     value={service.time}
                     onChange={(e) => handleServiceChange({ time: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm sm:text-base"
                   />
                 </div>
               </div>
@@ -403,11 +403,11 @@ const handleSaveService = async () => {
                   type="url"
                   value={service.virtualLink || ''}
                   onChange={(e) => handleServiceChange({ virtualLink: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className="w-full px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm sm:text-base"
                   placeholder="https://zoom.us/j/..."
                 />
-                <div className="flex gap-4 mt-2">
-                  <label className="flex items-center gap-2">
+                <div className="flex flex-wrap gap-3 mt-2">
+                  <label className="flex items-center gap-2 text-sm">
                     <input
                       type="radio"
                       name="platform"
@@ -415,9 +415,9 @@ const handleSaveService = async () => {
                       onChange={() => handleServiceChange({ virtualPlatform: 'zoom' })}
                       className="text-amber-500"
                     />
-                    <span className="text-sm text-gray-700">Zoom</span>
+                    <span>Zoom</span>
                   </label>
-                  <label className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 text-sm">
                     <input
                       type="radio"
                       name="platform"
@@ -425,9 +425,9 @@ const handleSaveService = async () => {
                       onChange={() => handleServiceChange({ virtualPlatform: 'meet' })}
                       className="text-amber-500"
                     />
-                    <span className="text-sm text-gray-700">Google Meet</span>
+                    <span>Meet</span>
                   </label>
-                  <label className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 text-sm">
                     <input
                       type="radio"
                       name="platform"
@@ -435,45 +435,50 @@ const handleSaveService = async () => {
                       onChange={() => handleServiceChange({ virtualPlatform: 'teams' })}
                       className="text-amber-500"
                     />
-                    <span className="text-sm text-gray-700">Teams</span>
+                    <span>Teams</span>
                   </label>
                 </div>
               </div>
             </div>
 
+            {/* Enhanced Save Button - No more flickering */}
             <button 
               onClick={handleSaveService}
-              disabled={saving || !hasChanges(service)}
-              className="w-full mt-6 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+              disabled={!shouldEnableSave}
+              className={`w-full mt-6 px-6 py-3 rounded-lg transition-all font-medium flex items-center justify-center gap-2 text-sm sm:text-base ${
+                shouldEnableSave
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-lg hover:shadow-xl'
+                  : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+              }`}
             >
               <Save className="w-4 h-4" />
               {saving ? 'Saving...' : 'Save Service Details'}
             </button>
           </div>
 
-          {/* Quick Stats */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
-              <div className="text-2xl font-bold text-gray-800">{stats.total}</div>
-              <div className="text-sm text-gray-600">Total RSVPs</div>
+          {/* Quick Stats - Improved mobile grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 text-center">
+              <div className="text-xl sm:text-2xl font-bold text-gray-800">{stats.total}</div>
+              <div className="text-xs sm:text-sm text-gray-600">Total RSVPs</div>
             </div>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
-              <div className="text-2xl font-bold text-gray-800">{stats.inPerson}</div>
-              <div className="text-sm text-gray-600">In Person</div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 text-center">
+              <div className="text-xl sm:text-2xl font-bold text-gray-800">{stats.inPerson}</div>
+              <div className="text-xs sm:text-sm text-gray-600">In Person</div>
             </div>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
-              <div className="text-2xl font-bold text-gray-800">{stats.virtual}</div>
-              <div className="text-sm text-gray-600">Virtual</div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 text-center">
+              <div className="text-xl sm:text-2xl font-bold text-gray-800">{stats.virtual}</div>
+              <div className="text-xs sm:text-sm text-gray-600">Virtual</div>
             </div>
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
-              <div className="text-2xl font-bold text-gray-800">{stats.totalGuests}</div>
-              <div className="text-sm text-gray-600">Total Guests</div>
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 text-center">
+              <div className="text-xl sm:text-2xl font-bold text-gray-800">{stats.totalGuests}</div>
+              <div className="text-xs sm:text-sm text-gray-600">Total Guests</div>
             </div>
           </div>
         </div>
 
-        {/* RSVP List */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+        {/* RSVP List - Improved mobile styling */}
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-gray-800">RSVP Responses ({rsvps.length})</h3>
           </div>
@@ -481,20 +486,20 @@ const handleSaveService = async () => {
           {loadingRsvps ? (
             <div className="text-center py-8 text-gray-500">
               <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full mx-auto mb-3"></div>
-              <p>Loading RSVPs...</p>
+              <p className="text-sm">Loading RSVPs...</p>
             </div>
           ) : (
-            <div className="space-y-4 max-h-96 overflow-y-auto">
+            <div className="space-y-3 max-h-96 overflow-y-auto">
               {rsvps.map(rsvp => (
-                <div key={rsvp.id} className="p-4 border border-gray-200 rounded-lg">
+                <div key={rsvp.id} className="p-3 border border-gray-200 rounded-lg">
                   <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h4 className="font-semibold text-gray-800">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-gray-800 text-sm sm:text-base truncate">
                         {rsvp.firstName} {rsvp.lastName}
                       </h4>
-                      <p className="text-sm text-gray-600">{rsvp.email}</p>
+                      <p className="text-xs sm:text-sm text-gray-600 truncate">{rsvp.email}</p>
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ml-2 ${
                       rsvp.attending === 'in_person' 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-blue-100 text-blue-800'
@@ -502,12 +507,12 @@ const handleSaveService = async () => {
                       {rsvp.attending === 'in_person' ? 'In Person' : 'Virtual'}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>{rsvp.phone}</span>
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span className="truncate mr-2">{rsvp.phone}</span>
                     <span>{rsvp.guests} guest{rsvp.guests !== 1 ? 's' : ''}</span>
                   </div>
                   <div className="text-xs text-gray-500 mt-2">
-                    Responded on {new Date(rsvp.createdAt).toLocaleDateString()}
+                    {new Date(rsvp.createdAt).toLocaleDateString()}
                   </div>
                 </div>
               ))}
@@ -517,8 +522,8 @@ const handleSaveService = async () => {
           {!loadingRsvps && rsvps.length === 0 && (
             <div className="text-center py-8 text-gray-500">
               <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p>No RSVPs yet</p>
-              <p className="text-sm">Click "Add RSVP" to create your first RSVP</p>
+              <p className="text-sm">No RSVPs yet</p>
+              <p className="text-xs mt-1">Click "Add RSVP" to create your first RSVP</p>
             </div>
           )}
         </div>

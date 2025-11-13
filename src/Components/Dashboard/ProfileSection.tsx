@@ -1,4 +1,4 @@
-// Components/Dashboard/ProfileSection.tsx - COMPLETE with ImageKit.io
+// Components/Dashboard/ProfileSection.tsx 
 import React, { useState, useEffect, useCallback } from 'react';
 import { Upload, User, MapPin, Calendar, Save } from 'lucide-react';
 import { useMemorial } from '../../hooks/useMemorial';
@@ -11,23 +11,6 @@ interface ProfileData {
   location: string;
   obituary: string;
 }
-
-// Add the useDebounce hook at the top of your file
-const useDebounce = <T,>(value: T, delay: number): T => {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-};
 
 export const ProfileSection: React.FC = () => {
   const { memorialData, updateMemorialData, saveToBackend } = useMemorial();
@@ -42,61 +25,80 @@ export const ProfileSection: React.FC = () => {
   });
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-
-  const debouncedProfile = useDebounce(profile, 1000);
+  const [lastSavedProfile, setLastSavedProfile] = useState<ProfileData | null>(null);
 
   // Initialize form with memorial data (only once)
   useEffect(() => {
     if (memorialData && !hasInitialized) {
-      setProfile({
+      const initialProfile = {
         name: memorialData.name || '',
         profileImage: memorialData.profileImage || '',
         birthDate: memorialData.birthDate || '',
         deathDate: memorialData.deathDate || '',
         location: memorialData.location || '',
         obituary: memorialData.obituary || ''
-      });
+      };
+      setProfile(initialProfile);
+      setLastSavedProfile(initialProfile);
       setHasInitialized(true);
     }
   }, [memorialData, hasInitialized]);
 
-  // Memoize the comparison function to avoid unnecessary re-renders
-  const hasChanges = useCallback((currentProfile: ProfileData) => {
-    if (!memorialData) return true;
-    return JSON.stringify(currentProfile) !== JSON.stringify(memorialData);
-  }, [memorialData]);
+  // Only update memorial data when there are actual changes
+  const hasChanges = useCallback((currentProfile: ProfileData, savedProfile: ProfileData | null) => {
+    if (!savedProfile) return true;
+    return JSON.stringify(currentProfile) !== JSON.stringify(savedProfile);
+  }, []);
 
-  // Auto-save debounced changes
-  useEffect(() => {
-    if (hasInitialized && debouncedProfile.name.trim() && hasChanges(debouncedProfile)) {
-      updateMemorialData(debouncedProfile);
+  // Manual save with proper change detection
+  const handleSave = async () => {
+    if (!profile.name.trim()) {
+      alert('Please enter a name for the memorial.');
+      return;
     }
-  }, [debouncedProfile, hasInitialized, hasChanges, updateMemorialData]);
 
-  // Warn about unsaved changes
-  useEffect(() => {
-    const hasUnsavedChanges = hasChanges(profile);
+    if (!hasChanges(profile, lastSavedProfile)) {
+      console.log('🔄 No changes to save');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      console.log('💾 Manually saving profile changes...');
+      await updateMemorialData(profile);
+      await saveToBackend();
+      setLastSavedProfile(profile);
+      console.log('✅ Profile saved successfully!');
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      alert('Failed to save changes. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Optimized field change handler - batches changes
+  const handleFieldChange = (field: keyof ProfileData, value: string) => {
+    const newProfile = { ...profile, [field]: value };
+    setProfile(newProfile);
     
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = '';
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [profile, hasChanges]);
+    // Only trigger update if we have actual changes from last saved state
+    if (hasInitialized && lastSavedProfile && hasChanges(newProfile, lastSavedProfile)) {
+      console.log(`📝 Field changed: ${field}`, { 
+        from: lastSavedProfile[field], 
+        to: value 
+      });
+      
+      // Use setTimeout to batch rapid changes
+      setTimeout(() => {
+        updateMemorialData(newProfile);
+      }, 100);
+    }
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
-    console.log("🖼️ Selected file:", {
-      name: file.name,
-      size: file.size,
-      type: file.type,
-    });
 
     if (file.size > 5 * 1024 * 1024) {
       alert('Image size should be less than 5MB');
@@ -111,17 +113,11 @@ export const ProfileSection: React.FC = () => {
     setUploading(true);
 
     try {
-      console.log("⬆️ Uploading image to backend...");
-
-      // Get token from localStorage
       const token = localStorage.getItem('token');
-      console.log("🔑 Token present:", !!token);
-
       if (!token) {
         throw new Error('Authentication token not found. Please log in again.');
       }
 
-      // Upload directly to your backend, which will handle ImageKit upload
       const formData = new FormData();
       formData.append('file', file);
       formData.append('folder', 'memorials/profiles');
@@ -134,63 +130,30 @@ export const ProfileSection: React.FC = () => {
         body: formData,
       });
 
-      console.log("📡 Upload response status:", uploadResponse.status);
-
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
-        console.error("❌ Upload error response:", errorText);
-        
-        // Handle authentication errors
         if (uploadResponse.status === 401 || uploadResponse.status === 403) {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           throw new Error('Session expired. Please log in again.');
         }
-        
         throw new Error(`Upload failed (${uploadResponse.status}): ${errorText}`);
       }
 
       const data = await uploadResponse.json();
-      console.log("✅ Upload success:", data);
-
       const newProfile = { ...profile, profileImage: data.url };
-      console.log("🧠 Updated profile object:", newProfile);
-
       setProfile(newProfile);
+      
+      // Immediately update memorial data for image changes
       await updateMemorialData(newProfile);
-
+      
       alert('✅ Image uploaded successfully!');
     } catch (error) {
       console.error('❌ Upload failed:', error);
       alert('Failed to upload image. Please try again.');
     } finally {
       setUploading(false);
-      console.log("🏁 Upload process completed.");
     }
-  };
-
-  const handleSave = async () => {
-    if (!profile.name.trim()) {
-      alert('Please enter a name for the memorial.');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await updateMemorialData(profile);
-      await saveToBackend();
-      alert('Profile saved successfully!');
-    } catch (error) {
-      console.error('Error saving profile:', error);
-      alert('Failed to save changes. Please try again.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleFieldChange = (field: keyof ProfileData, value: string) => {
-    const newProfile = { ...profile, [field]: value };
-    setProfile(newProfile);
   };
 
   // Show loading state while initializing
@@ -203,6 +166,8 @@ export const ProfileSection: React.FC = () => {
       </div>
     );
   }
+
+  const hasUnsavedChanges = hasChanges(profile, lastSavedProfile);
 
   return (
     <div className="max-w-4xl space-y-8">
@@ -321,11 +286,16 @@ export const ProfileSection: React.FC = () => {
       </div>
 
       {/* Save Button */}
-      <div className="flex justify-end">
+      <div className="flex justify-between items-center">
+        {hasUnsavedChanges && (
+          <div className="text-amber-600 text-sm">
+            ⚠️ You have unsaved changes
+          </div>
+        )}
         <button 
           onClick={handleSave}
-          disabled={saving || !profile.name.trim()}
-          className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full hover:from-amber-600 hover:to-orange-600 transition-all font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={saving || !profile.name.trim() || !hasUnsavedChanges}
+          className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full hover:from-amber-600 hover:to-orange-600 transition-all font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
         >
           <Save className="w-4 h-4" />
           {saving ? 'Saving...' : 'Save Changes'}
