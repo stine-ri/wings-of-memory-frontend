@@ -105,75 +105,100 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
     await loadMemorialData();
   }, [loadMemorialData]);
 
-  const saveToBackend = useCallback(async () => {
-    if (!memorialData?.id || isSaving) return;
+const saveToBackend = useCallback(async () => {
+  if (!memorialData?.id || isSaving) return;
 
-    try {
-      setIsSaving(true);
-      
-      // Create a clean copy without the duplicate fields that cause issues
-      const cleanData: Omit<MemorialData, 'service' | 'memories'> & {
-        serviceInfo?: ServiceInfo;
-      } = { ...memorialData };
-      
-      // Remove the problematic duplicate fields
-      delete (cleanData as Partial<MemorialData>).service;
-      delete (cleanData as Partial<MemorialData>).memories;
-      
-      const backendData = {
-        name: cleanData.name,
-        profileImage: cleanData.profileImage,
-        birthDate: cleanData.birthDate,
-        deathDate: cleanData.deathDate,
-        location: cleanData.location,
-        obituary: cleanData.obituary,
-        timeline: cleanData.timeline || [],
-        favorites: cleanData.favorites || [],
-        familyTree: cleanData.familyTree || [],
-        gallery: cleanData.gallery || [],
-        memoryWall: cleanData.memoryWall || [],
-        serviceInfo: cleanData.serviceInfo || {
-          venue: '',
-          address: '',
-          date: '',
-          time: '',
-          virtualLink: '',
-          virtualPlatform: 'zoom'
-        },
-        theme: cleanData.theme,
-        customUrl: cleanData.customUrl
-      };
+  try {
+    setIsSaving(true);
+    
+    // ADD THIS DEBUG LOGGING - check what we have BEFORE cleaning
+    console.log('🔍 Frontend data BEFORE cleaning:', {
+      timeline: memorialData.timeline,
+      favorites: memorialData.favorites,
+      familyTree: memorialData.familyTree,
+      gallery: memorialData.gallery,
+      memoryWall: memorialData.memoryWall,
+      serviceInfo: memorialData.serviceInfo
+    });
+    
+    // Create a clean copy without the duplicate fields that cause issues
+    const cleanData: Omit<MemorialData, 'service' | 'memories'> & {
+      serviceInfo?: ServiceInfo;
+    } = { ...memorialData };
+    
+    // Remove the problematic duplicate fields
+    delete (cleanData as Partial<MemorialData>).service;
+    delete (cleanData as Partial<MemorialData>).memories;
+    
+    // ADD THIS LOGGING - check what we have AFTER cleaning
+    console.log('🔍 Frontend data AFTER cleaning:', {
+      timeline: cleanData.timeline,
+      favorites: cleanData.favorites,
+      familyTree: cleanData.familyTree,
+      gallery: cleanData.gallery,
+      memoryWall: cleanData.memoryWall
+    });
+    
+    const backendData = {
+      name: cleanData.name,
+      profileImage: cleanData.profileImage,
+      birthDate: cleanData.birthDate,
+      deathDate: cleanData.deathDate,
+      location: cleanData.location,
+      obituary: cleanData.obituary,
+      timeline: cleanData.timeline || [],
+      favorites: cleanData.favorites || [],
+      familyTree: cleanData.familyTree || [],
+      gallery: cleanData.gallery || [],
+      memoryWall: cleanData.memoryWall || [],
+      serviceInfo: cleanData.serviceInfo || {
+        venue: '',
+        address: '',
+        date: '',
+        time: '',
+        virtualLink: '',
+        virtualPlatform: 'zoom'
+      },
+      theme: cleanData.theme,
+      customUrl: cleanData.customUrl
+    };
 
-      console.log('💾 Saving to backend - clean data:', {
-        memorialId: cleanData.id,
-        hasServiceInfo: !!backendData.serviceInfo
-      });
+    // ADD THIS LOGGING - check final data being sent
+    console.log('💾 Saving to backend - FINAL data:', {
+      memorialId: cleanData.id,
+      timeline: backendData.timeline,
+      favorites: backendData.favorites,
+      familyTree: backendData.familyTree,
+      gallery: backendData.gallery,
+      memoryWall: backendData.memoryWall,
+      hasServiceInfo: !!backendData.serviceInfo
+    });
 
-      const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${cleanData.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(backendData)
-      });
+    const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${cleanData.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: JSON.stringify(backendData)
+    });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Backend error response:', errorText);
-        throw new Error(`Failed to save memorial: ${errorText}`);
-      }
-
-      const result = await response.json();
-      console.log('✅ Memorial saved successfully');
-      return result;
-    } catch (error) {
-      console.error('❌ Error saving memorial:', error);
-      throw error;
-    } finally {
-      setIsSaving(false);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Backend error response:', errorText);
+      throw new Error(`Failed to save memorial: ${errorText}`);
     }
-  }, [memorialData, isSaving]);
+
+    const result = await response.json();
+    console.log('✅ Memorial saved successfully');
+    return result;
+  } catch (error) {
+    console.error('❌ Error saving memorial:', error);
+    throw error;
+  } finally {
+    setIsSaving(false);
+  }
+}, [memorialData, isSaving]);
 
   // Debounced auto-save - FIXED to prevent infinite loops
   const debouncedSave = useCallback(() => {
