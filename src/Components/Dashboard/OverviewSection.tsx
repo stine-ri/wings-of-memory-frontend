@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, Share2, QrCode, Heart, Users, Images, Clock, FileText, MapPin, Calendar } from 'lucide-react';
+import { Heart, Users, Images, Clock, FileText, MapPin, Calendar } from 'lucide-react';
 import { useMemorial } from '../../hooks/useMemorial';
 
 export const OverviewSection: React.FC = () => {
@@ -91,30 +91,6 @@ export const OverviewSection: React.FC = () => {
   const completedSteps = completionSteps.filter(step => step.completed).length;
   const totalSteps = completionSteps.length;
   const progressPercentage = Math.round((completedSteps / totalSteps) * 100);
-
-  const quickActions = [
-    { 
-      icon: Download, 
-      label: 'Download Memorial', 
-      description: 'Create a beautiful PDF booklet to share or print',
-      color: 'from-blue-500 to-blue-600',
-      href: '/dashboard/download'
-    },
-    { 
-      icon: Share2, 
-      label: 'Share Memorial', 
-      description: 'Send the memorial link to family and friends',
-      color: 'from-purple-500 to-purple-600',
-      href: '/dashboard/download'
-    },
-    { 
-      icon: QrCode, 
-      label: 'QR Code', 
-      description: 'Generate QR code for service programs',
-      color: 'from-green-500 to-green-600',
-      href: '/dashboard/download'
-    },
-  ];
 
   // Format dates for display
   const formatDate = (dateString?: string) => {
@@ -243,29 +219,6 @@ export const OverviewSection: React.FC = () => {
              progressPercentage >= 50 ? 'Great progress! Keep adding memories and details.' :
              'Getting started! Each section you complete makes the memorial more meaningful.'}
           </p>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
-        <h2 className="text-lg sm:text-xl font-serif font-bold text-gray-800 mb-4 sm:mb-6">Share & Download</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
-          {quickActions.map((action, index) => {
-            const Icon = action.icon;
-            return (
-              <a
-                key={index}
-                href={action.href}
-                className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 hover:shadow-lg transition-all duration-300 text-left group hover:scale-105 hover:border-gray-300 block"
-              >
-                <div className={`w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-r ${action.color} rounded-lg flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform`}>
-                  <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-                </div>
-                <h3 className="font-semibold text-gray-800 text-base sm:text-lg mb-1 sm:mb-2">{action.label}</h3>
-                <p className="text-gray-600 text-xs sm:text-sm leading-relaxed">{action.description}</p>
-              </a>
-            );
-          })}
         </div>
       </div>
 
