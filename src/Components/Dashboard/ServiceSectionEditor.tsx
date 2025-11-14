@@ -72,17 +72,7 @@ export const ServiceSection: React.FC = () => {
     }
   }, [service, memorialData]);
 
-  // Auto-save after a delay when changes are made
-  useEffect(() => {
-    if (hasChanges) {
-      const timer = setTimeout(() => {
-        console.log('🔄 Auto-saving service changes...');
-        updateService(service);
-      }, 2000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [service, hasChanges, updateService]);
+  // Auto-save removed - user must click Save button manually
 
   // Load RSVPs from backend
   useEffect(() => {
