@@ -1,4 +1,4 @@
-// Pages/Dashboard.tsx - CLEANED UP VERSION
+// Pages/Dashboard.tsx - IMPROVED ERROR HANDLING VERSION
 import React, { useState, useEffect, useCallback } from 'react';
 import TopNav from '../Components/TopNav';
 import { Footer } from '../Components/Footer';
@@ -32,17 +32,29 @@ const DashboardContent: React.FC = () => {
   const fetchUserMemorials = useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        console.log('No token found');
+        return;
+      }
+
+      console.log('Fetching memorials with token:', token.substring(0, 20) + '...');
 
       const response = await fetch('https://wings-of-memories-backend.onrender.com/api/memorials', {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
         }
       });
 
+      console.log('Memorials response status:', response.status);
+
       if (response.ok) {
         const data = await response.json();
+        console.log('Memorials data received:', data);
         setUserMemorials(data.memorials || []);
+      } else {
+        const errorText = await response.text();
+        console.error('Failed to fetch memorials:', response.status, errorText);
       }
     } catch (error) {
       console.error('Error fetching memorials:', error);
@@ -51,45 +63,86 @@ const DashboardContent: React.FC = () => {
 
   // Handle memorial selection
   const handleSelectMemorial = useCallback(async (memorialId: string) => {
+    console.log('Selecting memorial:', memorialId);
     localStorage.setItem('currentMemorialId', memorialId);
     window.history.replaceState({}, '', `?memorialId=${memorialId}`);
-    window.location.reload(); // Simple approach
+    window.location.reload();
   }, []);
 
-  // Handle creating new memorial
+  // Handle creating new memorial - IMPROVED VERSION
   const handleCreateNewMemorial = useCallback(async () => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please log in to create a memorial');
+        return;
+      }
+
+      console.log('Creating new memorial with token:', token.substring(0, 20) + '...');
+
+      const memorialData = {
+        name: 'New Memorial',
+        profileImage: '',
+        birthDate: '',
+        deathDate: '',
+        location: '',
+        obituary: '',
+        createdAt: new Date().toISOString()
+      };
+
+      console.log('Sending memorial data:', memorialData);
+
       const response = await fetch('https://wings-of-memories-backend.onrender.com/api/memorials', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({
-          name: 'New Memorial',
-          profileImage: '',
-          birthDate: '',
-          deathDate: '',
-          location: '',
-          obituary: ''
-        })
+        body: JSON.stringify(memorialData)
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const newMemorialId = data.memorial.id;
-        
-        // Add to local state
-        setUserMemorials(prev => [...prev, data.memorial]);
-        
-        // Select the new memorial
-        handleSelectMemorial(newMemorialId);
-      } else {
-        throw new Error('Failed to create memorial');
+      console.log('Create memorial response status:', response.status);
+
+      if (!response.ok) {
+  let errorMessage = 'Failed to create memorial';
+  try {
+    const errorData = await response.json();
+    errorMessage = errorData.message || errorMessage;
+    console.error('Backend error details:', errorData);
+  } catch {
+    const errorText = await response.text();
+    console.error('Raw error response:', errorText);
+    errorMessage = `Server error: ${response.status} - ${errorText}`;
+  }
+  throw new Error(errorMessage);
+}
+
+
+      const data = await response.json();
+      console.log('Memorial created successfully:', data);
+
+      const newMemorialId = data.memorial?.id || data.id;
+      
+      if (!newMemorialId) {
+        throw new Error('No memorial ID returned from server');
       }
+
+      // Add to local state
+      const newMemorial = {
+        id: newMemorialId,
+        name: data.memorial?.name || 'New Memorial',
+        createdAt: data.memorial?.createdAt || new Date().toISOString(),
+        isPublished: data.memorial?.isPublished || false
+      };
+      
+      setUserMemorials(prev => [...prev, newMemorial]);
+      
+      // Select the new memorial
+      handleSelectMemorial(newMemorialId);
+
     } catch (error) {
       console.error('Error creating memorial:', error);
-      alert('Failed to create memorial. Please try again.');
+      alert(`Failed to create memorial: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }, [handleSelectMemorial]);
 
@@ -132,7 +185,6 @@ const DashboardContent: React.FC = () => {
 
   return (
     <>
-      {/* TopNav with memorial functionality */}
       <TopNav 
         memorials={userMemorials}
         currentMemorialId={memorialData?.id || ''}
@@ -140,7 +192,6 @@ const DashboardContent: React.FC = () => {
         onCreateNew={handleCreateNewMemorial}
       />
       
-      {/* DashboardLayout with memorial functionality */}
       <DashboardLayout
         activeSection={activeSection}
         onSectionChange={setActiveSection}
@@ -149,7 +200,6 @@ const DashboardContent: React.FC = () => {
           name: memorialData.name,
           isPublished: memorialData.isPublished || false
         } : null}
-        // Pass the memorial props to DashboardLayout
         memorials={userMemorials}
         currentMemorialId={memorialData?.id || ''}
         onSelectMemorial={handleSelectMemorial}
@@ -170,11 +220,16 @@ export const Dashboard: React.FC = () => {
 
   const createNewMemorial = useCallback(async () => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+
       const response = await fetch('https://wings-of-memories-backend.onrender.com/api/memorials', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           name: 'New Memorial',
@@ -182,22 +237,37 @@ export const Dashboard: React.FC = () => {
           birthDate: '',
           deathDate: '',
           location: '',
-          obituary: ''
+          obituary: '',
+          createdAt: new Date().toISOString()
         })
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const newMemorialId = data.memorial.id;
-        setMemorialId(newMemorialId);
-        localStorage.setItem('currentMemorialId', newMemorialId);
-        window.history.replaceState({}, '', `?memorialId=${newMemorialId}`);
-      } else {
-        throw new Error('Failed to create memorial');
+    if (!response.ok) {
+  let errorMessage = 'Failed to create memorial';
+  try {
+    const errorData = await response.json();
+    errorMessage = errorData.message || errorMessage;
+  } catch {
+    // We can ignore the actual text if we just want a generic message
+    errorMessage = `Server error: ${response.status}`;
+  }
+  throw new Error(errorMessage);
+}
+
+      const data = await response.json();
+      const newMemorialId = data.memorial?.id || data.id;
+      
+      if (!newMemorialId) {
+        throw new Error('No memorial ID returned from server');
       }
+      
+      setMemorialId(newMemorialId);
+      localStorage.setItem('currentMemorialId', newMemorialId);
+      window.history.replaceState({}, '', `?memorialId=${newMemorialId}`);
+      
     } catch (error) {
       console.error('Error creating memorial:', error);
-      alert('Failed to create memorial. Please refresh the page.');
+      alert(`Failed to create memorial: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }, []);
 
@@ -206,6 +276,8 @@ export const Dashboard: React.FC = () => {
       const urlParams = new URLSearchParams(window.location.search);
       const idFromUrl = urlParams.get('memorialId');
       const savedMemorialId = localStorage.getItem('currentMemorialId');
+
+      console.log('Initializing memorial:', { idFromUrl, savedMemorialId });
 
       if (idFromUrl) {
         setMemorialId(idFromUrl);
