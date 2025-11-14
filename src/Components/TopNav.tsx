@@ -1,9 +1,17 @@
+// TopNav.tsx - FIXED VERSION that accepts memorial props directly
 import React, { useState, useEffect } from 'react';
-import { Heart, Menu, X, LogIn, UserPlus, User, LogOut } from 'lucide-react';
+import { Heart, Menu, X, LogIn, UserPlus, User, LogOut, ChevronDown, Plus } from 'lucide-react';
 
 interface User {
   name: string;
   email: string;
+}
+
+interface Memorial {
+  id: string;
+  name: string;
+  createdAt: string;
+  isPublished: boolean;
 }
 
 interface AuthModalProps {
@@ -11,6 +19,83 @@ interface AuthModalProps {
   onClose: () => void;
   mode: 'login' | 'register';
 }
+
+interface MemorialSelectorProps {
+  memorials: Memorial[];
+  currentMemorialId: string;
+  onSelectMemorial: (id: string) => void;
+  onCreateNew: () => void;
+}
+
+const MemorialSelector: React.FC<MemorialSelectorProps> = ({ 
+  memorials, 
+  currentMemorialId, 
+  onSelectMemorial, 
+  onCreateNew 
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  const currentMemorial = memorials.find(m => m.id === currentMemorialId);
+  
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+      >
+        <span className="font-medium text-sm">{currentMemorial?.name || 'Select Memorial'}</span>
+        <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {isOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-40" 
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-300 rounded-lg shadow-lg z-50 max-h-96 overflow-y-auto">
+            <div className="p-2">
+              <button
+                onClick={() => {
+                  onCreateNew();
+                  setIsOpen(false);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-amber-50 rounded-lg transition-colors text-amber-600 font-medium text-sm"
+              >
+                <Plus className="w-4 h-4" />
+                Create New Memorial
+              </button>
+            </div>
+            
+            <div className="border-t border-gray-200" />
+            
+            <div className="p-2">
+              {memorials.map((memorial) => (
+                <button
+                  key={memorial.id}
+                  onClick={() => {
+                    onSelectMemorial(memorial.id);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-2 rounded-lg transition-colors text-sm ${
+                    memorial.id === currentMemorialId
+                      ? 'bg-amber-100 text-amber-800'
+                      : 'hover:bg-gray-100'
+                  }`}
+                >
+                  <div className="font-medium">{memorial.name}</div>
+                  <div className="text-xs text-gray-500">
+                    Created: {new Date(memorial.createdAt).toLocaleDateString()}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode }) => {
   const [email, setEmail] = useState('');
@@ -51,11 +136,9 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode }) => {
 
       const data = await response.json();
       
-      // Store token and user data
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data.user));
       
-      // Reload page to update nav state
       window.location.reload();
       
     } catch (err) {
@@ -66,7 +149,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-60 z-[60] flex items-center justify-center p-3 sm:p-4">
+    <div className="fixed inset-0 bg-black bg-opacity-60 z-60 flex items-center justify-center p-3 sm:p-4">
       <div className="bg-white rounded-2xl sm:rounded-3xl shadow-2xl max-w-md w-full p-4 sm:p-6 md:p-8 relative mx-2">
         <button 
           onClick={onClose} 
@@ -135,7 +218,19 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, mode }) => {
   );
 };
 
-export default function TopNav() {
+interface TopNavProps {
+  memorials?: Memorial[];
+  currentMemorialId?: string;
+  onSelectMemorial?: (id: string) => void;
+  onCreateNew?: () => void;
+}
+
+export default function TopNav({ 
+  memorials = [],
+  currentMemorialId = '',
+  onSelectMemorial,
+  onCreateNew
+}: TopNavProps) {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -147,7 +242,6 @@ export default function TopNav() {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
     
-    // Check for logged in user
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       try {
@@ -169,6 +263,7 @@ export default function TopNav() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
+    localStorage.removeItem('currentMemorialId');
     setUser(null);
     setShowUserMenu(false);
     setMobileMenuOpen(false);
@@ -231,21 +326,28 @@ export default function TopNav() {
 
             {/* Desktop Navigation & Auth */}
             <div className="hidden md:flex items-center gap-4 lg:gap-8">
+              {/* Memorial Selector - Show when user is logged in and has memorials */}
+              {user && memorials.length > 0 && onSelectMemorial && onCreateNew && (
+                <MemorialSelector
+                  memorials={memorials}
+                  currentMemorialId={currentMemorialId}
+                  onSelectMemorial={onSelectMemorial}
+                  onCreateNew={onCreateNew}
+                />
+              )}
+
               <nav className="flex items-center gap-4 lg:gap-7">
                 <a href="/about" className="relative text-sm lg:text-base text-gray-700 hover:text-amber-600 font-semibold transition-all duration-300 group whitespace-nowrap px-1 py-2">
                   <span className="relative z-10">About Us</span>
                   <span className="absolute bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-amber-500 to-orange-500 group-hover:w-full transition-all duration-400 rounded-full"></span>
-                  <span className="absolute inset-0 bg-amber-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg -z-10"></span>
                 </a>
                 <a href="/services" className="relative text-sm lg:text-base text-gray-700 hover:text-amber-600 font-semibold transition-all duration-300 group whitespace-nowrap px-1 py-2">
                   <span className="relative z-10">What We Offer</span>
                   <span className="absolute bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-amber-500 to-orange-500 group-hover:w-full transition-all duration-400 rounded-full"></span>
-                  <span className="absolute inset-0 bg-amber-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg -z-10"></span>
                 </a>
                 <a href="/contact" className="relative text-sm lg:text-base text-gray-700 hover:text-amber-600 font-semibold transition-all duration-300 group whitespace-nowrap px-1 py-2">
                   <span className="relative z-10">Contact Us</span>
                   <span className="absolute bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-amber-500 to-orange-500 group-hover:w-full transition-all duration-400 rounded-full"></span>
-                  <span className="absolute inset-0 bg-amber-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg -z-10"></span>
                 </a>
               </nav>
               
@@ -263,23 +365,29 @@ export default function TopNav() {
                     </button>
                     
                     {showUserMenu && (
-                      <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-amber-100 py-2 z-50">
-                        <div className="px-4 py-3 border-b border-gray-100">
-                          <p className="text-sm font-semibold text-gray-800">{user.name}</p>
-                          <p className="text-xs text-gray-500 mt-1">{user.email}</p>
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={() => setShowUserMenu(false)}
+                        />
+                        <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-amber-100 py-2 z-50">
+                          <div className="px-4 py-3 border-b border-gray-100">
+                            <p className="text-sm font-semibold text-gray-800">{user.name}</p>
+                            <p className="text-xs text-gray-500 mt-1">{user.email}</p>
+                          </div>
+                          <a href="/dashboard" className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 transition-colors">
+                            <User className="w-4 h-4" />
+                            Dashboard
+                          </a>
+                          <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                          >
+                            <LogOut className="w-4 h-4" />
+                            Logout
+                          </button>
                         </div>
-                        <a href="/dashboard" className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 transition-colors">
-                          <User className="w-4 h-4" />
-                          Dashboard
-                        </a>
-                        <button
-                          onClick={handleLogout}
-                          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                        >
-                          <LogOut className="w-4 h-4" />
-                          Logout
-                        </button>
-                      </div>
+                      </>
                     )}
                   </div>
                 ) : (
@@ -321,6 +429,18 @@ export default function TopNav() {
           {mobileMenuOpen && (
             <div className="md:hidden pb-5 border-t-2 border-amber-200/60 mt-1 bg-gradient-to-b from-amber-50/50 via-orange-50/30 to-transparent rounded-b-2xl backdrop-blur-sm">
               <div className="flex flex-col gap-1.5 pt-4 px-2">
+                {/* Memorial Selector in Mobile Menu */}
+                {user && memorials.length > 0 && onSelectMemorial && onCreateNew && (
+                  <div className="px-2 mb-2">
+                    <MemorialSelector
+                      memorials={memorials}
+                      currentMemorialId={currentMemorialId}
+                      onSelectMemorial={onSelectMemorial}
+                      onCreateNew={onCreateNew}
+                    />
+                  </div>
+                )}
+
                 {user && (
                   <div className="px-5 py-3 mb-2 bg-gradient-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200/50">
                     <div className="flex items-center gap-3">
@@ -338,21 +458,21 @@ export default function TopNav() {
                 <a 
                   href="/about"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="px-5 py-3.5 text-gray-700 hover:text-amber-600 hover:bg-gradient-to-r hover:from-amber-50 hover:to-orange-50 rounded-xl font-semibold transition-all duration-300 border border-transparent hover:border-amber-200/50 shadow-sm hover:shadow-md"
+                  className="px-5 py-3.5 text-gray-700 hover:text-amber-600 hover:bg-gradient-to-r hover:from-amber-50 hover:to-orange-50 rounded-xl font-semibold transition-all duration-300"
                 >
                   About Us
                 </a>
                 <a 
                   href="/services"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="px-5 py-3.5 text-gray-700 hover:text-amber-600 hover:bg-gradient-to-r hover:from-amber-50 hover:to-orange-50 rounded-xl font-semibold transition-all duration-300 border border-transparent hover:border-amber-200/50 shadow-sm hover:shadow-md"
+                  className="px-5 py-3.5 text-gray-700 hover:text-amber-600 hover:bg-gradient-to-r hover:from-amber-50 hover:to-orange-50 rounded-xl font-semibold transition-all duration-300"
                 >
                   What We Offer
                 </a>
                 <a 
                   href="/contact"
                   onClick={() => setMobileMenuOpen(false)}
-                  className="px-5 py-3.5 text-gray-700 hover:text-amber-600 hover:bg-gradient-to-r hover:from-amber-50 hover:to-orange-50 rounded-xl font-semibold transition-all duration-300 border border-transparent hover:border-amber-200/50 shadow-sm hover:shadow-md"
+                  className="px-5 py-3.5 text-gray-700 hover:text-amber-600 hover:bg-gradient-to-r hover:from-amber-50 hover:to-orange-50 rounded-xl font-semibold transition-all duration-300"
                 >
                   Contact Us
                 </a>
@@ -418,3 +538,5 @@ export default function TopNav() {
     </>
   );
 }
+
+export { MemorialSelector };

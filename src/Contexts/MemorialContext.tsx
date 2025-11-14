@@ -1,5 +1,4 @@
 // Contexts/MemorialContext.tsx
-// FIXED VERSION
 
 import React, { createContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
@@ -15,10 +14,12 @@ export interface MemorialContextType {
   updateService: (service: ServiceInfo) => void;
   updateMemories: (memories: Memory[]) => void;
   updateMemoryWall: (memoryWall: Memory[]) => void;
-  saveToBackend: () => Promise<void>;
+  saveToBackend: () => Promise<boolean>;
   loading: boolean;
   saving: boolean;
   refreshMemorial: () => Promise<void>;
+  lastSaved: Date | null;
+  hasUnsavedChanges: boolean;
 }
 
 const defaultMemorialData: MemorialData = {
@@ -53,28 +54,81 @@ interface MemorialProviderProps {
   memorialId?: string;
 }
 
+// Persistent storage for user's memorials
+const USER_MEMORIALS_KEY = 'user_memorials_cache';
+
 const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialId }) => {
   const [memorialData, setMemorialData] = useState<MemorialData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   
   // Track what needs to be saved
   const pendingChangesRef = useRef<Partial<MemorialData>>({});
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountRef = useRef(0);
+  const MAX_RETRIES = 3;
 
-  // Load memorial from backend
+  // Refs to track state without causing re-renders
+  const memorialDataRef = useRef<MemorialData | null>(null);
+  const isLoadingRef = useRef(false);
+
+  // Update refs when state changes
+  useEffect(() => {
+    memorialDataRef.current = memorialData;
+  }, [memorialData]);
+
+  // Cache user memorials for better UX
+  const cacheUserMemorial = useCallback((memorial: MemorialData) => {
+    try {
+      const cached = localStorage.getItem(USER_MEMORIALS_KEY);
+      const memorials = cached ? JSON.parse(cached) : {};
+      
+      memorials[memorial.id] = {
+        ...memorial,
+        lastAccessed: new Date().toISOString()
+      };
+      
+      localStorage.setItem(USER_MEMORIALS_KEY, JSON.stringify(memorials));
+    } catch (error) {
+      console.warn('Failed to cache memorial:', error);
+    }
+  }, []);
+
+  // Load memorial from backend with caching - FIXED: removed memorialData dependency
   const loadMemorialData = useCallback(async () => {
-    if (!memorialId) {
+    if (!memorialId || isLoadingRef.current) {
       setLoading(false);
       return;
     }
 
     try {
+      isLoadingRef.current = true;
       setLoading(true);
+      
+      // Try cache first for better performance
+      try {
+        const cached = localStorage.getItem(USER_MEMORIALS_KEY);
+        if (cached) {
+          const memorials = JSON.parse(cached);
+          if (memorials[memorialId]) {
+            console.log('📦 Loading from cache:', memorialId);
+            const cachedMemorial = memorials[memorialId];
+            setMemorialData(cachedMemorial);
+            setLastSaved(new Date(cachedMemorial.lastAccessed));
+          }
+        }
+      } catch (cacheError) {
+        console.warn('Cache load failed:', cacheError);
+      }
+
       const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${memorialId}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
+        },
+        // Add timeout for better error handling
+        signal: AbortSignal.timeout(10000)
       });
       
       if (response.ok) {
@@ -103,32 +157,58 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
         };
         
         setMemorialData(memorial);
+        setLastSaved(new Date());
+        setHasUnsavedChanges(false);
         pendingChangesRef.current = {}; // Clear any pending changes
+        
+        // Cache the memorial
+        cacheUserMemorial(memorial);
+        
+      } else if (response.status === 404) {
+        console.log('🆕 Memorial not found, creating default');
+        const newMemorial = { ...defaultMemorialData, id: memorialId };
+        setMemorialData(newMemorial);
+        setHasUnsavedChanges(true); // New memorial needs to be saved
       } else {
-        console.error('Failed to load memorial');
-        setMemorialData({ ...defaultMemorialData, id: memorialId });
+        console.error('Failed to load memorial:', response.status);
+        // Use ref instead of state to check for existing data
+        if (!memorialDataRef.current) {
+          setMemorialData({ ...defaultMemorialData, id: memorialId });
+        }
       }
     } catch (error) {
       console.error('Error loading memorial:', error);
-      setMemorialData({ ...defaultMemorialData, id: memorialId });
+      // Use ref instead of state to check for existing data
+      if (!memorialDataRef.current) {
+        setMemorialData({ ...defaultMemorialData, id: memorialId });
+      }
     } finally {
       setLoading(false);
+      isLoadingRef.current = false;
     }
-  }, [memorialId]);
+  }, [memorialId, cacheUserMemorial]); // REMOVED: memorialData dependency
 
+  // FIXED: Only run when memorialId changes, not when loadMemorialData changes
   useEffect(() => {
-    loadMemorialData();
-  }, [loadMemorialData]);
+    if (memorialId) {
+      loadMemorialData();
+    } else {
+      setLoading(false);
+    }
+  }, [memorialId]); // REMOVED: loadMemorialData dependency
 
+  // FIXED: Simplified refresh function
   const refreshMemorial = useCallback(async () => {
-    await loadMemorialData();
-  }, [loadMemorialData]);
+    if (memorialId) {
+      await loadMemorialData();
+    }
+  }, [memorialId, loadMemorialData]);
 
-  // Save to backend
-  const saveToBackend = useCallback(async () => {
+  // Enhanced save to backend with retry logic
+  const saveToBackend = useCallback(async (): Promise<boolean> => {
     if (!memorialData?.id || saving) {
       console.log('⏭️ Skipping save:', { hasId: !!memorialData?.id, saving });
-      return;
+      return false;
     }
 
     const changesToSave = { ...pendingChangesRef.current };
@@ -136,12 +216,11 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
     // If nothing to save, skip
     if (Object.keys(changesToSave).length === 0) {
       console.log('⏭️ No changes to save');
-      return;
+      return true;
     }
 
     try {
       setSaving(true);
-      pendingChangesRef.current = {}; // Clear immediately
       
       console.log('💾 Saving changes:', Object.keys(changesToSave));
       
@@ -151,15 +230,24 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
-        body: JSON.stringify(changesToSave)
+        body: JSON.stringify({
+          ...changesToSave,
+          lastModified: new Date().toISOString()
+        })
       });
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ Save failed:', errorText);
         
-        // Restore changes if save failed
-        pendingChangesRef.current = { ...changesToSave, ...pendingChangesRef.current };
+        // Retry logic
+        if (retryCountRef.current < MAX_RETRIES) {
+          retryCountRef.current += 1;
+          console.log(`🔄 Retrying save (${retryCountRef.current}/${MAX_RETRIES})`);
+          await new Promise(resolve => setTimeout(resolve, 1000 * retryCountRef.current));
+          return await saveToBackend();
+        }
+        
         throw new Error(`Failed to save: ${errorText}`);
       }
 
@@ -168,50 +256,72 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
       
       // Update state with confirmed backend data
       setMemorialData(result.memorial);
+      setLastSaved(new Date());
+      setHasUnsavedChanges(false);
+      pendingChangesRef.current = {};
+      retryCountRef.current = 0;
+      
+      // Update cache
+      cacheUserMemorial(result.memorial);
+      
+      return true;
       
     } catch (error) {
       console.error('❌ Save error:', error);
-      alert('Failed to save changes. Please try again.');
+      
+      // Show user-friendly error message
+      if (retryCountRef.current >= MAX_RETRIES) {
+        alert('Failed to save changes after multiple attempts. Your changes are stored locally and will be saved when you try again.');
+      }
+      
+      return false;
     } finally {
       setSaving(false);
     }
-  }, [memorialData, saving]);
+  }, [memorialData, saving, cacheUserMemorial]);
 
-  // Schedule auto-save
+  // Debounced auto-save with better cleanup
   const scheduleSave = useCallback(() => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
     
-    // Auto-save after 2 seconds of no changes
+    setHasUnsavedChanges(true);
+    
+    // Auto-save after 3 seconds of no changes (increased for better performance)
     saveTimeoutRef.current = setTimeout(() => {
-      saveToBackend();
-    }, 2000);
+      saveToBackend().then(success => {
+        if (!success) {
+          // If save failed, keep the changes pending
+          setHasUnsavedChanges(true);
+        }
+      });
+    }, 3000);
   }, [saveToBackend]);
 
   // Update memorial data
-  const updateMemorialData = useCallback((updates: Partial<MemorialData>) => {
-    console.log('📝 Updating memorial:', Object.keys(updates));
+const updateMemorialData = useCallback((updates: Partial<MemorialData>) => {
+  console.log('📝 Updating memorial:', Object.keys(updates));
+  
+  setMemorialData(prev => {
+    if (!prev) return prev;
     
-    setMemorialData(prev => {
-      if (!prev) return prev;
-      
-      const newData = { ...prev, ...updates };
-      
-      // Track what changed - merge updates into pending changes
-      pendingChangesRef.current = {
-        ...pendingChangesRef.current,
-        ...updates
-      };
-      
-      console.log('📊 Pending changes:', Object.keys(pendingChangesRef.current));
-      
-      // Schedule save
-      scheduleSave();
-      
-      return newData;
-    });
-  }, [scheduleSave]);
+    const newData = { ...prev, ...updates };
+    
+    // ✅ CORRECT: Merge updates into pending changes
+    pendingChangesRef.current = {
+      ...pendingChangesRef.current,
+      ...updates
+    };
+    
+    console.log('📊 Pending changes:', Object.keys(pendingChangesRef.current));
+    
+    // Schedule save
+    scheduleSave();
+    
+    return newData;
+  });
+}, [scheduleSave]);
 
   // Specific update functions
   const updateTimeline = useCallback((events: TimelineEvent[]) => {
@@ -249,19 +359,36 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
     updateMemorialData({ memoryWall });
   }, [updateMemorialData]);
 
-  // Cleanup on unmount
+  // Save before page unload
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (Object.keys(pendingChangesRef.current).length > 0) {
+        event.preventDefault();
+        event.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return event.returnValue;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // Enhanced cleanup on unmount
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
-      // Save any pending changes before unmount
+      // Force save any pending changes before unmount
       if (Object.keys(pendingChangesRef.current).length > 0) {
         console.log('🔄 Saving pending changes on unmount');
-        saveToBackend();
+        // Use synchronous fetch or store in localStorage for recovery
+        const changes = JSON.stringify(pendingChangesRef.current);
+        localStorage.setItem(`pending_changes_${memorialData?.id}`, changes);
+        saveToBackend().catch(console.error);
       }
     };
-  }, [saveToBackend]);
+  }, [saveToBackend, memorialData?.id]);
 
   return (
     <MemorialContext.Provider value={{
@@ -277,12 +404,14 @@ const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialI
       saveToBackend,
       loading,
       saving,
-      refreshMemorial
+      refreshMemorial,
+      lastSaved,
+      hasUnsavedChanges
     }}>
       {children}
     </MemorialContext.Provider>
   );
 };
 
-export { MemorialContext };
 export default MemorialProvider;
+export { MemorialContext };

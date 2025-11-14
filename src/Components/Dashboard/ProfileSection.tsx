@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Upload, User, MapPin, Calendar, Save, CheckCircle, AlertCircle, Loader, Sparkles, X } from 'lucide-react';
-import { useMemorial } from '../../hooks/useMemorial'; // Add this import back
+// Components/Dashboard/ProfileSection.tsx - CONTEXT-ONLY VERSION
+import React, { useState, useEffect, useCallback } from 'react';
+import { Upload, User, MapPin, Calendar, Save, CheckCircle, AlertCircle, Loader, X } from 'lucide-react';
+import { useMemorial } from '../../hooks/useMemorial';
 
 interface ProfileData {
   name: string;
@@ -11,23 +12,7 @@ interface ProfileData {
   obituary: string;
 }
 
-interface MemorialData {
-  id: string;
-  name: string;
-  profileImage: string;
-  birthDate: string;
-  deathDate: string;
-  location: string;
-  obituary: string;
-}
-
-interface UserData {
-  id: string;
-  email: string;
-  name: string;
-}
-
-// Toast notification component (keep this the same)
+// Toast notification component
 const Toast: React.FC<{
   message: string;
   type: 'success' | 'error' | 'info';
@@ -69,8 +54,13 @@ const Toast: React.FC<{
 };
 
 export const ProfileSection: React.FC = () => {
-  // ADD BACK: Use memorial context for synchronization
-  const { memorialData: contextMemorialData, updateMemorialData, refreshMemorial } = useMemorial();
+  const { 
+    memorialData, 
+    updateMemorialData, 
+    saveToBackend, 
+    saving,
+    lastSaved 
+  } = useMemorial();
   
   const [profile, setProfile] = useState<ProfileData>({
     name: '',
@@ -80,18 +70,12 @@ export const ProfileSection: React.FC = () => {
     location: '',
     obituary: ''
   });
-  const [currentMemorial, setCurrentMemorial] = useState<MemorialData | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [isNewUser, setIsNewUser] = useState(false);
+  const [localSaving, setLocalSaving] = useState(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
   
   const [toasts, setToasts] = useState<Array<{ id: string; message: string; type: 'success' | 'error' | 'info'; }>>([]);
 
-  const lastSavedDataRef = useRef<string>('');
-
-  // Toast management (keep this the same)
   const showToast = useCallback((message: string, type: 'success' | 'error' | 'info' = 'info') => {
     const id = Math.random().toString(36).substr(2, 9);
     setToasts(prev => [...prev, { id, message, type }]);
@@ -101,302 +85,52 @@ export const ProfileSection: React.FC = () => {
     setToasts(prev => prev.filter(toast => toast.id !== id));
   }, []);
 
-  // Get user data from localStorage (keep this the same)
-  const getUserData = useCallback((): UserData | null => {
-    try {
-      const userStr = localStorage.getItem('user');
-      const token = localStorage.getItem('token');
+  // Initialize from context
+  useEffect(() => {
+    if (memorialData && !hasInitialized) {
+      console.log('🚀 Initializing profile from memorial data:', memorialData.id);
       
-      if (!userStr || !token) {
-        console.log('🔐 No user data or token found in localStorage');
-        return null;
-      }
-
-      return JSON.parse(userStr);
-    } catch (error) {
-      console.error('❌ Error parsing user data:', error);
-      return null;
+      const initialProfile = {
+        name: memorialData.name || 'Loved One\'s Memorial',
+        profileImage: memorialData.profileImage || '',
+        birthDate: memorialData.birthDate || '',
+        deathDate: memorialData.deathDate || '',
+        location: memorialData.location || '',
+        obituary: memorialData.obituary || 'This memorial was created to honor and remember a beloved life.'
+      };
+      
+      setProfile(initialProfile);
+      setHasInitialized(true);
     }
-  }, []);
+  }, [memorialData, hasInitialized]);
 
-  // GET OR CREATE MEMORIAL - UPDATED TO SYNC WITH CONTEXT
-  const getOrCreateMemorial = useCallback(async (): Promise<MemorialData | null> => {
-    const userData = getUserData();
-    const token = localStorage.getItem('token');
+  // Update profile fields in context
+  const updateProfileField = useCallback((field: keyof ProfileData, value: string) => {
+    setProfile(prev => ({ ...prev, [field]: value }));
     
-    if (!userData || !token) {
-      showToast('Please log in to continue', 'error');
-      return null;
+    // Update context immediately for auto-save
+    if (memorialData) {
+      updateMemorialData({ [field]: value });
     }
+  }, [memorialData, updateMemorialData]);
 
-    try {
-      console.log('🔍 Checking for user memorials...');
-      
-      // Get user's memorials
-      const response = await fetch('https://wings-of-memories-backend.onrender.com/api/memorials', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch memorials: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('📋 User memorials found:', data.memorials?.length || 0);
-
-      if (data.memorials && data.memorials.length > 0) {
-        // Use the first memorial
-        const firstMemorial = data.memorials[0];
-        console.log('✅ Using existing memorial:', firstMemorial.id);
-        
-        // Fetch the full memorial data to ensure it exists
-        const memorialResponse = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${firstMemorial.id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (!memorialResponse.ok) {
-          console.error('❌ Memorial validation failed');
-          // Memorial doesn't exist - create a new one
-          return await createNewMemorial(token);
-        }
-
-        const memorialData = await memorialResponse.json();
-        console.log('🎯 Memorial loaded successfully:', memorialData.memorial.id);
-        
-        // SYNC WITH CONTEXT: Update the memorial context
-        if (updateMemorialData) {
-          console.log('🔄 Syncing memorial data with context');
-          await updateMemorialData(memorialData.memorial);
-        }
-        
-        setIsNewUser(false);
-        return memorialData.memorial;
-      } else {
-        // NEW USER - Create first memorial
-        console.log('🆕 No memorials found - creating first memorial for new user');
-        setIsNewUser(true);
-        return await createNewMemorial(token);
-      }
-    } catch (error) {
-      console.error('❌ Error checking memorials:', error);
-      showToast(`Failed to load memorials: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
-      return null;
-    }
-  }, [getUserData, showToast, updateMemorialData]);
-
-  // CREATE NEW MEMORIAL - UPDATED TO SYNC WITH CONTEXT
-  const createNewMemorial = async (token: string): Promise<MemorialData | null> => {
-    try {
-      console.log('👶 Creating new memorial...');
-      showToast('Creating your memorial...', 'info');
-
-      const memorialData = {
-        name: 'Loved One\'s Memorial',
-        profileImage: '',
-        birthDate: '',
-        deathDate: '',
-        location: '',
-        obituary: 'This memorial was created to honor and remember a beloved life. You can edit this text to share their story, achievements, and the impact they had on those around them.',
-        timeline: [],
-        favorites: [],
-        familyTree: [],
-        gallery: [],
-        memoryWall: [],
-        service: {
-          venue: '',
-          address: '',
-          date: '',
-          time: '',
-          virtualLink: '',
-          virtualPlatform: 'zoom'
-        }
-      };
-
-      const createResponse = await fetch('https://wings-of-memories-backend.onrender.com/api/memorials', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(memorialData)
-      });
-
-      if (!createResponse.ok) {
-        const errorText = await createResponse.text();
-        throw new Error(`Failed to create memorial: ${createResponse.status} - ${errorText}`);
-      }
-
-      const newMemorial = await createResponse.json();
-      console.log('🎉 Memorial created successfully:', newMemorial.memorial.id);
-
-      // SYNC WITH CONTEXT: Update the memorial context with new memorial
-      if (updateMemorialData) {
-        console.log('🔄 Syncing new memorial with context');
-        await updateMemorialData(newMemorial.memorial);
-      }
-
-      // Refresh the context to ensure all components get the updated data
-      if (refreshMemorial) {
-        setTimeout(() => refreshMemorial(), 1000);
-      }
-
-      showToast('🎊 Your memorial is ready!', 'success');
-      return newMemorial.memorial;
-    } catch (error) {
-      console.error('❌ Failed to create memorial:', error);
-      showToast(`Setup failed: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
-      return null;
-    }
-  };
-
-  // SAVE MEMORIAL DATA - UPDATED TO SYNC WITH CONTEXT
-  const saveMemorialData = async (profileData: ProfileData): Promise<boolean> => {
-    if (!currentMemorial?.id) {
-      showToast('No memorial available to save', 'error');
-      return false;
-    }
-
-    const token = localStorage.getItem('token');
-    if (!token) {
-      showToast('Please log in again', 'error');
-      return false;
-    }
-
-    try {
-      console.log('💾 Saving memorial data:', currentMemorial.id);
-      
-      const updateResponse = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${currentMemorial.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(profileData)
-      });
-
-      if (!updateResponse.ok) {
-        const errorText = await updateResponse.text();
-        throw new Error(`Failed to save: ${errorText}`);
-      }
-      console.log('✅ Memorial saved successfully');
-      
-      // CRITICAL: Update the memorial context with the saved data
-      if (updateMemorialData) {
-        console.log('🔄 Syncing saved data with context');
-        const updatedData = {
-          ...currentMemorial,
-          ...profileData
-        };
-        await updateMemorialData(updatedData);
-      }
-
-      // Refresh context to ensure all components get updated data
-      if (refreshMemorial) {
-        setTimeout(() => refreshMemorial(), 500);
-      }
-      
-      setLastSaved(new Date());
-      return true;
-    } catch (error) {
-      console.error('❌ Save failed:', error);
-      throw error;
-    }
-  };
-
-  // INITIALIZE COMPONENT - CHECK CONTEXT FIRST
-  useEffect(() => {
-    const initialize = async () => {
-      setLoading(true);
-      console.log('🚀 Initializing profile section...');
-
-      // FIRST: Check if we already have memorial data in context
-      if (contextMemorialData && contextMemorialData.id) {
-        console.log('📝 Using memorial data from context:', contextMemorialData.id);
-        setCurrentMemorial(contextMemorialData);
-        
-        const initialProfile = {
-          name: contextMemorialData.name || 'Loved One\'s Memorial',
-          profileImage: contextMemorialData.profileImage || '',
-          birthDate: contextMemorialData.birthDate || '',
-          deathDate: contextMemorialData.deathDate || '',
-          location: contextMemorialData.location || '',
-          obituary: contextMemorialData.obituary || ''
-        };
-        
-        setProfile(initialProfile);
-        lastSavedDataRef.current = JSON.stringify(initialProfile);
-        setLoading(false);
-        return;
-      }
-
-      // SECOND: If no context data, fetch/create memorial
-      const memorial = await getOrCreateMemorial();
-      
-      if (memorial) {
-        console.log('📝 Setting up profile with memorial:', memorial.id);
-        setCurrentMemorial(memorial);
-        
-        const initialProfile = {
-          name: memorial.name || 'Loved One\'s Memorial',
-          profileImage: memorial.profileImage || '',
-          birthDate: memorial.birthDate || '',
-          deathDate: memorial.deathDate || '',
-          location: memorial.location || '',
-          obituary: memorial.obituary || ''
-        };
-        
-        setProfile(initialProfile);
-        lastSavedDataRef.current = JSON.stringify(initialProfile);
-      }
-      
-      setLoading(false);
-    };
-
-    initialize();
-  }, [getOrCreateMemorial, contextMemorialData]);
-
-  // SYNC WITH CONTEXT CHANGES
-  useEffect(() => {
-    if (contextMemorialData && contextMemorialData.id !== currentMemorial?.id) {
-      console.log('🔄 Context memorial data updated, syncing...');
-      setCurrentMemorial(contextMemorialData);
-      
-      const updatedProfile = {
-        name: contextMemorialData.name || '',
-        profileImage: contextMemorialData.profileImage || '',
-        birthDate: contextMemorialData.birthDate || '',
-        deathDate: contextMemorialData.deathDate || '',
-        location: contextMemorialData.location || '',
-        obituary: contextMemorialData.obituary || ''
-      };
-      
-      setProfile(updatedProfile);
-      lastSavedDataRef.current = JSON.stringify(updatedProfile);
-    }
-  }, [contextMemorialData, currentMemorial?.id]);
-
-  // IMAGE UPLOAD - Keep the same but ensure context sync
+  // Image upload using context
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
 
-    // Validation
     if (file.size > 5 * 1024 * 1024) {
       showToast('Image size should be less than 5MB', 'error');
       return;
     }
 
     if (!file.type.startsWith('image/')) {
-      showToast('Please upload an image file (JPEG, PNG, etc.)', 'error');
+      showToast('Please upload an image file', 'error');
       return;
     }
 
-    if (!currentMemorial?.id) {
+    if (!memorialData?.id) {
       showToast('No memorial available', 'error');
       return;
     }
@@ -407,16 +141,13 @@ export const ProfileSection: React.FC = () => {
     try {
       const token = localStorage.getItem('token');
       if (!token) {
-        throw new Error('Please log in again to upload images');
+        throw new Error('Please log in again');
       }
-
-      console.log("🖼️ Uploading image for memorial:", currentMemorial.id);
 
       const formData = new FormData();
       formData.append('file', file);
       formData.append('folder', 'memorials/profiles');
 
-      // Upload image to ImageKit
       const uploadResponse = await fetch('https://wings-of-memories-backend.onrender.com/api/imagekit/upload', {
         method: 'POST',
         headers: {
@@ -426,64 +157,79 @@ export const ProfileSection: React.FC = () => {
       });
 
       if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        throw new Error(`Upload failed: ${errorText}`);
+        throw new Error('Upload failed');
       }
 
       const imageData = await uploadResponse.json();
-      console.log("✅ Image upload successful:", imageData);
-
-      // Update profile with new image
-      const newProfile = { ...profile, profileImage: imageData.url };
-      setProfile(newProfile);
       
-      // Save to backend (this will also sync with context)
-      await saveMemorialData(newProfile);
+      // Update context with new image URL
+      updateMemorialData({ profileImage: imageData.url });
       
-      lastSavedDataRef.current = JSON.stringify(newProfile);
+      // Update local state
+      setProfile(prev => ({ ...prev, profileImage: imageData.url }));
       
-      showToast('🎉 Profile image updated successfully!', 'success');
-
+      // Context will auto-save, but we can trigger immediate save for better UX
+      const success = await saveToBackend();
+      
+      if (success) {
+        showToast('Profile image updated!', 'success');
+      } else {
+        showToast('Image uploaded but save failed', 'error');
+      }
     } catch (error) {
-      console.error('❌ Upload process failed:', error);
-      showToast(`Upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+      console.error('❌ Upload failed:', error);
+      showToast('Upload failed. Please try again.', 'error');
     } finally {
       setUploading(false);
     }
   };
 
-  // MANUAL SAVE - Keep the same
+  // Manual save - triggers context save
   const handleSave = async () => {
     if (!profile.name.trim()) {
-      showToast('Please enter a name for the memorial', 'error');
+      showToast('Please enter a name', 'error');
       return;
     }
 
-    if (!currentMemorial?.id) {
+    if (!memorialData?.id) {
       showToast('No memorial available', 'error');
       return;
     }
 
-    console.log('💾 Manual save triggered');
-    setSaving(true);
+    setLocalSaving(true);
+    showToast('Saving profile...', 'info');
     
     try {
-      await saveMemorialData(profile);
-      showToast('Profile saved successfully!', 'success');
+      // Update context with current profile data
+      updateMemorialData({
+        name: profile.name,
+        profileImage: profile.profileImage,
+        birthDate: profile.birthDate,
+        deathDate: profile.deathDate,
+        location: profile.location,
+        obituary: profile.obituary
+      });
+      
+      // Trigger save via context
+      const success = await saveToBackend();
+      
+      if (success) {
+        showToast('Profile saved successfully!', 'success');
+      } else {
+        throw new Error('Save failed');
+      }
     } catch (error) {
-      console.error('❌ Manual save failed:', error);
-      showToast(`Failed to save: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+      console.error('❌ Save failed:', error);
+      showToast('Failed to save. Please try again.', 'error');
     } finally {
-      setSaving(false);
+      setLocalSaving(false);
     }
   };
 
   const handleFieldChange = (field: keyof ProfileData, value: string) => {
-    const newProfile = { ...profile, [field]: value };
-    setProfile(newProfile);
+    updateProfileField(field, value);
   };
 
-  // Format last saved time (keep the same)
   const getLastSavedText = () => {
     if (!lastSaved) return '';
     
@@ -498,53 +244,15 @@ export const ProfileSection: React.FC = () => {
     return `Saved at ${lastSaved.toLocaleTimeString()}`;
   };
 
-  // NEW USER WELCOME COMPONENT (keep the same)
-  const NewUserWelcome = () => (
-    <div className="bg-gradient-to-r from-amber-400 to-orange-400 rounded-2xl shadow-lg p-6 text-white mb-6">
-      <div className="flex items-center gap-4">
-        <div className="bg-white bg-opacity-20 rounded-full p-3">
-          <Sparkles className="w-6 h-6" />
-        </div>
-        <div className="flex-1">
-          <h3 className="text-lg font-semibold mb-1">Welcome to Wings of Memories! 🎉</h3>
-          <p className="text-amber-100 text-sm">
-            We've created your first memorial. Start by adding a profile image and filling in the basic information to personalize this tribute.
-          </p>
-        </div>
-      </div>
-    </div>
-  );
-
-  // Show loading state (keep the same)
-  if (loading) {
+  // Loading state
+  if (!hasInitialized || !memorialData) {
     return (
       <div className="max-w-4xl space-y-8">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
           <div className="text-center py-12">
             <Loader className="w-8 h-8 text-amber-500 mx-auto mb-4 animate-spin" />
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">Setting Up Your Memorial</h3>
-            <p className="text-gray-600">Getting everything ready...</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error state if no memorial (keep the same)
-  if (!currentMemorial) {
-    return (
-      <div className="max-w-4xl space-y-8">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
-          <div className="text-center py-12">
-            <AlertCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-800 mb-2">Unable to Load Memorial</h3>
-            <p className="text-gray-600 mb-4">There was a problem setting up your memorial.</p>
-            <button 
-              onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors"
-            >
-              Try Again
-            </button>
+            <h3 className="text-xl font-semibold text-gray-800 mb-2">Loading Profile</h3>
+            <p className="text-gray-600">Getting your memorial data...</p>
           </div>
         </div>
       </div>
@@ -563,35 +271,11 @@ export const ProfileSection: React.FC = () => {
         />
       ))}
 
-      {/* New User Welcome Banner */}
-      {isNewUser && <NewUserWelcome />}
-
-      {/* Memorial Status */}
-      <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-        <div className="flex items-center gap-3">
-          <CheckCircle className="w-5 h-5 text-green-500" />
-          <div>
-            <h3 className="text-green-800 font-medium">Memorial Ready</h3>
-            <p className="text-green-600 text-sm">
-              Editing: <strong>{currentMemorial.name || 'Your Memorial'}</strong>
-              {currentMemorial.id && (
-                <span className="ml-2 text-green-500">ID: {currentMemorial.id.substring(0, 8)}...</span>
-              )}
-            </p>
-          </div>
-        </div>
-      </div>
-
       {/* Profile Image Section */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-xl font-semibold text-gray-800">Profile Image</h2>
-            {isNewUser && (
-              <p className="text-sm text-amber-600 mt-1">
-                💡 Start by adding a profile photo
-              </p>
-            )}
           </div>
           {lastSaved && (
             <span className="text-sm text-gray-500">{getLastSavedText()}</span>
@@ -613,11 +297,6 @@ export const ProfileSection: React.FC = () => {
                 </div>
               )}
             </div>
-            {isNewUser && !profile.profileImage && (
-              <div className="absolute -top-2 -right-2 bg-amber-500 text-white rounded-full px-2 py-1 text-xs font-medium animate-pulse">
-                Start here
-              </div>
-            )}
             {uploading && (
               <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
                 <Loader className="w-8 h-8 text-white animate-spin" />
@@ -627,10 +306,10 @@ export const ProfileSection: React.FC = () => {
           
           <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700 mb-4">
-              {isNewUser ? "Add a profile photo to personalize the memorial" : "Upload a clear, recent photo"}
+              Upload a profile photo
             </label>
             
-            <label className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full hover:from-amber-600 hover:to-orange-600 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+            <label className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full hover:from-amber-600 hover:to-orange-600 transition-all cursor-pointer disabled:opacity-50 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
               <Upload className="w-4 h-4" />
               <span>{uploading ? 'Uploading...' : 'Choose Image'}</span>
               <input
@@ -643,7 +322,7 @@ export const ProfileSection: React.FC = () => {
             </label>
             
             <p className="text-sm text-gray-500 mt-2">
-              Recommended: Square image, at least 400x400 pixels. Max size: 5MB
+              Max size: 5MB. Recommended: Square image, at least 400x400 pixels
             </p>
           </div>
         </div>
@@ -716,9 +395,6 @@ export const ProfileSection: React.FC = () => {
           className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
           placeholder="Write a beautiful tribute..."
         />
-        <p className="text-sm text-gray-500 mt-2">
-          Tip: Use double line breaks to create paragraphs. The first letter will be styled as a drop cap.
-        </p>
       </div>
 
       {/* Save Button */}
@@ -727,16 +403,16 @@ export const ProfileSection: React.FC = () => {
           {lastSaved ? (
             <span className="text-green-600">{getLastSavedText()}</span>
           ) : (
-            <span className="text-amber-600">Unsaved changes</span>
+            <span className="text-amber-600">Ready to save</span>
           )}
         </div>
         
         <button 
           onClick={handleSave}
-          disabled={saving || !profile.name.trim()}
+          disabled={localSaving || saving || !profile.name.trim()}
           className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full hover:from-amber-600 hover:to-orange-600 transition-all font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {saving ? (
+          {(localSaving || saving) ? (
             <>
               <Loader className="w-4 h-4 animate-spin" />
               Saving...

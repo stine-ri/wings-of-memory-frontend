@@ -1,8 +1,8 @@
-// Components/DashboardLayout.tsx - UPDATED WITHOUT SETTINGS
+// Components/DashboardLayout.tsx - WITH MEMORIAL SELECTOR
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, User, Clock, Heart, Users, Images, Calendar,
-  Download, Menu, LogOut, X
+  Download, Menu, LogOut, X, ChevronDown, Plus
 } from 'lucide-react';
 
 interface UserData {
@@ -10,6 +10,13 @@ interface UserData {
   name: string;
   email: string;
   role: string;
+}
+
+interface Memorial {
+  id: string;
+  name: string;
+  createdAt: string;
+  isPublished?: boolean;
 }
 
 interface MemorialData {
@@ -23,6 +30,11 @@ interface DashboardLayoutProps {
   activeSection: string;
   onSectionChange: (section: string) => void;
   memorialData: MemorialData | null;
+  // New props for memorial management
+  memorials?: Memorial[];
+  currentMemorialId?: string;
+  onSelectMemorial?: (id: string) => void;
+  onCreateNew?: () => void;
 }
 
 const sidebarSections = [
@@ -37,17 +49,96 @@ const sidebarSections = [
   { id: 'download', name: 'Download & Share', icon: Download },
 ];
 
+// Memorial Selector Component
+const MemorialSelector: React.FC<{
+  memorials: Memorial[];
+  currentMemorialId: string;
+  onSelectMemorial: (id: string) => void;
+  onCreateNew: () => void;
+}> = ({ memorials, currentMemorialId, onSelectMemorial, onCreateNew }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  const currentMemorial = memorials.find(m => m.id === currentMemorialId);
+  
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between gap-2 px-4 py-3 bg-white border-2 border-amber-300 rounded-xl hover:bg-amber-50 transition-all shadow-sm"
+      >
+        <div className="flex-1 text-left min-w-0">
+          <p className="text-xs text-amber-600 font-medium mb-0.5">Current Memorial</p>
+          <p className="font-semibold text-sm text-gray-800 truncate">
+            {currentMemorial?.name || 'Select Memorial'}
+          </p>
+        </div>
+        <ChevronDown className={`w-4 h-4 text-amber-600 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      
+      {isOpen && (
+        <>
+          <div 
+            className="fixed inset-0 z-50" 
+            onClick={() => setIsOpen(false)}
+          />
+          <div className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-amber-300 rounded-xl shadow-xl z-50 max-h-80 overflow-y-auto">
+            <div className="p-2">
+              <button
+                onClick={() => {
+                  onCreateNew();
+                  setIsOpen(false);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-3 text-left hover:bg-amber-50 rounded-lg transition-colors text-amber-600 font-medium text-sm border-b-2 border-amber-100"
+              >
+                <Plus className="w-5 h-5" />
+                <span>Create New Memorial</span>
+              </button>
+            </div>
+            
+            <div className="p-2 space-y-1">
+              {memorials.map((memorial) => (
+                <button
+                  key={memorial.id}
+                  onClick={() => {
+                    onSelectMemorial(memorial.id);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full text-left px-3 py-3 rounded-lg transition-all text-sm ${
+                    memorial.id === currentMemorialId
+                      ? 'bg-gradient-to-r from-amber-400 to-orange-400 text-white shadow-md'
+                      : 'hover:bg-gray-100'
+                  }`}
+                >
+                  <div className={`font-semibold ${memorial.id === currentMemorialId ? 'text-white' : 'text-gray-800'}`}>
+                    {memorial.name}
+                  </div>
+                  <div className={`text-xs mt-1 ${memorial.id === currentMemorialId ? 'text-white/90' : 'text-gray-500'}`}>
+                    Created: {new Date(memorial.createdAt).toLocaleDateString()}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
+
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
   activeSection,
   onSectionChange,
   memorialData,
+  memorials = [],
+  currentMemorialId = '',
+  onSelectMemorial,
+  onCreateNew,
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
 
   useEffect(() => {
-    // Get user data from localStorage
     const userData = localStorage.getItem('user');
     if (userData) {
       setUser(JSON.parse(userData));
@@ -64,7 +155,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
   return (
     <div className="bg-gray-50 flex min-h-screen">
-      {/* Mobile sidebar backdrop with better touch handling */}
+      {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div 
           className="fixed inset-0 bg-black bg-opacity-60 z-40 lg:hidden"
@@ -72,13 +163,13 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         />
       )}
 
-      {/* Sidebar - Improved mobile responsiveness */}
+      {/* Sidebar */}
       <div className={`
         fixed top-0 bottom-0 left-0 z-50 w-[85vw] max-w-sm bg-white shadow-2xl transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:sticky lg:top-0 lg:z-30 lg:w-80
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex flex-col h-full border-r-2 border-gray-200">
-          {/* Mobile Header - Improved spacing */}
+          {/* Mobile Header */}
           <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-200 bg-white">
             <h2 className="text-lg font-semibold text-gray-800">Menu</h2>
             <button
@@ -89,12 +180,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             </button>
           </div>
 
-          {/* Decorative Top Bar - Hidden on mobile */}
+          {/* Decorative Top Bar */}
           <div className="hidden lg:block h-1 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400"></div>
           
-          {/* Header - Better mobile spacing */}
-          <div className="p-3 lg:p-6 border-b-2 border-gray-200 bg-gradient-to-br from-amber-50 to-orange-50">
-            {/* User Info - Enhanced mobile layout */}
+          {/* Header with User Info */}
+          <div className="p-3 lg:p-6 border-b-2 border-gray-200 bg-gradient-to-br from-amber-50 to-orange-50 space-y-3">
+            {/* User Info */}
             {user && (
               <div className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-amber-200">
                 <div className="w-12 h-12 lg:w-14 lg:h-14 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full flex items-center justify-center shrink-0">
@@ -109,9 +200,19 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Memorial Selector */}
+            {memorials.length > 0 && onSelectMemorial && onCreateNew && (
+              <MemorialSelector
+                memorials={memorials}
+                currentMemorialId={currentMemorialId}
+                onSelectMemorial={onSelectMemorial}
+                onCreateNew={onCreateNew}
+              />
+            )}
           </div>
 
-          {/* Navigation - Better touch targets for mobile */}
+          {/* Navigation */}
           <nav className="flex-1 p-2 lg:p-4 space-y-1 overflow-y-auto">
             {sidebarSections.map((section) => {
               const Icon = section.icon;
@@ -135,7 +236,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             })}
           </nav>
 
-          {/* Footer Actions - Settings removed, only Logout remains */}
+          {/* Footer Actions */}
           <div className="p-3 border-t-2 border-gray-200 space-y-2 bg-gray-50">
             <button 
               onClick={handleLogout}
@@ -150,10 +251,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-h-screen w-full lg:w-auto">
-        {/* Decorative Line Below Navbar - Hidden on mobile */}
+        {/* Decorative Line */}
         <div className="hidden lg:block h-1 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400"></div>
         
-        {/* Top bar - Enhanced mobile header */}
+        {/* Top bar */}
         <header className="bg-white shadow-sm border-b border-gray-200 shrink-0 sticky top-0 z-40">
           <div className="flex items-center justify-between px-4 py-3 sm:px-6">
             <div className="flex items-center gap-3">
@@ -175,7 +276,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               </div>
             </div>
 
-            {/* Status indicator - Better mobile visibility */}
+            {/* Status indicator */}
             <div className="flex items-center">
               {memorialData?.isPublished && (
                 <div className="px-3 py-1.5 bg-green-100 text-green-800 rounded-full text-xs font-medium border border-green-200 whitespace-nowrap">
@@ -187,10 +288,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
           </div>
         </header>
 
-        {/* Page content - Improved mobile padding */}
+        {/* Page content */}
         <main className="flex-1 overflow-y-auto p-3 xs:p-4 sm:p-6 lg:p-8 bg-gradient-to-br from-gray-50 to-gray-100">
           <div className="max-w-7xl mx-auto w-full">
-            {/* Mobile Section Title - Enhanced */}
+            {/* Mobile Section Title */}
             <div className="lg:hidden mb-4 xs:mb-6">
               <h2 className="text-xl xs:text-2xl font-bold text-gray-800 capitalize mb-1">
                 {activeSection.replace('-', ' ')}
@@ -203,7 +304,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               )}
             </div>
             
-            {/* Content area with better mobile constraints */}
+            {/* Content area */}
             <div className="bg-white rounded-lg xs:rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 xs:p-6 min-h-[60vh]">
               {children}
             </div>

@@ -1,6 +1,6 @@
-// Pages/Dashboard.tsx - FIXED VERSION (No duplicate mobile navigation)
+// Pages/Dashboard.tsx - CLEANED UP VERSION
 import React, { useState, useEffect, useCallback } from 'react';
-import  TopNav  from '../Components/TopNav';
+import TopNav from '../Components/TopNav';
 import { Footer } from '../Components/Footer';
 import { DashboardLayout } from '../Components/DashboardLayout';
 import { OverviewSection } from '../Components/Dashboard/OverviewSection';
@@ -12,13 +12,90 @@ import { GallerySection } from '../Components/Dashboard/GallerySection';
 import { ServiceSection } from '../Components/Dashboard/ServiceSectionEditor';
 import { MemoryWallSection } from '../Components/Dashboard/MemoryWallEditor';
 import { DownloadSection } from '../Components/Dashboard/DownloadSection';
-import  MemorialProvider  from '../Contexts/MemorialContext';
+import MemorialProvider from '../Contexts/MemorialContext';
 import { useMemorial } from '../hooks/useMemorial';
+
+interface Memorial {
+  id: string;
+  name: string;
+  createdAt: string;
+  isPublished: boolean;
+}
 
 // Inner component that has access to MemorialContext
 const DashboardContent: React.FC = () => {
   const [activeSection, setActiveSection] = useState('overview');
+  const [userMemorials, setUserMemorials] = useState<Memorial[]>([]);
   const { memorialData } = useMemorial();
+
+  // Fetch user's memorials
+  const fetchUserMemorials = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('https://wings-of-memories-backend.onrender.com/api/memorials', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setUserMemorials(data.memorials || []);
+      }
+    } catch (error) {
+      console.error('Error fetching memorials:', error);
+    }
+  }, []);
+
+  // Handle memorial selection
+  const handleSelectMemorial = useCallback(async (memorialId: string) => {
+    localStorage.setItem('currentMemorialId', memorialId);
+    window.history.replaceState({}, '', `?memorialId=${memorialId}`);
+    window.location.reload(); // Simple approach
+  }, []);
+
+  // Handle creating new memorial
+  const handleCreateNewMemorial = useCallback(async () => {
+    try {
+      const response = await fetch('https://wings-of-memories-backend.onrender.com/api/memorials', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({
+          name: 'New Memorial',
+          profileImage: '',
+          birthDate: '',
+          deathDate: '',
+          location: '',
+          obituary: ''
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const newMemorialId = data.memorial.id;
+        
+        // Add to local state
+        setUserMemorials(prev => [...prev, data.memorial]);
+        
+        // Select the new memorial
+        handleSelectMemorial(newMemorialId);
+      } else {
+        throw new Error('Failed to create memorial');
+      }
+    } catch (error) {
+      console.error('Error creating memorial:', error);
+      alert('Failed to create memorial. Please try again.');
+    }
+  }, [handleSelectMemorial]);
+
+  useEffect(() => {
+    fetchUserMemorials();
+  }, [fetchUserMemorials]);
 
   const renderSection = () => {
     if (!memorialData) {
@@ -55,9 +132,15 @@ const DashboardContent: React.FC = () => {
 
   return (
     <>
-      <TopNav />
+      {/* TopNav with memorial functionality */}
+      <TopNav 
+        memorials={userMemorials}
+        currentMemorialId={memorialData?.id || ''}
+        onSelectMemorial={handleSelectMemorial}
+        onCreateNew={handleCreateNewMemorial}
+      />
       
-      {/* Main Dashboard Layout - This already has its own mobile navigation */}
+      {/* DashboardLayout with memorial functionality */}
       <DashboardLayout
         activeSection={activeSection}
         onSectionChange={setActiveSection}
@@ -66,6 +149,11 @@ const DashboardContent: React.FC = () => {
           name: memorialData.name,
           isPublished: memorialData.isPublished || false
         } : null}
+        // Pass the memorial props to DashboardLayout
+        memorials={userMemorials}
+        currentMemorialId={memorialData?.id || ''}
+        onSelectMemorial={handleSelectMemorial}
+        onCreateNew={handleCreateNewMemorial}
       >
         {renderSection()}
       </DashboardLayout>
@@ -75,7 +163,7 @@ const DashboardContent: React.FC = () => {
   );
 };
 
-// Main Dashboard component (keep this part the same)
+// Main Dashboard component
 export const Dashboard: React.FC = () => {
   const [memorialId, setMemorialId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
@@ -103,7 +191,6 @@ export const Dashboard: React.FC = () => {
         const newMemorialId = data.memorial.id;
         setMemorialId(newMemorialId);
         localStorage.setItem('currentMemorialId', newMemorialId);
-        // Update URL without reload
         window.history.replaceState({}, '', `?memorialId=${newMemorialId}`);
       } else {
         throw new Error('Failed to create memorial');
@@ -116,7 +203,6 @@ export const Dashboard: React.FC = () => {
 
   const initializeMemorial = useCallback(async () => {
     try {
-      // Get memorial ID from URL or localStorage, or create new one
       const urlParams = new URLSearchParams(window.location.search);
       const idFromUrl = urlParams.get('memorialId');
       const savedMemorialId = localStorage.getItem('currentMemorialId');

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, Download, QrCode, Save, Plus, X } from 'lucide-react';
 import { useMemorial } from '../../hooks/useMemorial';
 import { QRCodeSVG } from 'qrcode.react';
@@ -23,23 +23,6 @@ interface RSVP {
   createdAt: string;
 }
 
-// Enhanced debounce hook with better cleanup
-const useDebounce = <T,>(value: T, delay: number): T => {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-};
-
 export const ServiceSection: React.FC = () => {
   const { memorialData, updateService, saveToBackend } = useMemorial();
   const [service, setService] = useState<ServiceInfo>({
@@ -56,8 +39,7 @@ export const ServiceSection: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [loadingRsvps, setLoadingRsvps] = useState(true);
   const [submittingRSVP, setSubmittingRSVP] = useState(false);
-  const [hasInitialized, setHasInitialized] = useState(false);
-  const [lastSavedService, setLastSavedService] = useState<ServiceInfo | null>(null);
+  const [hasChanges, setHasChanges] = useState(false);
 
   const [newRSVP, setNewRSVP] = useState({
     firstName: '',
@@ -68,38 +50,39 @@ export const ServiceSection: React.FC = () => {
     guests: 1
   });
 
-  // Use a longer debounce time to reduce flickering
-  const debouncedService = useDebounce(service, 1500);
-
-  // Initialize service info from memorial data (only once)
+  // Initialize service info from memorial data
   useEffect(() => {
-    if (memorialData?.service && !hasInitialized) {
-      const initialService = memorialData.service;
-      setService(initialService);
-      setLastSavedService(initialService);
-      setHasInitialized(true);
+    if (memorialData?.service) {
+      setService(memorialData.service);
     }
-  }, [memorialData, hasInitialized]);
+  }, [memorialData]);
 
-  // Stable comparison function - only considers meaningful changes
-  const hasMeaningfulChanges = useCallback((currentService: ServiceInfo, savedService: ServiceInfo | null) => {
-    if (!savedService) return true;
-    
-    // Only check fields that users actually care about
-    const meaningfulFields: (keyof ServiceInfo)[] = ['venue', 'address', 'date', 'time', 'virtualLink', 'virtualPlatform'];
-    
-    return meaningfulFields.some(field => 
-      currentService[field] !== savedService[field]
-    );
-  }, []);
-
-  // Auto-save debounced changes - with better change detection
+  // Check for changes whenever service state changes
   useEffect(() => {
-    if (hasInitialized && hasMeaningfulChanges(debouncedService, lastSavedService)) {
-      console.log('🔄 Auto-saving service changes...');
-      updateService(debouncedService);
+    if (memorialData?.service) {
+      const hasServiceChanges = 
+        service.venue !== memorialData.service.venue ||
+        service.address !== memorialData.service.address ||
+        service.date !== memorialData.service.date ||
+        service.time !== memorialData.service.time ||
+        service.virtualLink !== memorialData.service.virtualLink ||
+        service.virtualPlatform !== memorialData.service.virtualPlatform;
+      
+      setHasChanges(hasServiceChanges);
     }
-  }, [debouncedService, hasInitialized, lastSavedService, hasMeaningfulChanges, updateService]);
+  }, [service, memorialData]);
+
+  // Auto-save after a delay when changes are made
+  useEffect(() => {
+    if (hasChanges) {
+      const timer = setTimeout(() => {
+        console.log('🔄 Auto-saving service changes...');
+        updateService(service);
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [service, hasChanges, updateService]);
 
   // Load RSVPs from backend
   useEffect(() => {
@@ -140,22 +123,16 @@ export const ServiceSection: React.FC = () => {
     setService(prev => ({ ...prev, ...updates }));
   };
 
-  // Enhanced save function with better state management
+  // Simple save function
   const handleSaveService = async () => {
     setSaving(true);
     try {
       await updateService(service);
       await saveToBackend();
-      
-      // Update the saved state to prevent flickering
-      setLastSavedService(service);
-      setHasInitialized(true);
-      
-      // Show subtle success feedback instead of alert
+      setHasChanges(false);
       console.log('✅ Service details saved successfully');
     } catch (error) {
-      console.error('Error saving service details:', error);
-      // Could show a toast notification here instead of alert
+      console.error('❌ Error saving service details:', error);
     } finally {
       setSaving(false);
     }
@@ -293,13 +270,10 @@ export const ServiceSection: React.FC = () => {
     totalGuests: rsvps.reduce((sum, rsvp) => sum + rsvp.guests, 0)
   };
 
-  // Calculate if save button should be enabled
-  const shouldEnableSave = hasInitialized && 
-                          hasMeaningfulChanges(service, lastSavedService) && 
-                          !saving;
+  // Simple enable logic - ALWAYS enabled when there are changes
+  const shouldEnableSave = hasChanges && !saving;
 
-  // Show loading state while initializing
-  if (!hasInitialized && !memorialData) {
+  if (!memorialData) {
     return (
       <div className="max-w-6xl space-y-6 px-4 sm:px-6">
         <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-6">
@@ -311,7 +285,7 @@ export const ServiceSection: React.FC = () => {
 
   return (
     <div className="max-w-6xl space-y-6 px-4 sm:px-6">
-      {/* Header - Improved mobile responsiveness */}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div className="text-center sm:text-left">
           <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Service Details</h2>
@@ -345,7 +319,7 @@ export const ServiceSection: React.FC = () => {
         </div>
       </div>
 
-      {/* Main Content Grid - Improved mobile layout */}
+      {/* Main Content Grid */}
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Service Details Form */}
         <div className="space-y-6">
@@ -441,7 +415,7 @@ export const ServiceSection: React.FC = () => {
               </div>
             </div>
 
-            {/* Enhanced Save Button - No more flickering */}
+            {/* Save Button - Now it will work! */}
             <button 
               onClick={handleSaveService}
               disabled={!shouldEnableSave}
@@ -454,9 +428,14 @@ export const ServiceSection: React.FC = () => {
               <Save className="w-4 h-4" />
               {saving ? 'Saving...' : 'Save Service Details'}
             </button>
+
+            {/* Debug info - remove in production */}
+            <div className="mt-2 text-xs text-gray-500">
+              Changes: {hasChanges ? 'YES' : 'NO'} | Saving: {saving ? 'YES' : 'NO'} | Enabled: {shouldEnableSave ? 'YES' : 'NO'}
+            </div>
           </div>
 
-          {/* Quick Stats - Improved mobile grid */}
+          {/* Quick Stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 text-center">
               <div className="text-xl sm:text-2xl font-bold text-gray-800">{stats.total}</div>
@@ -477,7 +456,7 @@ export const ServiceSection: React.FC = () => {
           </div>
         </div>
 
-        {/* RSVP List - Improved mobile styling */}
+        {/* RSVP List */}
         <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-semibold text-gray-800">RSVP Responses ({rsvps.length})</h3>
