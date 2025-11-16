@@ -281,6 +281,103 @@ export const Dashboard: React.FC = () => {
   const [memorialId, setMemorialId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [initError, setInitError] = useState<string | null>(null);
+  const [userMemorials, setUserMemorials] = useState<Memorial[]>([]);
+
+  // Fetch user memorials for the welcome screen
+  const fetchUserMemorials = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        console.warn('⚠️ No authentication token');
+        return [];
+      }
+
+      console.log('🔄 Fetching user memorials for welcome screen...');
+
+      const response = await fetch('https://wings-of-memories-backend.onrender.com/api/memorials', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('✅ Fetched memorials:', data.memorials?.length || 0);
+        return data.memorials || [];
+      } else {
+        console.error('❌ Failed to fetch memorials:', response.status);
+        return [];
+      }
+    } catch (error) {
+      console.error('❌ Error fetching memorials:', error);
+      return [];
+    }
+  }, []);
+
+  // Create new memorial from welcome screen
+  const handleCreateNewMemorial = useCallback(async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('Please log in to create a memorial');
+        return;
+      }
+
+      console.log('🆕 Creating new memorial from welcome screen...');
+
+      const response = await fetch('https://wings-of-memories-backend.onrender.com/api/memorials', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: 'New Memorial',
+          profileImage: '',
+          birthDate: '',
+          deathDate: '',
+          location: '',
+          obituary: '',
+          timeline: [],
+          favorites: [],
+          familyTree: [],
+          gallery: [],
+          memoryWall: [],
+          service: {
+            venue: '',
+            address: '',
+            date: '',
+            time: '',
+            virtualLink: '',
+            virtualPlatform: 'zoom'
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to create memorial: ${errorText}`);
+      }
+
+      const data = await response.json();
+      const newMemorialId = data.memorial?.id || data.id;
+      
+      if (!newMemorialId) {
+        throw new Error('No memorial ID returned from server');
+      }
+
+      console.log('✅ Memorial created:', newMemorialId);
+      
+      // Redirect to the new memorial
+      localStorage.setItem('currentMemorialId', newMemorialId);
+      window.location.href = `/dashboard?memorialId=${newMemorialId}`;
+
+    } catch (error) {
+      console.error('❌ Error creating memorial:', error);
+      alert(`Failed to create memorial: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }, []);
 
   const initializeMemorial = useCallback(async () => {
     try {
@@ -307,9 +404,22 @@ export const Dashboard: React.FC = () => {
           window.history.replaceState({}, '', `?memorialId=${memorialIdToUse}`);
         }
       } else {
-        // NO MEMORIAL ID - Don't auto-create, let user create manually
-        console.log('⚠️ No memorial ID found - user needs to create one');
-        setMemorialId(undefined);
+        // NO MEMORIAL ID - Check if user has any memorials
+        console.log('⚠️ No memorial ID found - checking if user has memorials');
+        const memorials = await fetchUserMemorials();
+        setUserMemorials(memorials);
+        
+        if (memorials.length > 0) {
+          // User has memorials but none selected - auto-select the first one
+          console.log('📍 Auto-selecting first memorial:', memorials[0].id);
+          setMemorialId(memorials[0].id);
+          localStorage.setItem('currentMemorialId', memorials[0].id);
+          window.history.replaceState({}, '', `?memorialId=${memorials[0].id}`);
+        } else {
+          // User has no memorials at all - show welcome screen
+          console.log('👋 No memorials found - showing welcome screen');
+          setMemorialId(undefined);
+        }
       }
     } catch (error) {
       console.error('❌ Error initializing memorial:', error);
@@ -317,7 +427,7 @@ export const Dashboard: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchUserMemorials]);
 
   useEffect(() => {
     initializeMemorial();
@@ -353,30 +463,87 @@ export const Dashboard: React.FC = () => {
     );
   }
 
-  // If no memorial ID, show create screen
-  if (!memorialId) {
+  // If no memorial ID and user has no memorials, show welcome screen with CREATE button
+  if (!memorialId && userMemorials.length === 0) {
     return (
-      <div className="min-h-screen flex justify-center items-center bg-gray-50 p-4">
-        <div className="text-center max-w-md w-full">
-          <div className="mb-6">
-            <div className="w-20 h-20 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-4xl">💐</span>
+      <div className="min-h-screen bg-gray-50">
+        {/* Render TopNav even for new users so they can see the navigation */}
+        <TopNav 
+          memorials={[]}
+          currentMemorialId=""
+          onSelectMemorial={() => {}}
+          onCreateNew={handleCreateNewMemorial}
+        />
+        
+        <div className="flex justify-center items-center pt-20 p-4">
+          <div className="text-center max-w-md w-full">
+            <div className="mb-6">
+              <div className="w-20 h-20 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <span className="text-4xl">💐</span>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Welcome to Your Memorials</h2>
+              <p className="text-gray-600 mb-6">
+                Create your first memorial to honor and celebrate the life of your loved one.
+              </p>
             </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Welcome to Your Memorials</h2>
-            <p className="text-gray-600 mb-6">
-              You don't have any memorials yet. Create your first memorial to get started.
+            <button
+              onClick={handleCreateNewMemorial}
+              className="w-full px-6 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all font-medium shadow-lg text-lg"
+            >
+              Create Your First Memorial
+            </button>
+            <p className="text-sm text-gray-500 mt-4">
+              You can add photos, stories, timeline events, and more
             </p>
           </div>
-          <button
-            onClick={() => window.location.reload()}
-            className="w-full px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all font-medium shadow-lg"
-          >
-            Go to Dashboard
-          </button>
-          <p className="text-sm text-gray-500 mt-4">
-            Use the "Create New Memorial" button in the top navigation to start
-          </p>
         </div>
+        
+        <Footer />
+      </div>
+    );
+  }
+
+  // If no memorial ID but user has memorials (shouldn't happen due to auto-select), show selection screen
+  if (!memorialId && userMemorials.length > 0) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <TopNav 
+          memorials={userMemorials}
+          currentMemorialId=""
+          onSelectMemorial={(id) => {
+            localStorage.setItem('currentMemorialId', id);
+            window.location.href = `/dashboard?memorialId=${id}`;
+          }}
+          onCreateNew={handleCreateNewMemorial}
+        />
+        
+        <div className="flex justify-center items-center pt-20 p-4">
+          <div className="text-center max-w-md w-full">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Select a Memorial</h2>
+            <p className="text-gray-600 mb-6">
+              Choose which memorial you'd like to work on, or create a new one.
+            </p>
+            <div className="space-y-3">
+              {userMemorials.map(memorial => (
+                <button
+                  key={memorial.id}
+                  onClick={() => {
+                    localStorage.setItem('currentMemorialId', memorial.id);
+                    window.location.href = `/dashboard?memorialId=${memorial.id}`;
+                  }}
+                  className="w-full px-6 py-3 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-left"
+                >
+                  <div className="font-medium text-gray-800">{memorial.name}</div>
+                  <div className="text-sm text-gray-500">
+                    Created {new Date(memorial.createdAt).toLocaleDateString()}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+        
+        <Footer />
       </div>
     );
   }
