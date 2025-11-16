@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, Edit2, Upload, Save, Play, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Plus, Trash2, Edit2, Upload, Save, Play, ChevronLeft, ChevronRight, X, AlertCircle } from 'lucide-react';
 import { useMemorial } from '../../hooks/useMemorial';
 
 interface GalleryImage {
@@ -34,35 +34,81 @@ export const GallerySection: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [slideshowOpen, setSlideshowOpen] = useState(false);
   const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
   const [hasInitialized, setHasInitialized] = useState(false);
   const [lastSavedImages, setLastSavedImages] = useState<GalleryImage[] | null>(null);
+  const [lastSavedCount, setLastSavedCount] = useState(0);
+  const [lastForceSaveTime, setLastForceSaveTime] = useState<number>(0);
 
-  const debouncedImages = useDebounce(images, 1500);
+  const debouncedImages = useDebounce(images, 2000);
 
-  // Initialize with memorial data from backend (only once)
+  // ENHANCED: Initialize with memorial data from backend (only once)
   useEffect(() => {
     if (memorialData?.gallery && !hasInitialized) {
+      console.log('🔄 INITIALIZING gallery from backend:', {
+        type: typeof memorialData.gallery,
+        isArray: Array.isArray(memorialData.gallery),
+        length: Array.isArray(memorialData.gallery) ? memorialData.gallery.length : 'N/A'
+      });
+
       const initialImages = memorialData.gallery as GalleryImage[];
+      console.log('✅ Setting initial images:', initialImages.length);
       setImages(initialImages);
       setLastSavedImages(initialImages);
+      setLastSavedCount(initialImages.length);
       setHasInitialized(true);
     }
-  }, [memorialData, hasInitialized]);
+    
+    // CRITICAL: Sync with backend after successful saves
+    if (hasInitialized && memorialData?.gallery) {
+      const backendImages = memorialData.gallery as GalleryImage[];
+      const backendCount = backendImages.length;
+      
+      // Only update if backend has MORE images than we last saved (meaning save was successful)
+      if (backendCount > lastSavedCount || (backendCount > 0 && lastSavedCount === 0)) {
+        console.log('🔄 Syncing with backend:', backendCount, 'images');
+        setImages(backendImages);
+        setLastSavedImages(backendImages);
+        setLastSavedCount(backendCount);
+      }
+    }
+  }, [memorialData, hasInitialized, lastSavedCount]);
 
   // Stable comparison function - only triggers on meaningful changes
   const hasMeaningfulChanges = useCallback((currentImages: GalleryImage[], savedImages: GalleryImage[] | null) => {
     if (!savedImages) return currentImages.length > 0;
-    return JSON.stringify(currentImages) !== JSON.stringify(savedImages);
+    const hasChanges = JSON.stringify(currentImages) !== JSON.stringify(savedImages);
+    if (hasChanges) {
+      console.log('🔔 Change detected:', currentImages.length, 'vs', savedImages.length);
+    }
+    return hasChanges;
   }, []);
 
-  // Auto-save debounced changes
+  // ENHANCED: Auto-save debounced changes with logging
   useEffect(() => {
-    if (hasInitialized && hasMeaningfulChanges(debouncedImages, lastSavedImages)) {
-      updateGallery(debouncedImages);
+    if (!hasInitialized) {
+      console.log('⏸️ Skipping auto-save: not initialized');
+      return;
     }
-  }, [debouncedImages, hasInitialized, lastSavedImages, hasMeaningfulChanges, updateGallery]);
+
+    // CRITICAL: Block all auto-saves for 5 seconds after a force-save
+    const timeSinceLastForceSave = Date.now() - lastForceSaveTime;
+    if (lastForceSaveTime > 0 && timeSinceLastForceSave < 5000) {
+      console.log('⏸️ Skipping auto-save: force-save completed', Math.round(timeSinceLastForceSave / 1000), 'seconds ago');
+      return;
+    }
+
+    if (!hasMeaningfulChanges(debouncedImages, lastSavedImages)) {
+      console.log('⏸️ Skipping auto-save: no changes');
+      return;
+    }
+
+    console.log('🚀 AUTO-SAVE TRIGGERED:', debouncedImages.length, 'images');
+    updateGallery(debouncedImages);
+  }, [debouncedImages, hasInitialized, lastSavedImages, lastForceSaveTime, hasMeaningfulChanges, updateGallery]);
 
   const categories = [
     'Portraits',
@@ -75,6 +121,7 @@ export const GallerySection: React.FC = () => {
   ];
 
   const handleAddImage = () => {
+    console.log('➕ Opening add image form');
     setEditingImage({
       id: 'new-' + Date.now(),
       url: '',
@@ -99,6 +146,7 @@ export const GallerySection: React.FC = () => {
       return;
     }
 
+    console.log('📤 Uploading image:', file.name);
     setUploading(true);
 
     try {
@@ -124,16 +172,18 @@ export const GallerySection: React.FC = () => {
       }
 
       const data = await uploadResponse.json();
+      console.log('✅ Image uploaded successfully');
       setEditingImage(prev => prev ? { ...prev, url: data.url } : null);
     } catch (error) {
-      console.error(error);
+      console.error('❌ Upload failed:', error);
       alert('Failed to upload image. Please try again.');
     } finally {
       setUploading(false);
     }
   };
 
-  const handleSaveImage = () => {
+  // CRITICAL FIX: Force immediate save after adding/editing
+  const handleSaveImage = async () => {
     if (!editingImage || !editingImage.caption.trim()) {
       alert('Please enter a caption for the image.');
       return;
@@ -144,6 +194,8 @@ export const GallerySection: React.FC = () => {
       return;
     }
 
+    console.log('💾 SAVING IMAGE:', editingImage.caption);
+
     let newImages: GalleryImage[];
     if (editingImage.id.startsWith('new-')) {
       newImages = [...images, { 
@@ -152,6 +204,7 @@ export const GallerySection: React.FC = () => {
         category: editingImage.category,
         caption: editingImage.caption.trim()
       }];
+      console.log('➕ Adding new image, total:', newImages.length);
     } else {
       newImages = images.map(img => 
         img.id === editingImage.id 
@@ -162,26 +215,113 @@ export const GallerySection: React.FC = () => {
             } 
           : img
       );
+      console.log('✏️ Updating existing image');
     }
     
     setImages(newImages);
     setShowForm(false);
     setEditingImage(null);
-  };
 
-  const handleDeleteImage = (id: string) => {
-    const newImages = images.filter(img => img.id !== id);
-    setImages(newImages);
-  };
-
-  const handleManualSave = async () => {
+    // CRITICAL: Force immediate save to backend
     setSaving(true);
+    setSaveSuccess(false);
+    setSaveError(null);
+
     try {
-      await updateGallery(images);
-      await saveToBackend();
-      setLastSavedImages(images);
+      console.log('🚀 FORCE SAVING to backend...', newImages.length, 'images');
+      await updateGallery(newImages);
+      console.log('✅ Context updated');
+      
+      const success = await saveToBackend();
+      console.log('💾 Backend save result:', success);
+      
+      if (success) {
+        console.log('✅ BACKEND SAVE SUCCESSFUL');
+        setLastSavedImages(newImages);
+        setLastSavedCount(newImages.length);
+        setSaveSuccess(true);
+        setLastForceSaveTime(Date.now()); // CRITICAL: Block auto-saves for 5 seconds
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        throw new Error('Save returned false');
+      }
     } catch (error) {
-      console.error('Error saving gallery:', error);
+      console.error('❌ SAVE FAILED:', error);
+      setSaveError(error instanceof Error ? error.message : 'Save failed');
+      alert('Failed to save image. Please try the manual save button.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // CRITICAL FIX: Force immediate save after deleting
+  const handleDeleteImage = async (id: string) => {
+    console.log('🗑️ DELETING IMAGE:', id);
+    
+    const newImages = images.filter(img => img.id !== id);
+    console.log('📊 After deletion:', newImages.length, 'images remain');
+    
+    setImages(newImages);
+
+    // Force immediate save
+    setSaving(true);
+    setSaveSuccess(false);
+    setSaveError(null);
+
+    try {
+      console.log('🚀 FORCE SAVING deletion to backend...');
+      await updateGallery(newImages);
+      const success = await saveToBackend();
+      
+      if (success) {
+        console.log('✅ DELETION SAVED SUCCESSFULLY');
+        setLastSavedImages(newImages);
+        setLastSavedCount(newImages.length);
+        setSaveSuccess(true);
+        setLastForceSaveTime(Date.now()); // CRITICAL: Block auto-saves for 5 seconds
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        throw new Error('Save returned false');
+      }
+    } catch (error) {
+      console.error('❌ DELETE SAVE FAILED:', error);
+      setSaveError(error instanceof Error ? error.message : 'Delete save failed');
+      alert('Failed to save deletion. Please try the manual save button.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ENHANCED: Manual save with detailed logging
+  const handleManualSave = async () => {
+    console.log('🔘 MANUAL SAVE TRIGGERED');
+    console.log('📊 Current state:', images.length, 'images');
+
+    setSaving(true);
+    setSaveSuccess(false);
+    setSaveError(null);
+
+    try {
+      console.log('📤 Sending to backend:', images.length, 'images');
+      await updateGallery(images);
+      console.log('✅ Context updated');
+      
+      const success = await saveToBackend();
+      console.log('💾 Backend save result:', success);
+      
+      if (success) {
+        setLastSavedImages(images);
+        setLastSavedCount(images.length);
+        setSaveSuccess(true);
+        setLastForceSaveTime(Date.now()); // CRITICAL: Block auto-saves for 5 seconds
+        alert('Gallery saved successfully!');
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        throw new Error('Backend save failed');
+      }
+    } catch (error) {
+      console.error('❌ Manual save error:', error);
+      setSaveError(error instanceof Error ? error.message : 'Save failed');
       alert('Failed to save gallery. Please try again.');
     } finally {
       setSaving(false);
@@ -284,6 +424,41 @@ export const GallerySection: React.FC = () => {
         </div>
       </div>
 
+      {/* ADDED: Save Status Messages */}
+      {saveSuccess && (
+        <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-2">
+          <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+            <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <span className="text-green-800 text-sm font-medium">Gallery saved successfully!</span>
+        </div>
+      )}
+
+      {saveError && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <span className="text-red-800 text-sm font-medium">Save failed: {saveError}</span>
+            <p className="text-red-600 text-xs mt-1">Please use the manual save button to try again</p>
+          </div>
+        </div>
+      )}
+
+      {/* ADDED: Debug Info Panel */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
+        <div className="font-semibold text-blue-800 mb-2">🔍 Gallery Status</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-blue-700">
+          <div>Current: <strong>{images.length}</strong></div>
+          <div>Saved: <strong>{lastSavedCount}</strong></div>
+          <div>Backend: <strong>{(memorialData?.gallery as GalleryImage[] | undefined)?.length ?? 0}</strong></div>
+          <div>Initialized: {hasInitialized ? '✅' : '❌'}</div>
+          <div>Unsaved: {shouldEnableSave ? '⚠️' : '✅'}</div>
+          <div>Saving: {saving ? '🔄' : '❌'}</div>
+        </div>
+      </div>
+
       {/* Stats - Improved mobile grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 text-center">
@@ -303,10 +478,8 @@ export const GallerySection: React.FC = () => {
           <div className="text-xs sm:text-sm text-gray-600">With Captions</div>
         </div>
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 text-center">
-          <div className="text-xl sm:text-2xl font-bold text-gray-800">
-            {images.filter(img => !img.caption).length}
-          </div>
-          <div className="text-xs sm:text-sm text-gray-600">Need Captions</div>
+          <div className="text-xl sm:text-2xl font-bold text-green-600">{lastSavedCount}</div>
+          <div className="text-xs sm:text-sm text-gray-600">Last Saved</div>
         </div>
       </div>
 
@@ -414,10 +587,10 @@ export const GallerySection: React.FC = () => {
           <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             <button
               onClick={handleSaveImage}
-              disabled={!editingImage.caption.trim() || !editingImage.url}
+              disabled={!editingImage.caption.trim() || !editingImage.url || saving}
               className="flex-1 px-4 sm:px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base"
             >
-              Save Photo
+              {saving ? 'Saving...' : 'Save Photo'}
             </button>
             <button
               onClick={() => {

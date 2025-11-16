@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Download, QrCode, Save, Plus, X } from 'lucide-react';
+import { Users, Download, QrCode, Save, Plus, X, Trash2 } from 'lucide-react';
 import { useMemorial } from '../../hooks/useMemorial';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -24,7 +24,13 @@ interface RSVP {
 }
 
 export const ServiceSection: React.FC = () => {
-  const { memorialData, updateService, saveToBackend } = useMemorial();
+  const { 
+    memorialData, 
+    updateService, 
+    saveToBackend, 
+    saving 
+  } = useMemorial();
+  
   const [service, setService] = useState<ServiceInfo>({
     venue: '',
     address: '',
@@ -36,10 +42,11 @@ export const ServiceSection: React.FC = () => {
   const [rsvps, setRsvps] = useState<RSVP[]>([]);
   const [showQRCode, setShowQRCode] = useState(false);
   const [showRSVPForm, setShowRSVPForm] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [loadingRsvps, setLoadingRsvps] = useState(true);
   const [submittingRSVP, setSubmittingRSVP] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
+  const [localHasChanges, setLocalHasChanges] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const [newRSVP, setNewRSVP] = useState({
     firstName: '',
@@ -50,52 +57,42 @@ export const ServiceSection: React.FC = () => {
     guests: 1
   });
 
-  // Initialize service info from memorial data
-  useEffect(() => {
-    if (memorialData?.service) {
-      setService(memorialData.service);
-    }
-  }, [memorialData]);
-
-  // Check for changes whenever service state changes
-  useEffect(() => {
-    if (memorialData?.service) {
-      const hasServiceChanges = 
-        service.venue !== memorialData.service.venue ||
-        service.address !== memorialData.service.address ||
-        service.date !== memorialData.service.date ||
-        service.time !== memorialData.service.time ||
-        service.virtualLink !== memorialData.service.virtualLink ||
-        service.virtualPlatform !== memorialData.service.virtualPlatform;
-      
-      setHasChanges(hasServiceChanges);
-    }
-  }, [service, memorialData]);
-
-  // Auto-save removed - user must click Save button manually
-
   // Load RSVPs from backend
   useEffect(() => {
-    const loadRsvps = async () => {
-      if (!memorialData?.id) return;
+    const loadRSVPs = async () => {
+      if (!memorialData?.id) {
+        setLoadingRsvps(false);
+        return;
+      }
 
       try {
         setLoadingRsvps(true);
         const token = localStorage.getItem('token');
+        
         if (!token) {
-          throw new Error('Authentication token not found');
+          console.log('No token available, skipping RSVP load');
+          setLoadingRsvps(false);
+          return;
         }
 
-        const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/rsvps/${memorialData.id}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
+        const response = await fetch(
+          `https://wings-of-memories-backend.onrender.com/api/rsvps/${memorialData.id}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
           }
-        });
+        );
 
         if (response.ok) {
           const data = await response.json();
           setRsvps(data.rsvps || []);
+          console.log('✅ Loaded RSVPs:', data.rsvps?.length || 0);
+        } else if (response.status === 404) {
+          // Memorial has no RSVPs yet
+          setRsvps([]);
         } else {
+          console.error('Failed to load RSVPs:', response.status);
           setRsvps([]);
         }
       } catch (error) {
@@ -106,25 +103,106 @@ export const ServiceSection: React.FC = () => {
       }
     };
 
-    loadRsvps();
+    loadRSVPs();
   }, [memorialData?.id]);
 
+  // Initialize service info from memorial data
+  useEffect(() => {
+    if (memorialData?.service) {
+      console.log('📥 Initializing service from memorial data:', memorialData.service);
+      setService({
+        venue: memorialData.service.venue || '',
+        address: memorialData.service.address || '',
+        date: memorialData.service.date || '',
+        time: memorialData.service.time || '',
+        virtualLink: memorialData.service.virtualLink || '',
+        virtualPlatform: memorialData.service.virtualPlatform || 'zoom'
+      });
+      // Reset local changes when loading from backend
+      setLocalHasChanges(false);
+    } else if (memorialData) {
+      console.log('📥 Memorial exists but no service data, using defaults');
+      setService({
+        venue: '',
+        address: '',
+        date: '',
+        time: '',
+        virtualLink: '',
+        virtualPlatform: 'zoom'
+      });
+      setLocalHasChanges(false);
+    }
+  }, [memorialData?.id]); // Only reset when memorial ID changes
+
+  // Track local changes
+  useEffect(() => {
+    if (!memorialData) return;
+
+    const originalService = memorialData.service || {
+      venue: '',
+      address: '',
+      date: '',
+      time: '',
+      virtualLink: '',
+      virtualPlatform: 'zoom'
+    };
+
+    const hasChanges = 
+      service.venue !== originalService.venue ||
+      service.address !== originalService.address ||
+      service.date !== originalService.date ||
+      service.time !== originalService.time ||
+      (service.virtualLink || '') !== (originalService.virtualLink || '') ||
+      service.virtualPlatform !== (originalService.virtualPlatform || 'zoom');
+
+    setLocalHasChanges(hasChanges);
+  }, [service, memorialData]);
+
   const handleServiceChange = (updates: Partial<ServiceInfo>) => {
-    setService(prev => ({ ...prev, ...updates }));
+    setService(prev => {
+      const newService = { ...prev, ...updates };
+      console.log('✏️ Service updated:', updates);
+      return newService;
+    });
   };
 
-  // Simple save function
   const handleSaveService = async () => {
-    setSaving(true);
+    if (!localHasChanges || saving) {
+      console.log('⏭️ Save skipped:', { localHasChanges, saving });
+      return;
+    }
+
     try {
-      await updateService(service);
-      await saveToBackend();
-      setHasChanges(false);
-      console.log('✅ Service details saved successfully');
+      console.log('💾 Starting save process...', service);
+      setSaveError(null);
+      setSaveSuccess(false);
+      
+      // Update the context with new service data - this will trigger context save
+      updateService(service);
+      
+      // Wait a moment for context to update
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Save to backend
+      const success = await saveToBackend();
+      
+      if (success) {
+        console.log('✅ Service saved successfully');
+        setSaveSuccess(true);
+        setLocalHasChanges(false);
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        throw new Error('Backend save failed');
+      }
     } catch (error) {
-      console.error('❌ Error saving service details:', error);
-    } finally {
-      setSaving(false);
+      console.error('❌ Error saving service:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to save service details';
+      setSaveError(errorMessage);
+      
+      // Clear error after 5 seconds
+      setTimeout(() => setSaveError(null), 5000);
     }
   };
 
@@ -136,29 +214,39 @@ export const ServiceSection: React.FC = () => {
 
     setSubmittingRSVP(true);
     try {
-      const newRsvp: RSVP = {
-        id: Date.now().toString(),
-        ...newRSVP,
-        createdAt: new Date().toISOString()
-      };
-
-      const updatedRsvps = [newRsvp, ...rsvps];
-      setRsvps(updatedRsvps);
+      const token = localStorage.getItem('token');
       
-      if (memorialData?.id) {
-        const token = localStorage.getItem('token');
-        if (token) {
-          await fetch(`https://wings-of-memories-backend.onrender.com/api/rsvps/${memorialData.id}`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(newRsvp)
-          });
-        }
+      if (!token || !memorialData?.id) {
+        throw new Error('Authentication required');
       }
 
+      // Create RSVP via backend
+      const response = await fetch('https://wings-of-memories-backend.onrender.com/api/rsvps', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          memorialId: memorialData.id,
+          firstName: newRSVP.firstName,
+          lastName: newRSVP.lastName,
+          email: newRSVP.email,
+          phone: newRSVP.phone,
+          attending: newRSVP.attending,
+          guests: newRSVP.guests
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create RSVP');
+      }
+
+      const data = await response.json();
+      
+      // Add to local state
+      setRsvps(prev => [data.rsvp, ...prev]);
+      
+      // Reset form
       setNewRSVP({
         firstName: '',
         lastName: '',
@@ -168,6 +256,8 @@ export const ServiceSection: React.FC = () => {
         guests: 1
       });
       setShowRSVPForm(false);
+      
+      console.log('✅ RSVP added successfully');
     } catch (error) {
       console.error('Error adding RSVP:', error);
       alert('Failed to add RSVP. Please try again.');
@@ -176,11 +266,56 @@ export const ServiceSection: React.FC = () => {
     }
   };
 
+  const handleDeleteRSVP = async (rsvpId: string) => {
+    if (!confirm('Are you sure you want to delete this RSVP?')) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('Authentication required');
+      }
+
+      const response = await fetch(
+        `https://wings-of-memories-backend.onrender.com/api/rsvps/${rsvpId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to delete RSVP');
+      }
+
+      // Remove from local state
+      setRsvps(prev => prev.filter(r => r.id !== rsvpId));
+      
+      console.log('✅ RSVP deleted successfully');
+    } catch (error) {
+      console.error('Error deleting RSVP:', error);
+      alert('Failed to delete RSVP. Please try again.');
+    }
+  };
+
   const handleGenerateQRCode = () => {
+    if (!service.venue || !service.address || !service.date || !service.time) {
+      alert('Please fill in venue, address, date, and time before generating QR code');
+      return;
+    }
     setShowQRCode(true);
   };
 
   const handleExportRSVPs = () => {
+    if (rsvps.length === 0) {
+      alert('No RSVPs to export');
+      return;
+    }
+    
     const csvContent = [
       ['Name', 'Email', 'Phone', 'Attending', 'Guests', 'Date'],
       ...rsvps.map(rsvp => [
@@ -253,15 +388,35 @@ export const ServiceSection: React.FC = () => {
       : `${window.location.origin}/memorial/${memorialData?.id}`;
   };
 
+  const hasRequiredFields = service.venue.trim() && service.address.trim() && service.date && service.time;
+  const shouldEnableSave = localHasChanges && !saving;
+
+  const getSaveButtonStyles = () => {
+    if (saveSuccess) {
+      return 'bg-green-500 text-white cursor-default';
+    }
+    
+    if (saveError) {
+      return 'bg-red-500 text-white cursor-pointer hover:bg-red-600';
+    }
+    
+    if (!shouldEnableSave) {
+      return 'bg-gray-200 text-gray-500 cursor-not-allowed';
+    }
+    
+    if (saving) {
+      return 'bg-blue-500 text-white cursor-wait';
+    }
+    
+    return 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-lg hover:shadow-xl cursor-pointer';
+  };
+
   const stats = {
     total: rsvps.length,
     inPerson: rsvps.filter(r => r.attending === 'in_person').length,
     virtual: rsvps.filter(r => r.attending === 'virtual').length,
     totalGuests: rsvps.reduce((sum, rsvp) => sum + rsvp.guests, 0)
   };
-
-  // Simple enable logic - ALWAYS enabled when there are changes
-  const shouldEnableSave = hasChanges && !saving;
 
   if (!memorialData) {
     return (
@@ -292,8 +447,8 @@ export const ServiceSection: React.FC = () => {
           </button>
           <button
             onClick={handleGenerateQRCode}
-            disabled={!service.venue || !service.date}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all disabled:opacity-50 text-sm"
+            disabled={!hasRequiredFields}
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
             <QrCode className="w-4 h-4" />
             <span className="hidden sm:inline">QR Code</span>
@@ -301,13 +456,32 @@ export const ServiceSection: React.FC = () => {
           <button
             onClick={handleExportRSVPs}
             disabled={rsvps.length === 0}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all disabled:opacity-50 text-sm"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
           >
             <Download className="w-4 h-4" />
             <span className="hidden sm:inline">Export</span>
           </button>
         </div>
       </div>
+
+      {/* Success/Error Messages */}
+      {saveSuccess && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4">
+          <p className="text-green-800 text-sm flex items-center gap-2">
+            <span className="text-lg">✅</span>
+            Service details saved successfully!
+          </p>
+        </div>
+      )}
+
+      {saveError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-4">
+          <p className="text-red-800 text-sm flex items-center gap-2">
+            <span className="text-lg">❌</span>
+            {saveError}
+          </p>
+        </div>
+      )}
 
       {/* Main Content Grid */}
       <div className="grid lg:grid-cols-2 gap-6">
@@ -405,27 +579,119 @@ export const ServiceSection: React.FC = () => {
               </div>
             </div>
 
-            {/* Save Button - Now it will work! */}
+            {/* Save Button */}
             <button 
               onClick={handleSaveService}
-              disabled={!shouldEnableSave}
-              className={`w-full mt-6 px-6 py-3 rounded-lg transition-all font-medium flex items-center justify-center gap-2 text-sm sm:text-base ${
-                shouldEnableSave
-                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-lg hover:shadow-xl'
-                  : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-              }`}
+              disabled={!shouldEnableSave && !saveError}
+              className={`w-full mt-6 px-6 py-3 rounded-lg transition-all font-medium flex items-center justify-center gap-2 text-sm sm:text-base ${getSaveButtonStyles()}`}
             >
               <Save className="w-4 h-4" />
-              {saving ? 'Saving...' : 'Save Service Details'}
+              {saveSuccess ? 'Saved!' : saving ? 'Saving...' : saveError ? 'Retry Save' : 'Save Service Details'}
             </button>
 
-            {/* Debug info - remove in production */}
-            <div className="mt-2 text-xs text-gray-500">
-              Changes: {hasChanges ? 'YES' : 'NO'} | Saving: {saving ? 'YES' : 'NO'} | Enabled: {shouldEnableSave ? 'YES' : 'NO'}
-            </div>
+            {!hasRequiredFields && localHasChanges && (
+              <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-amber-800 text-sm">
+                  💡 <strong>Note:</strong> Fill in all required fields (Venue, Address, Date, Time) for complete service information.
+                </p>
+              </div>
+            )}
           </div>
 
-          {/* Quick Stats */}
+      <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 border-2 border-amber-200">
+        <h3 className="text-lg font-semibold text-gray-800 mb-4">Memorial Completion Status</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="text-center bg-white rounded-lg p-3 shadow-sm">
+            <div className="text-xl sm:text-2xl font-bold text-amber-600">
+              {memorialData?.service?.venue && memorialData?.service?.address && memorialData?.service?.date && memorialData?.service?.time ? '✅' : '⭕'}
+            </div>
+            <div className="text-xs sm:text-sm text-amber-700 font-medium">Service</div>
+          </div>
+          <div className="text-center bg-white rounded-lg p-3 shadow-sm">
+            <div className="text-xl sm:text-2xl font-bold text-amber-600">{stats.total > 0 ? '✅' : '⭕'}</div>
+            <div className="text-xs sm:text-sm text-amber-700 font-medium">RSVPs</div>
+          </div>
+          <div className="text-center bg-white rounded-lg p-3 shadow-sm">
+            <div className="text-xl sm:text-2xl font-bold text-amber-600">{hasRequiredFields ? '✅' : '⭕'}</div>
+            <div className="text-xs sm:text-sm text-amber-700 font-medium">Complete</div>
+          </div>
+          <div className="text-center bg-white rounded-lg p-3 shadow-sm">
+            <div className="text-xl sm:text-2xl font-bold text-amber-600">{!localHasChanges ? '✅' : '⏳'}</div>
+            <div className="text-xs sm:text-sm text-amber-700 font-medium">Saved</div>
+          </div>
+        </div>
+        {!hasRequiredFields && (
+          <div className="mt-3 p-3 bg-amber-100 border border-amber-300 rounded-lg">
+            <p className="text-amber-800 text-xs sm:text-sm text-center">
+              💡 Complete all required fields to get a checkmark
+            </p>
+          </div>
+        )}
+      </div>
+
+        {/* RSVP List */}
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-gray-800">RSVP Responses ({rsvps.length})</h3>
+          </div>
+          
+          {loadingRsvps ? (
+            <div className="text-center py-8 text-gray-500">
+              <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full mx-auto mb-3"></div>
+              <p className="text-sm">Loading RSVPs...</p>
+            </div>
+          ) : (
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {rsvps.map(rsvp => (
+                <div key={rsvp.id} className="p-3 border border-gray-200 rounded-lg hover:border-amber-300 transition-colors">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-semibold text-gray-800 text-sm sm:text-base truncate">
+                        {rsvp.firstName} {rsvp.lastName}
+                      </h4>
+                      <p className="text-xs sm:text-sm text-gray-600 truncate">{rsvp.email}</p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-2">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        rsvp.attending === 'in_person' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {rsvp.attending === 'in_person' ? 'In Person' : 'Virtual'}
+                      </span>
+                      <button
+                        onClick={() => handleDeleteRSVP(rsvp.id)}
+                        className="p-1 text-red-400 hover:text-red-600 transition-colors"
+                        title="Delete RSVP"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span className="truncate mr-2">{rsvp.phone || 'No phone'}</span>
+                    <span>{rsvp.guests} guest{rsvp.guests !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="text-xs text-gray-500 mt-2">
+                    {new Date(rsvp.createdAt).toLocaleDateString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!loadingRsvps && rsvps.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">No RSVPs yet</p>
+              <p className="text-xs mt-1">Click "Add RSVP" to create your first RSVP</p>
+            </div>
+          )}
+        </div>
+
+        {/* RSVP Quick Stats */}
+        <div className="mt-4">
+          <h4 className="text-sm font-semibold text-gray-700 mb-2">RSVP Statistics</h4>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 text-center">
               <div className="text-xl sm:text-2xl font-bold text-gray-800">{stats.total}</div>
@@ -444,57 +710,6 @@ export const ServiceSection: React.FC = () => {
               <div className="text-xs sm:text-sm text-gray-600">Total Guests</div>
             </div>
           </div>
-        </div>
-
-        {/* RSVP List */}
-        <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">RSVP Responses ({rsvps.length})</h3>
-          </div>
-          
-          {loadingRsvps ? (
-            <div className="text-center py-8 text-gray-500">
-              <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full mx-auto mb-3"></div>
-              <p className="text-sm">Loading RSVPs...</p>
-            </div>
-          ) : (
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {rsvps.map(rsvp => (
-                <div key={rsvp.id} className="p-3 border border-gray-200 rounded-lg">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-gray-800 text-sm sm:text-base truncate">
-                        {rsvp.firstName} {rsvp.lastName}
-                      </h4>
-                      <p className="text-xs sm:text-sm text-gray-600 truncate">{rsvp.email}</p>
-                    </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ml-2 ${
-                      rsvp.attending === 'in_person' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {rsvp.attending === 'in_person' ? 'In Person' : 'Virtual'}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-600">
-                    <span className="truncate mr-2">{rsvp.phone}</span>
-                    <span>{rsvp.guests} guest{rsvp.guests !== 1 ? 's' : ''}</span>
-                  </div>
-                  <div className="text-xs text-gray-500 mt-2">
-                    {new Date(rsvp.createdAt).toLocaleDateString()}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {!loadingRsvps && rsvps.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-sm">No RSVPs yet</p>
-              <p className="text-xs mt-1">Click "Add RSVP" to create your first RSVP</p>
-            </div>
-          )}
         </div>
       </div>
 
@@ -602,7 +817,7 @@ export const ServiceSection: React.FC = () => {
               <button
                 onClick={handleAddRSVP}
                 disabled={submittingRSVP || !newRSVP.firstName.trim() || !newRSVP.lastName.trim() || !newRSVP.email.trim()}
-                className="flex-1 px-6 py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50"
+                className="flex-1 px-6 py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {submittingRSVP ? 'Adding...' : 'Add RSVP'}
               </button>
@@ -674,6 +889,7 @@ export const ServiceSection: React.FC = () => {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-// Components/DashboardLayout.tsx - WITH MEMORIAL SELECTOR
+// Components/DashboardLayout.tsx - FIXED VERSION
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, User, Clock, Heart, Users, Images, Calendar,
@@ -25,7 +25,15 @@ interface MemorialData {
   isPublished?: boolean;
 }
 
-interface DashboardLayoutProps {
+// Data Integrity Interface
+interface DataIntegrityCheck {
+  isComplete: boolean;
+  missingSections: string[];
+  totalSections: number;
+  loadedSections: number;
+}
+
+export interface DashboardLayoutProps {
   children: React.ReactNode;
   activeSection: string;
   onSectionChange: (section: string) => void;
@@ -35,6 +43,12 @@ interface DashboardLayoutProps {
   currentMemorialId?: string;
   onSelectMemorial?: (id: string) => void;
   onCreateNew?: () => void;
+  // Optional data status props
+  dataStatus?: {
+    loading?: boolean;
+    error?: string | null;
+    integrity?: DataIntegrityCheck;
+  };
 }
 
 const sidebarSections = [
@@ -125,6 +139,65 @@ const MemorialSelector: React.FC<{
   );
 };
 
+// Data Status Indicator Component
+const DataStatusIndicator: React.FC<{
+  dataStatus?: {
+    loading?: boolean;
+    error?: string | null;
+    integrity?: DataIntegrityCheck;
+  };
+}> = ({ dataStatus }) => {
+  if (!dataStatus) return null;
+
+  if (dataStatus.loading) {
+    return (
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+        <div className="flex items-center">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+          <span className="text-blue-700 text-sm">Loading memorial data...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (dataStatus.error) {
+    return (
+      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
+        <div className="flex items-center">
+          <svg className="w-4 h-4 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+          </svg>
+          <span className="text-red-700 text-sm">Error: {dataStatus.error}</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (dataStatus.integrity && !dataStatus.integrity.isComplete) {
+    return (
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <svg className="w-4 h-4 text-yellow-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+            <span className="text-yellow-700 text-sm">
+              Data incomplete ({dataStatus.integrity.loadedSections}/{dataStatus.integrity.totalSections} sections loaded)
+            </span>
+          </div>
+          {dataStatus.integrity.missingSections.length > 0 && (
+            <span className="text-yellow-600 text-xs bg-yellow-100 px-2 py-1 rounded">
+              {dataStatus.integrity.missingSections.length} missing
+            </span>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return null;
+};
+
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   children,
   activeSection,
@@ -134,6 +207,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   currentMemorialId = '',
   onSelectMemorial,
   onCreateNew,
+  dataStatus, // Add the dataStatus prop
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
@@ -277,11 +351,19 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             </div>
 
             {/* Status indicator */}
-            <div className="flex items-center">
+            <div className="flex items-center gap-2">
               {memorialData?.isPublished && (
                 <div className="px-3 py-1.5 bg-green-100 text-green-800 rounded-full text-xs font-medium border border-green-200 whitespace-nowrap">
                   <span className="hidden xs:inline">✓ Published</span>
                   <span className="xs:hidden">✓ Live</span>
+                </div>
+              )}
+              
+              {/* Data Status Badge */}
+              {dataStatus?.integrity && !dataStatus.integrity.isComplete && (
+                <div className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium border border-yellow-200 whitespace-nowrap">
+                  <span className="hidden sm:inline">⚠ Incomplete</span>
+                  <span className="sm:hidden">⚠</span>
                 </div>
               )}
             </div>
@@ -303,6 +385,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 <p className="text-gray-600 text-sm xs:text-base">Share and download memorial</p>
               )}
             </div>
+            
+            {/* Data Status Indicator */}
+            <DataStatusIndicator dataStatus={dataStatus} />
             
             {/* Content area */}
             <div className="bg-white rounded-lg xs:rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 xs:p-6 min-h-[60vh]">

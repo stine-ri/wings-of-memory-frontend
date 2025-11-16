@@ -1,5 +1,4 @@
-// Contexts/MemorialContext.tsx
-
+// Contexts/MemorialContext.tsx - ENHANCED VERSION WITH GUARANTEED DATA PERSISTENCE
 import React, { createContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { ReactNode } from 'react';
 import type { MemorialData, TimelineEvent, Favorite, FamilyMember, GalleryImage, ServiceInfo, Memory } from '../types/memorial';
@@ -20,6 +19,16 @@ export interface MemorialContextType {
   refreshMemorial: () => Promise<void>;
   lastSaved: Date | null;
   hasUnsavedChanges: boolean;
+  error: string | null;
+  dataIntegrity: DataIntegrityCheck;
+}
+
+interface DataIntegrityCheck {
+  isComplete: boolean;
+  missingSections: string[];
+  totalSections: number;
+  loadedSections: number;
+  details: Record<string, { loaded: boolean; count?: number }>;
 }
 
 const defaultMemorialData: MemorialData = {
@@ -34,12 +43,8 @@ const defaultMemorialData: MemorialData = {
   favorites: [],
   familyTree: [],
   gallery: [],
-  service: {
-    venue: '',
-    address: '',
-    date: '',
-    time: ''
-  },
+  service: undefined,
+  serviceInfo: undefined,
   memories: [],
   memoryWall: [],
   isPublished: false,
@@ -54,360 +59,547 @@ interface MemorialProviderProps {
   memorialId?: string;
 }
 
-// Persistent storage for user's memorials
-const USER_MEMORIALS_KEY = 'user_memorials_cache';
-
 const MemorialProvider: React.FC<MemorialProviderProps> = ({ children, memorialId }) => {
   const [memorialData, setMemorialData] = useState<MemorialData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  
-  // Track what needs to be saved
+  const [error, setError] = useState<string | null>(null);
+  const [dataIntegrity, setDataIntegrity] = useState<DataIntegrityCheck>({
+    isComplete: false,
+    missingSections: [],
+    totalSections: 8,
+    loadedSections: 0,
+    details: {}
+  });
+
   const pendingChangesRef = useRef<Partial<MemorialData>>({});
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const retryCountRef = useRef(0);
-  const MAX_RETRIES = 3;
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const loadingAttempts = useRef(0);
+  const MAX_LOADING_ATTEMPTS = 3;
 
-  // Refs to track state without causing re-renders
-  const memorialDataRef = useRef<MemorialData | null>(null);
-  const isLoadingRef = useRef(false);
-
-  // Update refs when state changes
-  useEffect(() => {
-    memorialDataRef.current = memorialData;
-  }, [memorialData]);
-
-  // Cache user memorials for better UX
-  const cacheUserMemorial = useCallback((memorial: MemorialData) => {
-    try {
-      const cached = localStorage.getItem(USER_MEMORIALS_KEY);
-      const memorials = cached ? JSON.parse(cached) : {};
-      
-      memorials[memorial.id] = {
-        ...memorial,
-        lastAccessed: new Date().toISOString()
-      };
-      
-      localStorage.setItem(USER_MEMORIALS_KEY, JSON.stringify(memorials));
-    } catch (error) {
-      console.warn('Failed to cache memorial:', error);
+  // ENHANCED: Deep parsing function that handles all edge cases
+  const parseArrayField = useCallback((field: unknown, fieldName: string): unknown[] => {
+    // Already an array - return as is
+    if (Array.isArray(field)) {
+      console.log(`✅ ${fieldName}: Array with ${field.length} items`);
+      return field;
     }
+    
+    // String that needs parsing
+    if (typeof field === 'string') {
+      const trimmed = field.trim();
+      
+      // Empty string
+      if (!trimmed) {
+        console.log(`ℹ️ ${fieldName}: Empty string, using []`);
+        return [];
+      }
+      
+      // Try parsing as JSON
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          console.log(`✅ ${fieldName}: Parsed from JSON string, ${parsed.length} items`);
+          return parsed;
+        }
+        console.warn(`⚠️ ${fieldName}: Parsed but not array, got ${typeof parsed}`);
+        return [];
+      } catch {
+        console.error(`❌ ${fieldName}: JSON parse failed:`, trimmed.substring(0, 200));
+        return [];
+      }
+    }
+    
+    // Null or undefined
+    if (field == null) {
+      console.log(`ℹ️ ${fieldName}: null/undefined, using []`);
+      return [];
+    }
+    
+    // Object that might need conversion
+    if (typeof field === 'object') {
+      console.warn(`⚠️ ${fieldName}: Object but not array, converting`);
+      return [];
+    }
+    
+    console.warn(`⚠️ ${fieldName}: Unexpected type ${typeof field}`);
+    return [];
   }, []);
 
-  // Load memorial from backend with caching - FIXED: removed memorialData dependency
-  const loadMemorialData = useCallback(async () => {
-    if (!memorialId || isLoadingRef.current) {
-      setLoading(false);
-      return;
+  // ENHANCED: Complete data structure with detailed validation
+  const ensureCompleteMemorialData = useCallback((data: Record<string, unknown>): MemorialData => {
+    console.log('🔧 Building complete memorial structure...');
+    
+    // Parse service info safely - handle undefined/null
+    const rawService = (data.service || data.serviceInfo) as Record<string, unknown> | undefined;
+    
+    // Only create service object if rawService exists and has data
+    let completeService: ServiceInfo | undefined;
+    if (rawService) {
+      completeService = {
+        venue: typeof rawService.venue === 'string' ? rawService.venue : '',
+        address: typeof rawService.address === 'string' ? rawService.address : '',
+        date: typeof rawService.date === 'string' ? rawService.date : '',
+        time: typeof rawService.time === 'string' ? rawService.time : '',
+        virtualLink: typeof rawService.virtualLink === 'string' ? rawService.virtualLink : undefined,
+        virtualPlatform: ['zoom', 'meet', 'teams'].includes(rawService.virtualPlatform as string)
+          ? (rawService.virtualPlatform as 'zoom' | 'meet' | 'teams')
+          : undefined
+      };
     }
+
+    // Parse all array fields with detailed logging
+    const timeline = parseArrayField(data.timeline, 'timeline') as TimelineEvent[];
+    const favorites = parseArrayField(data.favorites, 'favorites') as Favorite[];
+    const familyTree = parseArrayField(data.familyTree, 'familyTree') as FamilyMember[];
+    const gallery = parseArrayField(data.gallery, 'gallery') as GalleryImage[];
+    const memories = parseArrayField(data.memories, 'memories') as Memory[];
+    const memoryWall = parseArrayField(data.memoryWall, 'memoryWall') as Memory[];
+
+    const completeData: MemorialData = {
+      id: typeof data.id === 'string' ? data.id : '',
+      name: typeof data.name === 'string' ? data.name : 'Unnamed Memorial',
+      profileImage: typeof data.profileImage === 'string' ? data.profileImage : '',
+      birthDate: typeof data.birthDate === 'string' ? data.birthDate : '',
+      deathDate: typeof data.deathDate === 'string' ? data.deathDate : '',
+      location: typeof data.location === 'string' ? data.location : '',
+      obituary: typeof data.obituary === 'string' ? data.obituary : '',
+      timeline,
+      favorites,
+      familyTree,
+      gallery,
+      memories,
+      memoryWall,
+      service: completeService,
+      serviceInfo: completeService,
+      isPublished: Boolean(data.isPublished),
+      customUrl: typeof data.customUrl === 'string' ? data.customUrl : '',
+      theme: typeof data.theme === 'string' ? data.theme : 'default'
+    };
+
+    // DETAILED LOGGING - Show actual data counts
+    const hasService = completeService && (completeService.venue || completeService.address);
+    console.log('✅ Memorial structure complete:', {
+      id: completeData.id,
+      name: completeData.name,
+      sections: {
+        timeline: `${completeData.timeline.length} events`,
+        favorites: `${completeData.favorites.length} items`,
+        familyTree: `${completeData.familyTree.length} members`,
+        gallery: `${completeData.gallery.length} images`,
+        memories: `${completeData.memories.length} memories`,
+        memoryWall: `${completeData.memoryWall.length} posts`,
+        service: hasService ? 'configured' : 'empty'
+      }
+    });
+
+    return completeData;
+  }, [parseArrayField]);
+
+  // ENHANCED: Data integrity check with detailed reporting
+  const checkDataIntegrity = useCallback((data: MemorialData): DataIntegrityCheck => {
+    const sections = {
+      id: { value: data.id, type: 'string' },
+      name: { value: data.name, type: 'string' },
+      timeline: { value: data.timeline, type: 'array' },
+      favorites: { value: data.favorites, type: 'array' },
+      familyTree: { value: data.familyTree, type: 'array' },
+      gallery: { value: data.gallery, type: 'array' },
+      service: { value: data.service || data.serviceInfo, type: 'object' },
+      memories: { value: data.memories, type: 'array' }
+    };
+
+    const missingSections: string[] = [];
+    const details: Record<string, { loaded: boolean; count?: number }> = {};
+    let loadedSections = 0;
+
+    Object.entries(sections).forEach(([key, { value, type }]) => {
+      if (type === 'array' && Array.isArray(value)) {
+        details[key] = { loaded: true, count: value.length };
+        loadedSections++;
+      } else if (type === 'string' && typeof value === 'string' && value) {
+        details[key] = { loaded: true };
+        loadedSections++;
+      } else if (type === 'object' && value != null) {
+        details[key] = { loaded: true };
+        loadedSections++;
+      } else {
+        missingSections.push(key);
+        details[key] = { loaded: false };
+      }
+    });
+
+    const integrity: DataIntegrityCheck = {
+      isComplete: missingSections.length === 0,
+      missingSections,
+      totalSections: Object.keys(sections).length,
+      loadedSections,
+      details
+    };
+
+    setDataIntegrity(integrity);
+    
+    console.log('🔍 Data Integrity Check:', {
+      status: integrity.isComplete ? '✅ COMPLETE' : '⚠️ INCOMPLETE',
+      loaded: `${loadedSections}/${integrity.totalSections}`,
+      missing: missingSections.length > 0 ? missingSections : 'none',
+      details
+    });
+
+    return integrity;
+  }, []);
+
+  // ENHANCED: Memorial loading with comprehensive logging
+  const loadMemorialData = useCallback(async (): Promise<boolean> => {
+    if (!memorialId) {
+      console.log('❌ No memorial ID provided');
+      setLoading(false);
+      return false;
+    }
+
+    // Cancel previous request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    abortControllerRef.current = new AbortController();
+    loadingAttempts.current += 1;
 
     try {
-      isLoadingRef.current = true;
       setLoading(true);
-      
-      // Try cache first for better performance
-      try {
-        const cached = localStorage.getItem(USER_MEMORIALS_KEY);
-        if (cached) {
-          const memorials = JSON.parse(cached);
-          if (memorials[memorialId]) {
-            console.log('📦 Loading from cache:', memorialId);
-            const cachedMemorial = memorials[memorialId];
-            setMemorialData(cachedMemorial);
-            setLastSaved(new Date(cachedMemorial.lastAccessed));
-          }
+      setError(null);
+
+      console.log(`🔄 Loading memorial ${memorialId} (attempt ${loadingAttempts.current}/${MAX_LOADING_ATTEMPTS})`);
+
+      const response = await fetch(
+        `https://wings-of-memories-backend.onrender.com/api/memorials/${memorialId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Content-Type': 'application/json'
+          },
+          signal: abortControllerRef.current.signal
         }
-      } catch (cacheError) {
-        console.warn('Cache load failed:', cacheError);
+      );
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          console.log('🆕 Memorial not found, creating new structure');
+          const newMemorial = ensureCompleteMemorialData({ 
+            ...defaultMemorialData, 
+            id: memorialId 
+          });
+          setMemorialData(newMemorial);
+          checkDataIntegrity(newMemorial);
+          setLastSaved(null);
+          setLoading(false);
+          return true;
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${memorialId}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      const data = await response.json() as { memorial?: Record<string, unknown> };
+      
+      if (!data.memorial) {
+        throw new Error('No memorial data in response');
+      }
+
+      const memorial = data.memorial;
+      
+      // Log raw backend data structure
+      console.log('📦 RAW BACKEND RESPONSE:', {
+        id: memorial.id,
+        name: memorial.name,
+        fields: Object.keys(memorial),
+        timeline: {
+          type: typeof memorial.timeline,
+          isArray: Array.isArray(memorial.timeline),
+          length: Array.isArray(memorial.timeline) ? memorial.timeline.length : 'N/A',
+          sample: Array.isArray(memorial.timeline) && memorial.timeline.length > 0 
+            ? memorial.timeline[0] 
+            : 'empty or string'
         },
-        // Add timeout for better error handling
-        signal: AbortSignal.timeout(10000)
+        favorites: {
+          type: typeof memorial.favorites,
+          isArray: Array.isArray(memorial.favorites),
+          length: Array.isArray(memorial.favorites) ? memorial.favorites.length : 'N/A'
+        },
+        familyTree: {
+          type: typeof memorial.familyTree,
+          isArray: Array.isArray(memorial.familyTree),
+          length: Array.isArray(memorial.familyTree) ? memorial.familyTree.length : 'N/A'
+        },
+        gallery: {
+          type: typeof memorial.gallery,
+          isArray: Array.isArray(memorial.gallery),
+          length: Array.isArray(memorial.gallery) ? memorial.gallery.length : 'N/A'
+        },
+        memoryWall: {
+          type: typeof memorial.memoryWall,
+          isArray: Array.isArray(memorial.memoryWall),
+          length: Array.isArray(memorial.memoryWall) ? memorial.memoryWall.length : 'N/A'
+        }
+      });
+
+      // Parse and ensure complete structure
+      const completeMemorial = ensureCompleteMemorialData(memorial);
+      
+      // Validate integrity
+      const integrity = checkDataIntegrity(completeMemorial);
+      
+      // Retry if incomplete and attempts remain
+      if (!integrity.isComplete && loadingAttempts.current < MAX_LOADING_ATTEMPTS) {
+        console.error(`⚠️ Incomplete structure! Missing: ${integrity.missingSections.join(', ')}`);
+        console.log('🔄 Retrying in 1.5 seconds...');
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        return await loadMemorialData();
+      }
+
+      // Success - set data
+      setMemorialData(completeMemorial);
+      setLastSaved(new Date());
+      setHasUnsavedChanges(false);
+      pendingChangesRef.current = {};
+      loadingAttempts.current = 0;
+
+      console.log('✅ Memorial loaded successfully:', {
+        id: completeMemorial.id,
+        name: completeMemorial.name,
+        integrity: integrity.isComplete ? 'COMPLETE' : 'PARTIAL',
+        dataLoaded: `${integrity.loadedSections}/${integrity.totalSections} sections`
       });
       
-      if (response.ok) {
-        const data = await response.json();
-        
-        console.log('✅ Loaded memorial from backend:', {
-          id: data.memorial.id,
-          name: data.memorial.name,
-          hasData: {
-            timeline: data.memorial.timeline?.length || 0,
-            favorites: data.memorial.favorites?.length || 0,
-            familyTree: data.memorial.familyTree?.length || 0,
-            gallery: data.memorial.gallery?.length || 0,
-            memoryWall: data.memorial.memoryWall?.length || 0,
-          }
-        });
-        
-        // Ensure all arrays exist
-        const memorial = {
-          ...data.memorial,
-          timeline: data.memorial.timeline || [],
-          favorites: data.memorial.favorites || [],
-          familyTree: data.memorial.familyTree || [],
-          gallery: data.memorial.gallery || [],
-          memoryWall: data.memorial.memoryWall || [],
-        };
-        
-        setMemorialData(memorial);
-        setLastSaved(new Date());
-        setHasUnsavedChanges(false);
-        pendingChangesRef.current = {}; // Clear any pending changes
-        
-        // Cache the memorial
-        cacheUserMemorial(memorial);
-        
-      } else if (response.status === 404) {
-        console.log('🆕 Memorial not found, creating default');
-        const newMemorial = { ...defaultMemorialData, id: memorialId };
-        setMemorialData(newMemorial);
-        setHasUnsavedChanges(true); // New memorial needs to be saved
-      } else {
-        console.error('Failed to load memorial:', response.status);
-        // Use ref instead of state to check for existing data
-        if (!memorialDataRef.current) {
-          setMemorialData({ ...defaultMemorialData, id: memorialId });
-        }
+      return true;
+
+    } catch (error: unknown) {
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('🛑 Request aborted');
+        return false;
       }
-    } catch (error) {
-      console.error('Error loading memorial:', error);
-      // Use ref instead of state to check for existing data
-      if (!memorialDataRef.current) {
-        setMemorialData({ ...defaultMemorialData, id: memorialId });
+
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('❌ Load error:', errorMessage);
+      setError(`Failed to load: ${errorMessage}`);
+
+      // Retry on network errors
+      if (loadingAttempts.current < MAX_LOADING_ATTEMPTS) {
+        console.log(`🔄 Retrying (${loadingAttempts.current}/${MAX_LOADING_ATTEMPTS})...`);
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        return await loadMemorialData();
       }
+
+      // Fallback
+      const fallbackMemorial = ensureCompleteMemorialData({ 
+        ...defaultMemorialData, 
+        id: memorialId 
+      });
+      setMemorialData(fallbackMemorial);
+      checkDataIntegrity(fallbackMemorial);
+      
+      return false;
     } finally {
       setLoading(false);
-      isLoadingRef.current = false;
     }
-  }, [memorialId, cacheUserMemorial]); // REMOVED: memorialData dependency
+  }, [memorialId, ensureCompleteMemorialData, checkDataIntegrity]);
 
-  // FIXED: Only run when memorialId changes, not when loadMemorialData changes
+  // Load on mount/ID change
   useEffect(() => {
+    loadingAttempts.current = 0;
+    
     if (memorialId) {
       loadMemorialData();
     } else {
       setLoading(false);
+      setMemorialData(null);
     }
-  }, [memorialId]); // REMOVED: loadMemorialData dependency
 
-  // FIXED: Simplified refresh function
-  const refreshMemorial = useCallback(async () => {
-    if (memorialId) {
-      await loadMemorialData();
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [memorialId, loadMemorialData]);
+
+  // Refresh memorial
+  const refreshMemorial = useCallback(async (): Promise<void> => {
+    if (!memorialId) return;
+    
+    console.log('🔄 Refreshing memorial data...');
+    loadingAttempts.current = 0;
+    const success = await loadMemorialData();
+    
+    if (!success) {
+      throw new Error('Failed to refresh memorial');
     }
   }, [memorialId, loadMemorialData]);
 
-  // Enhanced save to backend with retry logic
+  // Save to backend
   const saveToBackend = useCallback(async (): Promise<boolean> => {
     if (!memorialData?.id || saving) {
-      console.log('⏭️ Skipping save:', { hasId: !!memorialData?.id, saving });
       return false;
     }
 
     const changesToSave = { ...pendingChangesRef.current };
     
-    // If nothing to save, skip
     if (Object.keys(changesToSave).length === 0) {
-      console.log('⏭️ No changes to save');
       return true;
     }
 
     try {
       setSaving(true);
-      
       console.log('💾 Saving changes:', Object.keys(changesToSave));
+
+      // Prepare payload
+      const dataToSave: Record<string, unknown> = { ...changesToSave };
       
-      const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${memorialData.id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          ...changesToSave,
-          lastModified: new Date().toISOString()
-        })
-      });
+      // Map service to serviceInfo for backend
+      if (dataToSave.service) {
+        dataToSave.serviceInfo = dataToSave.service;
+        delete dataToSave.service;
+      }
+
+      const response = await fetch(
+        `https://wings-of-memories-backend.onrender.com/api/memorials/${memorialData.id}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({
+            ...dataToSave,
+            lastModified: new Date().toISOString()
+          })
+        }
+      );
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('❌ Save failed:', errorText);
-        
-        // Retry logic
-        if (retryCountRef.current < MAX_RETRIES) {
-          retryCountRef.current += 1;
-          console.log(`🔄 Retrying save (${retryCountRef.current}/${MAX_RETRIES})`);
-          await new Promise(resolve => setTimeout(resolve, 1000 * retryCountRef.current));
-          return await saveToBackend();
-        }
-        
-        throw new Error(`Failed to save: ${errorText}`);
+        throw new Error(`Save failed: ${response.status} - ${errorText}`);
       }
 
-      const result = await response.json();
-      console.log('✅ Saved successfully');
+      const result = await response.json() as { memorial: Record<string, unknown> };
       
-      // Update state with confirmed backend data
-      setMemorialData(result.memorial);
+      // Ensure complete structure from response
+      const completeMemorial = ensureCompleteMemorialData(result.memorial);
+      
+      setMemorialData(completeMemorial);
       setLastSaved(new Date());
       setHasUnsavedChanges(false);
       pendingChangesRef.current = {};
-      retryCountRef.current = 0;
       
-      // Update cache
-      cacheUserMemorial(result.memorial);
+      checkDataIntegrity(completeMemorial);
       
+      console.log('✅ Saved successfully');
       return true;
       
     } catch (error) {
       console.error('❌ Save error:', error);
-      
-      // Show user-friendly error message
-      if (retryCountRef.current >= MAX_RETRIES) {
-        alert('Failed to save changes after multiple attempts. Your changes are stored locally and will be saved when you try again.');
-      }
-      
+      setError('Failed to save');
       return false;
     } finally {
       setSaving(false);
     }
-  }, [memorialData, saving, cacheUserMemorial]);
+  }, [memorialData, saving, ensureCompleteMemorialData, checkDataIntegrity]);
 
-  // Debounced auto-save with better cleanup
-  const scheduleSave = useCallback(() => {
-    if (saveTimeoutRef.current) {
-      clearTimeout(saveTimeoutRef.current);
-    }
-    
-    setHasUnsavedChanges(true);
-    
-    // Auto-save after 3 seconds of no changes (increased for better performance)
-    saveTimeoutRef.current = setTimeout(() => {
-      saveToBackend().then(success => {
-        if (!success) {
-          // If save failed, keep the changes pending
-          setHasUnsavedChanges(true);
-        }
-      });
-    }, 3000);
-  }, [saveToBackend]);
+  // Update functions
+  const updateMemorialData = useCallback((updates: Partial<MemorialData>) => {
+    if (!memorialData) return;
 
-  // Update memorial data
-const updateMemorialData = useCallback((updates: Partial<MemorialData>) => {
-  console.log('📝 Updating memorial:', Object.keys(updates));
-  
-  setMemorialData(prev => {
-    if (!prev) return prev;
-    
-    const newData = { ...prev, ...updates };
-    
-    // ✅ CORRECT: Merge updates into pending changes
-    pendingChangesRef.current = {
-      ...pendingChangesRef.current,
-      ...updates
-    };
-    
-    console.log('📊 Pending changes:', Object.keys(pendingChangesRef.current));
-    
-    // Schedule save
-    scheduleSave();
-    
-    return newData;
-  });
-}, [scheduleSave]);
+    setMemorialData(prev => {
+      if (!prev) return prev;
+      
+      const newData = { ...prev, ...updates };
+      
+      pendingChangesRef.current = {
+        ...pendingChangesRef.current,
+        ...updates
+      };
+      
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+      
+      saveTimeoutRef.current = setTimeout(() => {
+        saveToBackend();
+      }, 3000);
+      
+      setHasUnsavedChanges(true);
+      return newData;
+    });
+  }, [memorialData, saveToBackend]);
 
-  // Specific update functions
   const updateTimeline = useCallback((events: TimelineEvent[]) => {
-    console.log('📅 Updating timeline:', events.length, 'events');
     updateMemorialData({ timeline: events });
   }, [updateMemorialData]);
 
   const updateFavorites = useCallback((favorites: Favorite[]) => {
-    console.log('⭐ Updating favorites:', favorites.length, 'items');
     updateMemorialData({ favorites });
   }, [updateMemorialData]);
 
   const updateFamilyTree = useCallback((members: FamilyMember[]) => {
-    console.log('👨‍👩‍👧‍👦 Updating family tree:', members.length, 'members');
     updateMemorialData({ familyTree: members });
   }, [updateMemorialData]);
 
   const updateGallery = useCallback((images: GalleryImage[]) => {
-    console.log('🖼️ Updating gallery:', images.length, 'images');
     updateMemorialData({ gallery: images });
   }, [updateMemorialData]);
 
   const updateService = useCallback((service: ServiceInfo) => {
-    console.log('⛪ Updating service info');
-    updateMemorialData({ service });
+    updateMemorialData({ service, serviceInfo: service });
   }, [updateMemorialData]);
 
   const updateMemories = useCallback((memories: Memory[]) => {
-    console.log('💭 Updating memories:', memories.length, 'items');
     updateMemorialData({ memories });
   }, [updateMemorialData]);
 
   const updateMemoryWall = useCallback((memoryWall: Memory[]) => {
-    console.log('🧱 Updating memory wall:', memoryWall.length, 'items');
     updateMemorialData({ memoryWall });
   }, [updateMemorialData]);
 
-  // Save before page unload
-  useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (Object.keys(pendingChangesRef.current).length > 0) {
-        event.preventDefault();
-        event.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-        return event.returnValue;
-      }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, []);
-
-  // Enhanced cleanup on unmount
+  // Cleanup
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
-      // Force save any pending changes before unmount
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
       if (Object.keys(pendingChangesRef.current).length > 0) {
-        console.log('🔄 Saving pending changes on unmount');
-        // Use synchronous fetch or store in localStorage for recovery
-        const changes = JSON.stringify(pendingChangesRef.current);
-        localStorage.setItem(`pending_changes_${memorialData?.id}`, changes);
         saveToBackend().catch(console.error);
       }
     };
-  }, [saveToBackend, memorialData?.id]);
+  }, [saveToBackend]);
+
+  const value: MemorialContextType = {
+    memorialData,
+    updateMemorialData,
+    updateTimeline,
+    updateFavorites,
+    updateFamilyTree,
+    updateGallery,
+    updateService,
+    updateMemories,
+    updateMemoryWall,
+    saveToBackend,
+    loading,
+    saving,
+    refreshMemorial,
+    lastSaved,
+    hasUnsavedChanges,
+    error,
+    dataIntegrity
+  };
 
   return (
-    <MemorialContext.Provider value={{
-      memorialData,
-      updateMemorialData,
-      updateTimeline,
-      updateFavorites,
-      updateFamilyTree,
-      updateGallery,
-      updateService,
-      updateMemories,
-      updateMemoryWall,
-      saveToBackend,
-      loading,
-      saving,
-      refreshMemorial,
-      lastSaved,
-      hasUnsavedChanges
-    }}>
+    <MemorialContext.Provider value={value}>
       {children}
     </MemorialContext.Provider>
   );
