@@ -1,3 +1,4 @@
+// Pages/PDFPreviewPage.tsx - MINIMAL FIX WITH BETTER LOADING UX
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Download, FileText, AlertCircle, Loader, Check, ZoomIn, ZoomOut } from 'lucide-react';
@@ -19,6 +20,37 @@ export const PDFPreviewPage: React.FC = () => {
   const [memorialData, setMemorialData] = useState<MemorialData | null>(null);
   const [pdfUrl, setPdfUrl] = useState<string>('');
   const [zoom, setZoom] = useState(100);
+  const [retryCount, setRetryCount] = useState(0);
+  const [loadingProgress, setLoadingProgress] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState('Initializing...');
+  const MAX_RETRIES = 3;
+
+  // Simulated progress for better UX during PDF loading
+  useEffect(() => {
+    if (pdfLoading && !loading) {
+      const messages = [
+        { progress: 0, message: 'Connecting to server...' },
+        { progress: 20, message: 'Loading memorial data...' },
+        { progress: 40, message: 'Rendering PDF layout...' },
+        { progress: 60, message: 'Processing images...' },
+        { progress: 80, message: 'Finalizing document...' },
+        { progress: 95, message: 'Almost ready...' }
+      ];
+
+      let currentStep = 0;
+      const interval = setInterval(() => {
+        if (currentStep < messages.length) {
+          setLoadingProgress(messages[currentStep].progress);
+          setLoadingMessage(messages[currentStep].message);
+          currentStep++;
+        } else {
+          clearInterval(interval);
+        }
+      }, 8000); // Update every 8 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [pdfLoading, loading]);
 
   useEffect(() => {
     const fetchMemorialData = async () => {
@@ -29,30 +61,65 @@ export const PDFPreviewPage: React.FC = () => {
       }
 
       try {
-        // Fetch memorial data first
+        console.log('🔍 Fetching memorial data for:', id);
+        
+        // ✅ FIXED: Use correct public endpoint
         const response = await fetch(
-          `https://wings-of-memories-backend.onrender.com/api/memorials/${id}/pdf-data`
+          `https://wings-of-memories-backend.onrender.com/api/memorials/public/${id}`,
+          {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
         );
 
         if (!response.ok) {
-          throw new Error('Memorial not found');
+          if (response.status === 404) {
+            throw new Error('Memorial not found. Please check the link and try again.');
+          }
+          if (response.status === 403) {
+            throw new Error('This memorial is not published yet.');
+          }
+          throw new Error(`Failed to load memorial (${response.status})`);
         }
 
         const data = await response.json();
+        
+        if (!data.memorial) {
+          throw new Error('Memorial data is missing');
+        }
+
+        console.log('✅ Memorial data loaded:', data.memorial.name);
         setMemorialData(data.memorial);
 
-        // Set PDF URL for iframe
+        // ✅ FIXED: Use correct PDF preview URL
         const pdfPreviewUrl = `https://wings-of-memories-backend.onrender.com/api/memorials/${id}/preview-pdf`;
         setPdfUrl(pdfPreviewUrl);
+        
+        console.log('📄 PDF URL set:', pdfPreviewUrl);
 
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching memorial:', err);
+        console.error('❌ Error fetching memorial:', err);
+        
+        // Retry logic for network errors
+        if (retryCount < MAX_RETRIES && err instanceof Error && 
+            (err.message.includes('Failed to load') || err.message.includes('Failed to fetch'))) {
+          console.log(`🔄 Retrying... (${retryCount + 1}/${MAX_RETRIES})`);
+          setRetryCount(prev => prev + 1);
+          setTimeout(() => {
+            fetchMemorialData();
+          }, 2000 * (retryCount + 1)); // Exponential backoff
+          return;
+        }
+        
         setError(err instanceof Error ? err.message : 'Failed to load memorial');
         setLoading(false);
       }
     };
 
+    // Reset retry count when ID changes
+    setRetryCount(0);
     fetchMemorialData();
   }, [id]);
 
@@ -60,16 +127,30 @@ export const PDFPreviewPage: React.FC = () => {
   const handlePdfLoad = () => {
     setTimeout(() => {
       setPdfLoading(false);
+      setLoadingProgress(100);
+      setLoadingMessage('PDF loaded successfully!');
+      console.log('✅ PDF loaded successfully');
     }, 500);
+  };
+
+  // Handle PDF load error
+  const handlePdfError = () => {
+    console.error('❌ PDF failed to load');
+    setPdfLoading(false);
+    setError('Failed to load PDF. Please try downloading instead.');
   };
 
   const handleDownload = () => {
     if (!id) return;
     
+    console.log('⬇️ Downloading PDF for:', id);
+    
+    // ✅ FIXED: Use correct download URL
     const downloadUrl = `https://wings-of-memories-backend.onrender.com/api/memorials/${id}/preview-pdf`;
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = `${memorialData?.name.replace(/\s+/g, '-').toLowerCase() || 'memorial'}-booklet.pdf`;
+    link.target = '_blank'; // Open in new tab as fallback
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -112,6 +193,11 @@ export const PDFPreviewPage: React.FC = () => {
           <p className="text-gray-600">
             Please wait while we prepare the memorial booklet...
           </p>
+          {retryCount > 0 && (
+            <p className="text-sm text-amber-600 mt-2">
+              Retry attempt {retryCount} of {MAX_RETRIES}
+            </p>
+          )}
         </div>
       </div>
     );
@@ -123,15 +209,23 @@ export const PDFPreviewPage: React.FC = () => {
         <div className="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-md">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-2xl font-serif font-bold text-gray-800 mb-2">
-            Memorial Not Found
+            Unable to Load Memorial
           </h2>
           <p className="text-gray-600 mb-6">{error}</p>
-          <a
-            href="/"
-            className="inline-block px-6 py-3 bg-amber-500 text-white rounded-xl font-semibold hover:bg-amber-600 transition-colors"
-          >
-            Go to Home
-          </a>
+          <div className="space-y-3">
+            <button
+              onClick={() => window.location.reload()}
+              className="w-full px-6 py-3 bg-amber-500 text-white rounded-xl font-semibold hover:bg-amber-600 transition-colors"
+            >
+              Try Again
+            </button>
+            <a
+              href="/"
+              className="block w-full px-6 py-3 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition-colors"
+            >
+              Go to Home
+            </a>
+          </div>
         </div>
       </div>
     );
@@ -214,26 +308,64 @@ export const PDFPreviewPage: React.FC = () => {
 
           {/* PDF Container */}
           <div className="relative bg-gray-100" style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}>
-            {/* Loading Overlay */}
+            {/* Enhanced Loading Overlay with Progress */}
             {pdfLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
-                <div className="text-center p-8">
-                  <Loader className="w-12 h-12 text-amber-500 mx-auto mb-4 animate-spin" />
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                    Loading PDF...
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Please wait while we load the memorial booklet
-                  </p>
-                  <div className="mt-4 w-64 mx-auto bg-gray-200 rounded-full h-2 overflow-hidden">
-                    <div className="bg-amber-500 h-full rounded-full animate-pulse" style={{ width: '70%' }}></div>
+                <div className="text-center p-8 max-w-md w-full">
+                  <div className="relative mb-6">
+                    <Loader className="w-16 h-16 text-amber-500 mx-auto animate-spin" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <FileText className="w-8 h-8 text-amber-600 animate-pulse" />
+                    </div>
                   </div>
+                  
+                  <h3 className="text-xl font-semibold text-gray-800 mb-2">
+                    Loading Memorial PDF
+                  </h3>
+                  
+                  <p className="text-sm text-gray-600 mb-1">
+                    {loadingMessage}
+                  </p>
+                  
+                  <p className="text-xs text-gray-500 mb-6">
+                    This may take 30-60 seconds for the first load
+                  </p>
+                  
+                  {/* Progress Bar */}
+                  <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden mb-2">
+                    <div 
+                      className="bg-gradient-to-r from-amber-500 to-orange-500 h-full rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${loadingProgress}%` }}
+                    >
+                      <div className="h-full w-full bg-white opacity-20 animate-shimmer"></div>
+                    </div>
+                  </div>
+                  
+                  <p className="text-xs text-amber-600 font-medium">
+                    {loadingProgress}% Complete
+                  </p>
+                  
+                  {/* Tips while loading */}
+                  <div className="mt-6 bg-amber-50 rounded-lg p-4 text-left">
+                    <p className="text-xs text-amber-800 font-medium mb-2">💡 Did you know?</p>
+                    <p className="text-xs text-amber-700">
+                      The PDF includes all photos, memories, timeline events, and family information in a beautiful printable format.
+                    </p>
+                  </div>
+                  
+                  {/* Alternative action */}
+                  <button
+                    onClick={handleDownload}
+                    className="mt-4 text-sm text-blue-600 hover:text-blue-700 underline"
+                  >
+                    Or download directly instead
+                  </button>
                 </div>
               </div>
             )}
 
             {/* Success Indicator */}
-            {!pdfLoading && (
+            {!pdfLoading && !error && (
               <div className="absolute top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 z-10 animate-fade-in">
                 <Check className="w-4 h-4" />
                 <span className="text-sm font-medium">PDF Loaded</span>
@@ -255,6 +387,7 @@ export const PDFPreviewPage: React.FC = () => {
                 title={`${memorialData?.name} Memorial Booklet`}
                 loading="lazy"
                 onLoad={handlePdfLoad}
+                onError={handlePdfError}
                 style={{ minHeight: window.innerWidth >= 640 ? `${100 / (zoom / 100)}%` : '100%' }}
               />
             </div>
@@ -337,6 +470,18 @@ export const PDFPreviewPage: React.FC = () => {
         }
         .animate-fade-in {
           animation: fade-in 0.5s ease-out;
+        }
+        
+        @keyframes shimmer {
+          0% {
+            transform: translateX(-100%);
+          }
+          100% {
+            transform: translateX(100%);
+          }
+        }
+        .animate-shimmer {
+          animation: shimmer 2s infinite;
         }
       `}</style>
     </div>
