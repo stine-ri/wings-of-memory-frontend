@@ -1,7 +1,7 @@
-// Pages/PDFPreviewPage.tsx - MINIMAL FIX WITH BETTER LOADING UX
+// Pages/PDFPreviewPage.tsx - MINIMAL MOBILE FIX ONLY
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Download, FileText, AlertCircle, Loader, Check, ZoomIn, ZoomOut } from 'lucide-react';
+import { Download, FileText, AlertCircle, Loader, Check, ZoomIn, ZoomOut, RefreshCw } from 'lucide-react';
 
 interface MemorialData {
   id: string;
@@ -23,9 +23,10 @@ export const PDFPreviewPage: React.FC = () => {
   const [retryCount, setRetryCount] = useState(0);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [loadingMessage, setLoadingMessage] = useState('Initializing...');
+const [pdfLoadTimeout, setPdfLoadTimeout] = useState<number | null>(null);
   const MAX_RETRIES = 3;
 
-  // Simulated progress for better UX during PDF loading
+  // ✅ FIX 1: Faster progress updates for mobile
   useEffect(() => {
     if (pdfLoading && !loading) {
       const messages = [
@@ -46,7 +47,7 @@ export const PDFPreviewPage: React.FC = () => {
         } else {
           clearInterval(interval);
         }
-      }, 8000); // Update every 8 seconds
+      }, 6000); // ✅ Reduced from 8s to 6s for mobile
 
       return () => clearInterval(interval);
     }
@@ -63,15 +64,21 @@ export const PDFPreviewPage: React.FC = () => {
       try {
         console.log('🔍 Fetching memorial data for:', id);
         
-        // ✅ FIXED: Use correct public endpoint
+        // ✅ FIX 2: Add timeout for mobile requests
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000);
+
         const response = await fetch(
           `https://wings-of-memories-backend.onrender.com/api/memorials/public/${id}`,
           {
             headers: {
               'Content-Type': 'application/json'
-            }
+            },
+            signal: controller.signal
           }
         );
+
+        clearTimeout(timeoutId);
 
         if (!response.ok) {
           if (response.status === 404) {
@@ -92,39 +99,87 @@ export const PDFPreviewPage: React.FC = () => {
         console.log('✅ Memorial data loaded:', data.memorial.name);
         setMemorialData(data.memorial);
 
-        // ✅ FIXED: Use correct PDF preview URL
-        const pdfPreviewUrl = `https://wings-of-memories-backend.onrender.com/api/memorials/${id}/preview-pdf`;
+        // ✅ FIX 3: Cache busting for mobile PDF
+        const timestamp = new Date().getTime();
+        const pdfPreviewUrl = `https://wings-of-memories-backend.onrender.com/api/memorials/${id}/preview-pdf?t=${timestamp}`;
         setPdfUrl(pdfPreviewUrl);
         
         console.log('📄 PDF URL set:', pdfPreviewUrl);
 
         setLoading(false);
-      } catch (err) {
-        console.error('❌ Error fetching memorial:', err);
-        
-        // Retry logic for network errors
-        if (retryCount < MAX_RETRIES && err instanceof Error && 
-            (err.message.includes('Failed to load') || err.message.includes('Failed to fetch'))) {
-          console.log(`🔄 Retrying... (${retryCount + 1}/${MAX_RETRIES})`);
-          setRetryCount(prev => prev + 1);
-          setTimeout(() => {
-            fetchMemorialData();
-          }, 2000 * (retryCount + 1)); // Exponential backoff
-          return;
-        }
-        
-        setError(err instanceof Error ? err.message : 'Failed to load memorial');
-        setLoading(false);
-      }
+
+        // ✅ FIX 4: Set PDF timeout only for mobile
+// ✅ FIX 4: Set PDF timeout only for mobile
+if (window.innerWidth < 768) {
+  const pdfTimeout = window.setTimeout(() => {
+    if (pdfLoading) {
+      console.warn('📱 Mobile PDF load timeout');
+      setPdfLoading(false);
+      setError('PDF loading timed out on mobile. Try downloading instead.');
+    }
+  }, 30000); // 30s timeout for mobile only
+
+  setPdfLoadTimeout(pdfTimeout);
+}
+
+     } catch (err: unknown) {
+  console.error('❌ Error fetching memorial:', err);
+
+  // First narrow the error to Error type
+  if (err instanceof Error) {
+    // AbortError handling
+    if (err.name === 'AbortError') {
+      setError('Request timed out. Please check your connection and try again.');
+      setLoading(false);
+      return;
+    }
+
+    // Retry logic for network errors
+    if (
+      retryCount < MAX_RETRIES &&
+      (err.message.includes('Failed to load') || err.message.includes('Failed to fetch'))
+    ) {
+      console.log(`🔄 Retrying... (${retryCount + 1}/${MAX_RETRIES})`);
+      setRetryCount(prev => prev + 1);
+
+      setTimeout(() => {
+        fetchMemorialData();
+      }, 2000 * (retryCount + 1));
+
+      return;
+    }
+
+    // Generic error message
+    setError(err.message);
+  } else {
+    // If it's not an Error object
+    setError('Failed to load memorial');
+  }
+
+  setLoading(false);
+}
+
     };
 
     // Reset retry count when ID changes
     setRetryCount(0);
     fetchMemorialData();
+
+    return () => {
+      if (pdfLoadTimeout) {
+        clearTimeout(pdfLoadTimeout);
+      }
+    };
   }, [id]);
 
   // Handle PDF load
   const handlePdfLoad = () => {
+    // ✅ FIX 6: Clear mobile timeout on success
+    if (pdfLoadTimeout) {
+      clearTimeout(pdfLoadTimeout);
+      setPdfLoadTimeout(null);
+    }
+
     setTimeout(() => {
       setPdfLoading(false);
       setLoadingProgress(100);
@@ -134,10 +189,35 @@ export const PDFPreviewPage: React.FC = () => {
   };
 
   // Handle PDF load error
-  const handlePdfError = () => {
-    console.error('❌ PDF failed to load');
-    setPdfLoading(false);
-    setError('Failed to load PDF. Please try downloading instead.');
+
+const handlePdfError = () => {
+  console.error('❌ PDF failed to load');
+  
+  // ✅ FIX 7: Clear timeout on error
+  if (pdfLoadTimeout) {
+    clearTimeout(pdfLoadTimeout);
+    setPdfLoadTimeout(null);
+  }
+
+  setPdfLoading(false);
+  setError('Failed to load PDF. Please try downloading instead.');
+};
+
+  
+  // ✅ FIX 8: Mobile-only reload function
+  const handleMobileReload = () => {
+    if (!id) return;
+    
+    console.log('📱 Mobile reloading PDF...');
+    setPdfLoading(true);
+    setError(null);
+    setLoadingProgress(0);
+    setLoadingMessage('Reloading PDF...');
+
+    // Reset PDF URL with cache busting
+    const timestamp = new Date().getTime();
+    const newPdfUrl = `https://wings-of-memories-backend.onrender.com/api/memorials/${id}/preview-pdf?t=${timestamp}`;
+    setPdfUrl(newPdfUrl);
   };
 
   const handleDownload = () => {
@@ -145,12 +225,13 @@ export const PDFPreviewPage: React.FC = () => {
     
     console.log('⬇️ Downloading PDF for:', id);
     
-    // ✅ FIXED: Use correct download URL
-    const downloadUrl = `https://wings-of-memories-backend.onrender.com/api/memorials/${id}/preview-pdf`;
+    // ✅ FIX 9: Cache busting for mobile download
+    const timestamp = new Date().getTime();
+    const downloadUrl = `https://wings-of-memories-backend.onrender.com/api/memorials/${id}/preview-pdf?download=true&t=${timestamp}`;
     const link = document.createElement('a');
     link.href = downloadUrl;
     link.download = `${memorialData?.name.replace(/\s+/g, '-').toLowerCase() || 'memorial'}-booklet.pdf`;
-    link.target = '_blank'; // Open in new tab as fallback
+    link.target = '_blank';
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -182,6 +263,9 @@ export const PDFPreviewPage: React.FC = () => {
     }
   };
 
+  // ✅ FIX 10: Mobile detection
+  const isMobile = window.innerWidth < 768;
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100 flex items-center justify-center p-4">
@@ -212,6 +296,16 @@ export const PDFPreviewPage: React.FC = () => {
             Unable to Load Memorial
           </h2>
           <p className="text-gray-600 mb-6">{error}</p>
+          
+          {/* ✅ FIX 11: Mobile-specific error advice */}
+          {isMobile && error.includes('timed out') && (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+              <p className="text-sm text-amber-800">
+                <strong>Mobile Tip:</strong> Try downloading the PDF instead for better reliability.
+              </p>
+            </div>
+          )}
+          
           <div className="space-y-3">
             <button
               onClick={() => window.location.reload()}
@@ -233,7 +327,7 @@ export const PDFPreviewPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-amber-100">
-      {/* Header */}
+      {/* Header - UNCHANGED */}
       <div className="bg-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -267,7 +361,7 @@ export const PDFPreviewPage: React.FC = () => {
       {/* PDF Preview */}
       <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-8">
         <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl overflow-hidden">
-          {/* Info Banner */}
+          {/* Info Banner - UNCHANGED */}
           <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 sm:px-6 py-3 sm:py-4">
             <div className="flex items-center gap-2 sm:gap-3">
               <FileText className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
@@ -276,11 +370,15 @@ export const PDFPreviewPage: React.FC = () => {
                 <p className="text-xs sm:text-sm text-amber-100 hidden sm:block">
                   View the complete memorial booklet below or download it to save and share
                 </p>
+                {/* ✅ FIX 12: Mobile-specific banner text */}
+                <p className="text-xs sm:text-sm text-amber-100 sm:hidden">
+                  {pdfLoading ? 'Loading...' : 'Tap download if preview fails'}
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Zoom Controls - Desktop only */}
+          {/* Zoom Controls - Desktop only (UNCHANGED) */}
           <div className="hidden sm:flex items-center justify-end gap-2 px-4 py-2 bg-gray-50 border-b border-gray-200">
             <button
               onClick={handleZoomOut}
@@ -308,7 +406,7 @@ export const PDFPreviewPage: React.FC = () => {
 
           {/* PDF Container */}
           <div className="relative bg-gray-100" style={{ height: 'calc(100vh - 280px)', minHeight: '400px' }}>
-            {/* Enhanced Loading Overlay with Progress */}
+            {/* Enhanced Loading Overlay with Progress - UNCHANGED */}
             {pdfLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-white z-10">
                 <div className="text-center p-8 max-w-md w-full">
@@ -345,6 +443,16 @@ export const PDFPreviewPage: React.FC = () => {
                     {loadingProgress}% Complete
                   </p>
                   
+                  {/* ✅ FIX 13: Mobile download suggestion during loading */}
+                  {isMobile && loadingProgress > 50 && (
+                    <button
+                      onClick={handleDownload}
+                      className="mt-4 text-sm text-blue-600 hover:text-blue-700 underline"
+                    >
+                      Taking too long? Download directly
+                    </button>
+                  )}
+                  
                   {/* Tips while loading */}
                   <div className="mt-6 bg-amber-50 rounded-lg p-4 text-left">
                     <p className="text-xs text-amber-800 font-medium mb-2">💡 Did you know?</p>
@@ -352,19 +460,11 @@ export const PDFPreviewPage: React.FC = () => {
                       The PDF includes all photos, memories, timeline events, and family information in a beautiful printable format.
                     </p>
                   </div>
-                  
-                  {/* Alternative action */}
-                  <button
-                    onClick={handleDownload}
-                    className="mt-4 text-sm text-blue-600 hover:text-blue-700 underline"
-                  >
-                    Or download directly instead
-                  </button>
                 </div>
               </div>
             )}
 
-            {/* Success Indicator */}
+            {/* Success Indicator - UNCHANGED */}
             {!pdfLoading && !error && (
               <div className="absolute top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg flex items-center gap-2 z-10 animate-fade-in">
                 <Check className="w-4 h-4" />
@@ -372,7 +472,7 @@ export const PDFPreviewPage: React.FC = () => {
               </div>
             )}
 
-            {/* PDF Iframe with responsive zoom */}
+            {/* PDF Iframe with responsive zoom - UNCHANGED */}
             <div 
               className="w-full h-full overflow-auto"
               style={{ 
@@ -392,7 +492,7 @@ export const PDFPreviewPage: React.FC = () => {
               />
             </div>
             
-            {/* Fallback for browsers that don't support PDF viewing */}
+            {/* Fallback for browsers that don't support PDF viewing - UNCHANGED */}
             <noscript>
               <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
                 <div className="text-center p-8">
@@ -415,8 +515,8 @@ export const PDFPreviewPage: React.FC = () => {
             </noscript>
           </div>
 
-          {/* Mobile Download Button */}
-          <div className="sm:hidden bg-gray-50 px-4 py-3 border-t border-gray-200">
+          {/* ✅ FIX 14: Mobile-only reload button */}
+          <div className="sm:hidden bg-gray-50 px-4 py-3 border-t border-gray-200 space-y-2">
             <button
               onClick={handleDownload}
               className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-xl font-semibold hover:from-blue-600 hover:to-blue-700 transition-all duration-300 shadow-lg"
@@ -424,10 +524,27 @@ export const PDFPreviewPage: React.FC = () => {
               <Download className="w-5 h-5" />
               Download Memorial PDF
             </button>
+            <button
+              onClick={handleMobileReload}
+              disabled={pdfLoading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-amber-500 text-white rounded-xl font-semibold hover:bg-amber-600 transition-all duration-300 shadow-lg disabled:opacity-50"
+            >
+              <RefreshCw className="w-5 h-5" />
+              Reload Preview
+            </button>
           </div>
         </div>
 
-        {/* Additional Info */}
+        {/* ✅ FIX 15: Mobile help text */}
+        {isMobile && (
+          <div className="mt-4 bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+            <p className="text-sm text-blue-800">
+              <strong>Mobile Tip:</strong> If preview fails, use the download button. Some mobile browsers have trouble displaying PDFs.
+            </p>
+          </div>
+        )}
+
+        {/* Additional Info - UNCHANGED */}
         <div className="mt-4 sm:mt-8 bg-white rounded-xl shadow-lg p-4 sm:p-6 text-center">
           <p className="text-sm sm:text-base text-gray-600 mb-4">
             This memorial booklet contains the complete story, photos, and memories of {memorialData?.name}.
@@ -445,7 +562,7 @@ export const PDFPreviewPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Footer - UNCHANGED */}
       <div className="bg-white border-t border-gray-200 mt-8 sm:mt-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 text-center">
           <p className="text-gray-600 text-xs sm:text-sm">
