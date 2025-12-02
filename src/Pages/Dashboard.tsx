@@ -1,6 +1,7 @@
-// Pages/Dashboard.tsx - FIXED VERSION
+// Pages/Dashboard.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import TopNav from '../Components/TopNav';
+import SearchNavbar from '../Components/SearchFunctionalities';
 import { Footer } from '../Components/Footer';
 import { DashboardLayout } from '../Components/DashboardLayout';
 import { OverviewSection } from '../Components/Dashboard/OverviewSection';
@@ -26,6 +27,38 @@ const DashboardContent: React.FC = () => {
   const [activeSection, setActiveSection] = useState('overview');
   const [userMemorials, setUserMemorials] = useState<Memorial[]>([]);
   const { memorialData, loading, error, dataIntegrity, refreshMemorial } = useMemorial();
+  
+  // Add search and filter state that's actually used
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('recent');
+  const [filteredMemorials, setFilteredMemorials] = useState<Memorial[]>([]);
+
+  // Filter and sort memorials based on search and sort criteria
+  useEffect(() => {
+    let filtered = [...userMemorials];
+    
+    // Apply search filter
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(memorial => 
+        memorial.name.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
+    
+    // Apply sorting
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'oldest':
+          return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+        case 'recent':
+        default:
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+    });
+    
+    setFilteredMemorials(filtered);
+  }, [userMemorials, searchQuery, sortBy]);
 
   // Fetch user memorials
   const fetchUserMemorials = useCallback(async () => {
@@ -134,6 +167,77 @@ const DashboardContent: React.FC = () => {
       alert(`Failed to create memorial: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }, [handleSelectMemorial]);
+
+  //delete memorial
+  const handleDeleteMemorial = useCallback(async (memorialId: string) => {
+  const token = localStorage.getItem('token');
+  
+  if (!token) {
+    alert('You need to be logged in to delete memorials');
+    return;
+  }
+
+  // Don't allow deleting if it's the only memorial
+  if (userMemorials.length <= 1) {
+    alert('You need to have at least one memorial. Please create another one before deleting this.');
+    return;
+  }
+
+  const confirmDelete = window.confirm('Are you sure you want to delete this memorial? This action cannot be undone.');
+  if (!confirmDelete) return;
+
+  try {
+    console.log('🗑️ Deleting memorial:', memorialId);
+
+    const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${memorialId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to delete memorial');
+    }
+
+    console.log('✅ Memorial deleted successfully');
+
+    // Remove from local state
+    setUserMemorials(prev => prev.filter(m => m.id !== memorialId));
+
+    // If the deleted memorial was the current one, select another
+    if (memorialData?.id === memorialId) {
+      const remainingMemorials = userMemorials.filter(m => m.id !== memorialId);
+      if (remainingMemorials.length > 0) {
+        const nextMemorial = remainingMemorials[0];
+        handleSelectMemorial(nextMemorial.id);
+      } else {
+        // No memorials left, redirect to create new
+        window.location.href = '/dashboard';
+      }
+    }
+
+  } catch (error) {
+    console.error('❌ Error deleting memorial:', error);
+    alert(`Failed to delete memorial: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw error;
+  }
+}, [userMemorials, memorialData?.id, handleSelectMemorial]);
+
+
+  // Handle search functionality
+  const handleSearch = useCallback((query: string) => {
+    setSearchQuery(query);
+    console.log('🔍 Searching memorials:', query);
+  }, []);
+
+  // Handle filter changes
+  const handleFilterChange = useCallback((filterType: string) => {
+    setSortBy(filterType);
+    console.log('🎛️ Sorting memorials by:', filterType);
+  }, []);
 
   // Retry loading
   const handleRetryLoading = useCallback(async () => {
@@ -244,10 +348,17 @@ const DashboardContent: React.FC = () => {
   return (
     <>
       <TopNav 
-        memorials={userMemorials}
+        memorials={filteredMemorials} // Use filtered memorials
         currentMemorialId={memorialData?.id || ''}
         onSelectMemorial={handleSelectMemorial}
         onCreateNew={handleCreateNewMemorial}
+        onDeleteMemorial={handleDeleteMemorial} 
+      />
+      
+      {/* Pass the handlers to SearchNavbar */}
+      <SearchNavbar 
+        onSearch={handleSearch} 
+        onFilterChange={handleFilterChange} 
       />
       
       <DashboardLayout
@@ -258,7 +369,7 @@ const DashboardContent: React.FC = () => {
           name: memorialData.name,
           isPublished: memorialData.isPublished || false
         } : null}
-        memorials={userMemorials}
+        memorials={filteredMemorials} // Use filtered memorials
         currentMemorialId={memorialData?.id || ''}
         onSelectMemorial={handleSelectMemorial}
         onCreateNew={handleCreateNewMemorial}
@@ -473,8 +584,15 @@ export const Dashboard: React.FC = () => {
           currentMemorialId=""
           onSelectMemorial={() => {}}
           onCreateNew={handleCreateNewMemorial}
+           onDeleteMemorial={async () => {}} 
         />
         
+        {/* Show SearchNavbar with empty handlers for consistency */}
+        <SearchNavbar 
+          onSearch={() => {}} 
+          onFilterChange={() => {}} 
+        />
+
         <div className="flex justify-center items-center pt-20 p-4">
           <div className="text-center max-w-md w-full">
             <div className="mb-6">
@@ -515,6 +633,37 @@ export const Dashboard: React.FC = () => {
             window.location.href = `/dashboard?memorialId=${id}`;
           }}
           onCreateNew={handleCreateNewMemorial}
+          onDeleteMemorial={async (memorialId) => {
+    // You can reuse the same delete logic or create a simplified version
+    const token = localStorage.getItem('token');
+    if (!token) return;
+
+    const confirmDelete = window.confirm('Are you sure you want to delete this memorial? This action cannot be undone.');
+    if (!confirmDelete) return;
+
+    try {
+      const response = await fetch(`https://wings-of-memories-backend.onrender.com/api/memorials/${memorialId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        // Refresh the page to show updated list
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Error deleting memorial:', error);
+      alert('Failed to delete memorial');
+    }
+  }}
+        />
+        
+        <SearchNavbar 
+          onSearch={() => {}} 
+          onFilterChange={() => {}} 
         />
         
         <div className="flex justify-center items-center pt-20 p-4">

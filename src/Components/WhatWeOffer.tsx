@@ -125,7 +125,7 @@ const WhatWeOffer: React.FC = () => {
       <TopNav />
       
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-orange-600/90 via-orange-500/90 to-amber-600/90 text-white py-16 sm:py-20 lg:py-28">
+      <section id="what-we-offer" className="relative overflow-hidden bg-gradient-to-br from-orange-600/90 via-orange-500/90 to-amber-600/90 text-white py-16 sm:py-20 lg:py-28">
         <div className="absolute inset-0 bg-black/10"></div>
         <div className="absolute inset-0 opacity-20"
           style={{
@@ -190,7 +190,7 @@ const WhatWeOffer: React.FC = () => {
       </section>
 
       {/* How It Works */}
-      <section className="py-20 bg-white">
+      <section  id="how-it-works" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
@@ -289,7 +289,7 @@ const WhatWeOffer: React.FC = () => {
       </section>
 
       {/* Services */}
-      <section className="py-20 bg-gradient-to-b from-orange-50/30 to-white">
+      <section  id="services" className="py-20 bg-gradient-to-b from-orange-50/30 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
@@ -326,7 +326,7 @@ const WhatWeOffer: React.FC = () => {
       </section>
 
       {/* Pricing */}
-      <section className="py-20 bg-white">
+      <section id="pricing" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">

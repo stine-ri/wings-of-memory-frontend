@@ -5,7 +5,13 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   mode: 'login' | 'register';
-  onAuthSuccess?: () => void; // Add this callback prop
+  onAuthSuccess?: () => void;
+}
+
+interface FormData {
+  email: string;
+  password: string;
+  name: string;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({ 
@@ -14,32 +20,74 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   mode,
   onAuthSuccess 
 }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+  const [formData, setFormData] = useState<FormData>({
+    email: '',
+    password: '',
+    name: ''
+  });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [inputHistory, setInputHistory] = useState<Partial<FormData>[]>([]);
 
-  // Backend URL
   const BACKEND_URL = 'https://wings-of-memories-backend.onrender.com/api';
 
   if (!isOpen) return null;
+
+  // Track input changes for debugging/analytics
+  const trackInputChange = (field: keyof FormData, value: string) => {
+    setInputHistory(prev => [...prev, { [field]: value }]);
+    
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Validate form data before submission
+  const validateForm = (): boolean => {
+    if (!formData.email || !formData.email.includes('@')) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+    
+    if (formData.password.length < 6) {
+      setError('Password must be at least 6 characters long');
+      return false;
+    }
+    
+    if (mode === 'register' && formData.name.length < 2) {
+      setError('Please enter your full name');
+      return false;
+    }
+    
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
+    // Log input tracking for debugging
+    console.log('📊 Input history:', inputHistory);
+    console.log('🔐 Final form data:', formData);
+
+    if (!validateForm()) {
+      setLoading(false);
+      return;
+    }
+
     try {
       const endpoint = mode === 'login' ? '/auth/login' : '/auth/register';
       const url = `${BACKEND_URL}${endpoint}`;
       
       const requestBody = mode === 'login' 
-        ? { email, password }
-        : { name, email, password };
+        ? { email: formData.email, password: formData.password }
+        : { name: formData.name, email: formData.email, password: formData.password };
 
-      console.log(`🔐 Attempting ${mode} for:`, { email, name: mode === 'register' ? name : 'N/A' });
+      console.log(`🚀 Making ${mode} request to:`, url);
+      console.log(`📦 Request body:`, requestBody);
 
       const response = await fetch(url, {
         method: 'POST',
@@ -51,23 +99,27 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
       const responseData = await response.json();
       
+      console.log(`📨 Response status: ${response.status}`, responseData);
+
       if (!response.ok) {
-        throw new Error(responseData.message || responseData.error || `${mode === 'login' ? 'Login' : 'Registration'} failed`);
+        throw new Error(responseData.message || responseData.error || `${mode} failed`);
       }
 
-      console.log('✅ Auth successful:', responseData);
+      // ✅ SUCCESS - User authenticated
+      console.log('✅ Auth successful! Storing token and redirecting...');
+      console.log('👤 User data:', responseData.user);
+      console.log('🔑 Token received:', responseData.token ? 'Yes' : 'No');
 
-      // Store token and user data
+      // Store authentication data
       localStorage.setItem('token', responseData.token);
       localStorage.setItem('user', JSON.stringify(responseData.user));
       
-      // Show success message
-      console.log(`${mode === 'login' ? 'Login' : 'Registration'} successful! Redirecting to dashboard...`);
-      
-      // Clear form
-      setEmail('');
-      setPassword('');
-      setName('');
+      // Track successful authentication
+      console.log(`🎉 ${mode === 'login' ? 'Login' : 'Registration'} successful for:`, formData.email);
+
+      // Reset form
+      setFormData({ email: '', password: '', name: '' });
+      setInputHistory([]);
       setError('');
       
       // Close modal first
@@ -78,15 +130,23 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onAuthSuccess();
       }
       
-      // Redirect to dashboard - using window.location for reliable navigation
+      // ✅ RELIABLE REDIRECT TO DASHBOARD
+      console.log('🔄 Redirecting to /dashboard...');
+      
+      // Use setTimeout to ensure modal is closed before redirect
       setTimeout(() => {
-        // Force a hard navigation to ensure clean state
+        // Force navigation to dashboard
         window.location.href = '/dashboard';
-      }, 300);
+        // Alternatively, you can use:
+        // window.location.replace('/dashboard'); // This doesn't add to history
+      }, 100);
       
     } catch (err) {
       console.error('❌ Auth error:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred');
+      
+      // Track failed attempt
+      console.log('❌ Failed auth attempt with data:', formData);
     } finally {
       setLoading(false);
     }
@@ -96,11 +156,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setShowPassword(!showPassword);
   };
 
-  // Close modal and reset form
   const handleClose = () => {
-    setEmail('');
-    setPassword('');
-    setName('');
+    // Log form abandonment for analytics
+    if (formData.email || formData.password || formData.name) {
+      console.log('📝 Form abandoned with data:', formData);
+    }
+    
+    setFormData({ email: '', password: '', name: '' });
+    setInputHistory([]);
     setError('');
     setShowPassword(false);
     onClose();
@@ -124,7 +187,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <p className="text-gray-600 mb-4 sm:mb-6 text-sm sm:text-base">
           {mode === 'login' 
             ? 'Sign in to access your memorial dashboard' 
-            : 'Join 4revah to create beautiful memorials for your loved ones'
+            : 'Join to create beautiful memorials for your loved ones'
           }
         </p>
         
@@ -143,8 +206,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               </label>
               <input
                 type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
+                value={formData.name}
+                onChange={(e) => trackInputChange('name', e.target.value)}
                 className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all text-sm sm:text-base"
                 placeholder="John Doe"
                 required
@@ -160,8 +223,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </label>
             <input
               type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={formData.email}
+              onChange={(e) => trackInputChange('email', e.target.value)}
               className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all text-sm sm:text-base"
               placeholder="you@example.com"
               required
@@ -176,8 +239,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={formData.password}
+                onChange={(e) => trackInputChange('password', e.target.value)}
                 className="w-full px-3 sm:px-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg sm:rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400 transition-all text-sm sm:text-base pr-10"
                 placeholder="••••••••"
                 required
@@ -220,7 +283,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
         </form>
 
-        {/* Additional Info */}
         <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-gray-200">
           <div className="text-center text-sm text-gray-600">
             {mode === 'login' ? (
@@ -228,7 +290,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 Don't have an account?{' '}
                 <button
                   type="button"
-                  onClick={() => window.location.reload()} // This will trigger the mode change in parent
+                  onClick={() => window.location.reload()}
                   className="text-amber-600 hover:text-amber-700 font-medium underline"
                   disabled={loading}
                 >
@@ -240,7 +302,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 Already have an account?{' '}
                 <button
                   type="button"
-                  onClick={() => window.location.reload()} // This will trigger the mode change in parent
+                  onClick={() => window.location.reload()}
                   className="text-amber-600 hover:text-amber-700 font-medium underline"
                   disabled={loading}
                 >
@@ -257,29 +319,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes fade-in {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes slide-up {
-          from { 
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to { 
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        .animate-fade-in {
-          animation: fade-in 0.3s ease-out;
-        }
-        .animate-slide-up {
-          animation: slide-up 0.4s ease-out;
-        }
-      `}</style>
     </div>
   );
 };

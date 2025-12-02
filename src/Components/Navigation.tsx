@@ -12,7 +12,7 @@ export const Navigation: React.FC<NavigationProps> = ({ activeSection, onSection
     { id: 'favorites', label: 'Favorites', icon: Star },
     { id: 'timeline', label: 'Timeline', icon: Clock },
     { id: 'gallery', label: 'Gallery', icon: Image },
-    { id: 'memory', label: 'Tributes', icon: Heart },
+    { id: 'memory', label: 'Memory wall', icon: Heart },
     { id: 'family', label: 'Family tree', icon: Users },
     { id: 'service', label: 'Service', icon: MapPin }
   ];

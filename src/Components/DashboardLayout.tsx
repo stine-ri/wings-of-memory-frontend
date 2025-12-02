@@ -270,7 +270,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-800 truncate">{user.name}</p>
                   <p className="text-xs text-gray-600 truncate mt-0.5">{user.email}</p>
-                  <p className="text-xs text-amber-600 font-medium mt-1 capitalize">{user.role || 'Member'}</p>
+
                 </div>
               </div>
             )}

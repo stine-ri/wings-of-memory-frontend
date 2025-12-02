@@ -103,54 +103,54 @@ const handlePublish = async () => {
 };
 
   // Enhanced preview function with publish check
-  const handlePreviewPDF = async () => {
-    if (!memorialData) return;
+ const handlePreviewPDF = async () => {
+  if (!memorialData) return;
 
-    // Check if memorial is published
-    if (!memorialData.isPublished) {
-      setShowPublishModal(true);
-      return;
+  // Check if memorial is published (optional - you might want to allow preview even if not published)
+  if (!memorialData.isPublished) {
+    setShowPublishModal(true);
+    return;
+  }
+
+  setGeneratingPreview(true);
+  setPreviewError(null);
+
+  try {
+    // Show popup warning first
+    setShowPopupWarning(true);
+
+    // Wait a moment for user to see warning
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // ✅ CORRECT: Open the PDF preview page (not the public memorial page)
+    const previewUrl = `${window.location.origin}/memorial/pdf/${memorialData.id}`;
+    const newWindow = window.open(previewUrl, '_blank', 'width=1200,height=800,scrollbars=yes,toolbar=yes,menubar=yes');
+    
+    if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
+      throw new Error('Popup blocked. Please allow popups for this site.');
     }
 
-    setGeneratingPreview(true);
-    setPreviewError(null);
+    console.log('✅ PDF Preview opened successfully');
 
-    try {
-      // Show popup warning first
-      setShowPopupWarning(true);
-
-      // Wait a moment for user to see warning
-      await new Promise(resolve => setTimeout(resolve, 500));
-
-      // Open the memorial preview page
-      const previewUrl = `${window.location.origin}/memorial/${memorialData.customUrl || memorialData.id}`;
-      const newWindow = window.open(previewUrl, '_blank', 'width=1200,height=800,scrollbars=yes,toolbar=yes,menubar=yes');
-      
-      if (!newWindow || newWindow.closed || typeof newWindow.closed === 'undefined') {
-        throw new Error('Popup blocked. Please allow popups for this site.');
+  } catch (error: unknown) {
+    console.error('❌ Preview failed:', error);
+    
+    let errorMessage = 'Failed to open preview. Please try again.';
+    if (error instanceof Error) {
+      if (error.message.includes('Popup blocked')) {
+        errorMessage = 'Popup was blocked. Please allow popups for this site, then try again.';
+      } else {
+        errorMessage = error.message || errorMessage;
       }
-
-      console.log('✅ Preview opened successfully');
-
-    } catch (error: unknown) {
-      console.error('❌ Preview failed:', error);
-      
-      let errorMessage = 'Failed to open preview. Please try again.';
-      if (error instanceof Error) {
-        if (error.message.includes('Popup blocked')) {
-          errorMessage = 'Popup was blocked. Please allow popups for this site, then try again.';
-        } else {
-          errorMessage = error.message || errorMessage;
-        }
-      }
-      
-      setPreviewError(errorMessage);
-      setTimeout(() => setPreviewError(null), 8000);
-    } finally {
-      setGeneratingPreview(false);
-      setShowPopupWarning(false);
     }
-  };
+    
+    setPreviewError(errorMessage);
+    setTimeout(() => setPreviewError(null), 8000);
+  } finally {
+    setGeneratingPreview(false);
+    setShowPopupWarning(false);
+  }
+};
 
   // Enhanced QR code function with publish check
   const handleGenerateQRCode = () => {
@@ -307,16 +307,16 @@ const handlePublish = async () => {
   const downloadOptions: DownloadOption[] = [
     {
       icon: Eye,
-      title: 'Preview Memorial',
-      description: memorialData.isPublished 
-        ? 'See how your memorial page looks to visitors - opens in new window' 
-        : 'Preview your memorial (requires publishing first)',
-      action: handlePreviewPDF,
-      color: memorialData.isPublished ? 'from-amber-500 to-orange-500' : 'from-gray-400 to-gray-500',
-      buttonText: generatingPreview ? 'Opening Preview...' : memorialData.isPublished ? 'Preview Memorial' : 'Preview (Requires Publish)',
-      disabled: generatingPreview || !memorialData.isPublished,
-      popupWarning: true,
-      requiresPublish: true
+      title: 'Preview PDF',
+  description: memorialData.isPublished 
+    ? 'Open PDF preview of your memorial - shows exact PDF layout' 
+    : 'Preview PDF of your memorial (requires publishing first)',
+  action: handlePreviewPDF,
+  color: memorialData.isPublished ? 'from-amber-500 to-orange-500' : 'from-gray-400 to-gray-500',
+  buttonText: generatingPreview ? 'Opening Preview...' : memorialData.isPublished ? 'Preview PDF' : 'Preview (Requires Publish)',
+  disabled: generatingPreview || !memorialData.isPublished,
+  popupWarning: true,
+  requiresPublish: true
     },
     {
       icon: FileText,

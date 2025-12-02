@@ -1,4 +1,4 @@
-// Pages/PDFPreviewPage.tsx - MINIMAL MOBILE FIX ONLY
+// Pages/PDFPreviewPage.tsx
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Download, FileText, AlertCircle, Loader, Check, ZoomIn, ZoomOut, RefreshCw } from 'lucide-react';

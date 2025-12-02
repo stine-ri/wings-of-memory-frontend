@@ -87,7 +87,7 @@ const AboutUs: React.FC = () => {
       <TopNav/>
       
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-orange-600/90 via-orange-500/90 to-amber-600/90 text-white py-16 sm:py-20 lg:py-28 xl:py-32">
+      <section id="about-4revah" className="relative overflow-hidden bg-gradient-to-br from-orange-600/90 via-orange-500/90 to-amber-600/90 text-white py-16 sm:py-20 lg:py-28 xl:py-32">
         <div className="absolute inset-0 bg-black/10"></div>
         <div 
           className="absolute inset-0 opacity-20"
@@ -124,7 +124,7 @@ const AboutUs: React.FC = () => {
       </section>
 
       {/* Mission Section */}
-      <section className="py-12 sm:py-16 lg:py-20 xl:py-24 bg-white">
+      <section id="mission" className="py-12 sm:py-16 lg:py-20 xl:py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 xl:gap-16 items-center">
             <div className="space-y-4 sm:space-y-6">
@@ -184,7 +184,7 @@ const AboutUs: React.FC = () => {
       </section>
 
       {/* Values Section */}
-      <section className="py-12 sm:py-16 lg:py-20 xl:py-24 bg-gradient-to-b from-slate-50/50 to-white">
+      <section id="values" className="py-12 sm:py-16 lg:py-20 xl:py-24 bg-gradient-to-b from-slate-50/50 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-8 sm:mb-12 lg:mb-16">
             <div className="inline-flex items-center gap-2 bg-slate-100 text-slate-700 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full mb-3 sm:mb-4">
@@ -220,7 +220,7 @@ const AboutUs: React.FC = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-12 sm:py-16 lg:py-20 xl:py-24 bg-white">
+      <section id="features" className="py-12 sm:py-16 lg:py-20 xl:py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-8 sm:mb-12 lg:mb-16">
             <div className="inline-flex items-center gap-2 bg-slate-100 text-slate-700 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full mb-3 sm:mb-4">
@@ -288,7 +288,7 @@ const AboutUs: React.FC = () => {
       </section>
 
       {/* Journey Section */}
-      <section className="py-12 sm:py-16 lg:py-20 xl:py-24 bg-gradient-to-b from-white to-slate-50/50">
+      <section id="journey" className="py-12 sm:py-16 lg:py-20 xl:py-24 bg-gradient-to-b from-white to-slate-50/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-8 sm:mb-12 lg:mb-16">
             <div className="inline-flex items-center gap-2 bg-slate-100 text-slate-700 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full mb-3 sm:mb-4">

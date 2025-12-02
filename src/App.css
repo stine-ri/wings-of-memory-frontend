@@ -179,3 +179,46 @@
     background-color: white !important;
   }
 }
+
+/* =========================================== */
+/* GUARANTEED MODAL FIX - ADD THIS TO GLOBAL CSS */
+/* =========================================== */
+
+/* Force ALL modals to be root-level and centered */
+body > div.fixed.inset-0,
+body > div[class*="fixed inset-0"] {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 99999 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  pointer-events: none !important;
+}
+
+/* Make modal content clickable */
+body > div.fixed.inset-0 > *,
+body > div[class*="fixed inset-0"] > * {
+  pointer-events: auto !important;
+}
+
+/* Ensure backdrop covers entire screen */
+body > div.fixed.inset-0 .absolute.inset-0 {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  z-index: 1 !important;
+}
+
+/* Ensure modal content is above backdrop */
+body > div.fixed.inset-0 .relative.z-\[10000\] {
+  position: relative !important;
+  z-index: 2 !important;
+}
