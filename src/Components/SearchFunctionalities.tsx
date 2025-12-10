@@ -44,39 +44,56 @@ export default function SearchNavbar({
   const [isSearching, setIsSearching] = useState(false);
   const [showResultsDropdown, setShowResultsDropdown] = useState(false);
   const [totalResults, setTotalResults] = useState(0);
+  const [searchAttempted, setSearchAttempted] = useState(false);
 
   const BACKEND_URL = 'https://wings-of-memories-backend.onrender.com/api';
 
-  // Fetch memorials from backend
+  // Improved search function with better error handling
   const fetchMemorials = async (query: string = '', sortBy: string = 'recent') => {
     if (!showResults) return;
 
     setIsSearching(true);
+    setSearchAttempted(true);
+    
     try {
       const params = new URLSearchParams({
-        ...(query && { search: query }),
+        ...(query && { search: query.trim() }),
         sortBy,
         limit: '8',
         offset: '0'
       });
 
+      console.log('🔍 Searching with params:', params.toString());
+
       const response = await fetch(`${BACKEND_URL}/memorials/public?${params}`);
       
-      if (response.ok) {
-        const data: SearchResults = await response.json();
-        setSearchResults(data.memorials);
-        setTotalResults(data.pagination.total);
-        
-        if (onResults) {
-          onResults(data.memorials);
-        }
-      } else {
-        console.error('Failed to fetch memorials:', response.status);
-        setSearchResults([]);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
+
+      const data: SearchResults = await response.json();
+      
+      console.log('✅ Search successful:', {
+        query,
+        found: data.memorials.length,
+        total: data.pagination.total
+      });
+
+      setSearchResults(data.memorials);
+      setTotalResults(data.pagination.total);
+      
+      if (onResults) {
+        onResults(data.memorials);
+      }
+
     } catch (error) {
-      console.error('Error fetching memorials:', error);
+      console.error('❌ Search error:', error);
       setSearchResults([]);
+      setTotalResults(0);
+      
+      if (onResults) {
+        onResults([]);
+      }
     } finally {
       setIsSearching(false);
     }
@@ -90,17 +107,23 @@ export default function SearchNavbar({
       if (searchQuery.trim().length >= 2 || searchQuery.trim().length === 0) {
         fetchMemorials(searchQuery, selectedSort);
       }
-    }, 300);
+    }, 500); // Increased debounce time
 
     return () => clearTimeout(timeoutId);
   }, [searchQuery, selectedSort, showResults]);
 
   const handleSearch = () => {
+    if (!searchQuery.trim()) {
+      return;
+    }
+
     if (onSearch) {
       onSearch(searchQuery);
     }
+    
     fetchMemorials(searchQuery, selectedSort);
     setShowResultsDropdown(true);
+    setSearchAttempted(true);
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -115,7 +138,10 @@ export default function SearchNavbar({
       onFilterChange(sortBy);
     }
     setShowFilters(false);
-    fetchMemorials(searchQuery, sortBy);
+    
+    if (searchQuery.trim().length >= 2 || searchQuery.trim().length === 0) {
+      fetchMemorials(searchQuery, sortBy);
+    }
   };
 
   const handleInputFocus = () => {
@@ -125,23 +151,22 @@ export default function SearchNavbar({
   };
 
   const handleInputBlur = () => {
-    setTimeout(() => setShowResultsDropdown(false), 200);
+    setTimeout(() => setShowResultsDropdown(false), 300);
   };
 
-  // Direct PDF Preview - opens your existing PDF viewer
-const viewMemorialPage = (memorial: PublicMemorial) => {
-  const memorialSlug = memorial.customUrl || memorial.id;
-  // Direct to the public memorial page (not PDF-only)
-  const memorialUrl = `/memorial/${memorialSlug}`;
-  window.location.href = memorialUrl;
-  setShowResultsDropdown(false);
-  setSearchQuery('');
-};
+  const viewMemorialPage = (memorial: PublicMemorial) => {
+    const memorialSlug = memorial.customUrl || memorial.id;
+    const memorialUrl = `/memorial/${memorialSlug}`;
+    window.location.href = memorialUrl;
+    setShowResultsDropdown(false);
+    setSearchQuery('');
+  };
 
   const clearSearch = () => {
     setSearchQuery('');
     setSearchResults([]);
     setShowResultsDropdown(false);
+    setSearchAttempted(false);
     if (onSearch) {
       onSearch('');
     }
@@ -175,6 +200,9 @@ const viewMemorialPage = (memorial: PublicMemorial) => {
           </h2>
           <p className="text-sm text-gray-600">
             Search and browse through cherished memories. Find memorials by name, location, or filter by date.
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            Tip: Try searching by first name, last name, or location
           </p>
         </div>
 
@@ -214,8 +242,8 @@ const viewMemorialPage = (memorial: PublicMemorial) => {
                 )}
                 <button
                   onClick={handleSearch}
-                  disabled={isSearching}
-                  className="flex items-center gap-2 px-4 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-400 text-white text-sm font-medium rounded-lg transition-colors"
+                  disabled={isSearching || !searchQuery.trim()}
+                  className="flex items-center gap-2 px-4 py-1.5 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white text-sm font-medium rounded-lg transition-colors disabled:cursor-not-allowed"
                 >
                   {isSearching ? (
                     <Loader className="w-4 h-4 animate-spin" />
@@ -227,14 +255,14 @@ const viewMemorialPage = (memorial: PublicMemorial) => {
             </div>
 
             {/* Search Results Dropdown */}
-            {showResults && showResultsDropdown && (searchResults.length > 0 || isSearching) && (
+            {showResults && showResultsDropdown && (
               <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-amber-200 rounded-xl shadow-xl z-50 max-h-96 overflow-y-auto">
                 {isSearching ? (
                   <div className="p-6 text-center">
                     <Loader className="w-6 h-6 animate-spin mx-auto text-amber-500" />
                     <p className="text-sm text-gray-600 mt-2">Searching memorials...</p>
                   </div>
-                ) : (
+                ) : searchResults.length > 0 ? (
                   <>
                     <div className="p-3 border-b border-amber-100 bg-amber-50">
                       <p className="text-sm font-medium text-amber-800">
@@ -256,6 +284,9 @@ const viewMemorialPage = (memorial: PublicMemorial) => {
                                   src={memorial.profileImage}
                                   alt={memorial.name}
                                   className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+                                  onError={(e) => {
+                                    e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="%23fbbf24"><path d="M12 12q-1.65 0-2.825-1.175T8 8q0-1.65 1.175-2.825T12 4q1.65 0 2.825 1.175T16 8q0 1.65-1.175 2.825T12 12Zm-8 8v-2.8q0-.85.438-1.563T5.6 14.55q1.55-.775 3.15-1.163T12 13q1.65 0 3.25.388t3.15 1.162q.725.375 1.163 1.088T20 17.2V20H4Z"/></svg>';
+                                  }}
                                 />
                               ) : (
                                 <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center flex-shrink-0">
@@ -290,15 +321,15 @@ const viewMemorialPage = (memorial: PublicMemorial) => {
                               </div>
                             </div>
                             
-                            {/* Single Action Button - Opens PDF Preview */}
+                            {/* Single Action Button - Opens memorial page */}
                             <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
-                            <button
-  onClick={() => viewMemorialPage(memorial)}
-  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition-colors"
->
-  <Eye className="w-4 h-4" />
-  View Memorial Page
-</button>
+                              <button
+                                onClick={() => viewMemorialPage(memorial)}
+                                className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg hover:bg-amber-600 transition-colors"
+                              >
+                                <Eye className="w-4 h-4" />
+                                View Memorial Page
+                              </button>
                             </div>
                           </div>
                         </div>
@@ -318,20 +349,26 @@ const viewMemorialPage = (memorial: PublicMemorial) => {
                       </div>
                     )}
                   </>
-                )}
-              </div>
-            )}
-
-            {/* No Results Message */}
-            {showResults && showResultsDropdown && !isSearching && searchResults.length === 0 && searchQuery && (
-              <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-amber-200 rounded-xl shadow-xl z-50 p-6 text-center">
-                <div className="w-12 h-12 mx-auto mb-3 bg-amber-100 rounded-full flex items-center justify-center">
-                  <Search className="w-6 h-6 text-amber-600" />
-                </div>
-                <p className="text-gray-600 font-medium">No memorials found</p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Try different keywords or browse all memorials
-                </p>
+                ) : searchQuery && searchAttempted ? (
+                  <div className="p-6 text-center">
+                    <div className="w-12 h-12 mx-auto mb-3 bg-amber-100 rounded-full flex items-center justify-center">
+                      <Search className="w-6 h-6 text-amber-600" />
+                    </div>
+                    <p className="text-gray-600 font-medium">No memorials found</p>
+                    <p className="text-sm text-gray-500 mt-1">
+                      Try different keywords or check your spelling
+                    </p>
+                    <div className="mt-4 text-xs text-gray-500">
+                      <p>Search tips:</p>
+                      <ul className="mt-1 space-y-1">
+                        <li>• Try first name only (e.g., "John")</li>
+                        <li>• Try last name only</li>
+                        <li>• Try location names</li>
+                        <li>• Use partial names</li>
+                      </ul>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             )}
           </div>
@@ -448,13 +485,17 @@ const viewMemorialPage = (memorial: PublicMemorial) => {
         </div>
 
         {/* Active Search Info */}
-        {searchQuery && (
+        {searchQuery && searchAttempted && (
           <div className="mt-4 text-center text-sm text-gray-600">
             Searching for: <span className="font-semibold text-amber-700">"{searchQuery}"</span>
-            {totalResults > 0 && (
+            {isSearching ? (
+              <span className="ml-2 text-gray-500">• Searching...</span>
+            ) : totalResults > 0 ? (
               <span className="ml-2 text-gray-500">
                 • {totalResults} result{totalResults !== 1 ? 's' : ''} found
               </span>
+            ) : (
+              <span className="ml-2 text-gray-500">• No results found</span>
             )}
           </div>
         )}
