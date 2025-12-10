@@ -1,5 +1,4 @@
-// Components/Dashboard/FamilyTreeSection.tsx - COMPLETE
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Plus, Trash2, Edit2, Upload, Save } from 'lucide-react';
 import { useMemorial } from '../../hooks/useMemorial';
 
@@ -9,70 +8,118 @@ interface FamilyMember {
   image?: string;
   relation: string;
 }
-
-// Debounce hook for auto-saving
-const useDebounce = <T,>(value: T, delay: number): T => {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
-};
-
+interface RawFamilyMember {
+  id?: string;
+  name?: string;
+  image?: string;
+  relation?: string;
+}
 export const FamilyTreeSection: React.FC = () => {
-  const { memorialData, updateFamilyTree, saveToBackend } = useMemorial();
+  const { memorialData, updateFamilyTree } = useMemorial();
   const [members, setMembers] = useState<FamilyMember[]>([]);
   const [editingMember, setEditingMember] = useState<FamilyMember | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [lastSavedMembers, setLastSavedMembers] = useState<FamilyMember[] | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
-  const debouncedMembers = useDebounce(members, 1000);
+  // Use refs for better performance
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Initialize with memorial data from backend (only once)
+  // Safely initialize with memorial data from backend
   useEffect(() => {
     if (memorialData?.familyTree && !hasInitialized) {
-      setMembers(memorialData.familyTree as FamilyMember[]);
-      setHasInitialized(true);
+      try {
+        const familyTreeData = Array.isArray(memorialData.familyTree) 
+          ? memorialData.familyTree 
+          : [];
+        
+        const safeMembers = familyTreeData.map((member: RawFamilyMember ) => ({
+          id: member.id || crypto.randomUUID(),
+          name: member.name || '',
+          image: member.image || '',
+          relation: member.relation || 'Spouse'
+        })) as FamilyMember[];
+        
+        setMembers(safeMembers);
+        setLastSavedMembers(safeMembers);
+        setHasInitialized(true);
+        
+        console.log('✅ FamilyTree initialized with', safeMembers.length, 'members');
+      } catch (error) {
+        console.error('❌ Failed to initialize family tree:', error);
+        setHasInitialized(true);
+      }
     }
   }, [memorialData, hasInitialized]);
 
-  // Memoize the comparison function
-  const hasChanges = useCallback((currentMembers: FamilyMember[]) => {
-    if (!memorialData?.familyTree) return currentMembers.length > 0;
-    return JSON.stringify(currentMembers) !== JSON.stringify(memorialData.familyTree);
-  }, [memorialData]);
+  // Check if we have unsaved changes (optimized)
+  const hasUnsavedChanges = useCallback(() => {
+    if (!lastSavedMembers) return members.length > 0;
+    if (members.length !== lastSavedMembers.length) return true;
+    return JSON.stringify(members) !== JSON.stringify(lastSavedMembers);
+  }, [members, lastSavedMembers]);
 
-  // Auto-save debounced changes
+  // Auto-save with debounce (only on actual changes)
   useEffect(() => {
-    if (hasInitialized && hasChanges(debouncedMembers)) {
-      updateFamilyTree(debouncedMembers);
+    if (!hasInitialized || !hasUnsavedChanges()) return;
+
+    // Clear any existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
     }
-  }, [debouncedMembers, hasInitialized, hasChanges, updateFamilyTree]);
 
-  // Warn about unsaved changes
-  useEffect(() => {
-    const hasUnsavedChanges = hasChanges(members);
-    
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = '';
+    // Set new timeout for auto-save
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        console.log('💾 Auto-saving family tree...');
+        await updateFamilyTree(members);
+        setLastSavedMembers([...members]);
+        setSaveStatus('success');
+        setTimeout(() => setSaveStatus('idle'), 1000);
+        console.log('✅ Auto-save completed');
+      } catch (error) {
+        console.error('❌ Auto-save failed:', error);
+        setSaveStatus('error');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      }
+    }, 2000); // Wait 2 seconds of inactivity before saving
+
+    // Cleanup
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
       }
     };
+  }, [members, hasInitialized, hasUnsavedChanges, updateFamilyTree]);
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [members, hasChanges]);
+  // Manual save function
+  const handleManualSave = async () => {
+    if (saving || !hasUnsavedChanges()) return;
+    
+    setSaving(true);
+    setSaveStatus('saving');
+    
+    try {
+      console.log('💾 Manual save triggered');
+      await updateFamilyTree(members);
+      setLastSavedMembers([...members]);
+      setSaveStatus('success');
+      
+      // Show success message briefly
+      setTimeout(() => setSaveStatus('idle'), 2000);
+      
+      console.log('✅ Manual save completed');
+    } catch (error) {
+      console.error('❌ Manual save failed:', error);
+      setSaveStatus('error');
+      alert('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const relationOptions = [
     'Father', 'Mother', 'Spouse', 'Son', 'Daughter', 'Brother', 'Sister',
@@ -93,8 +140,6 @@ export const FamilyTreeSection: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file || !editingMember) return;
 
-    console.log("🖼️ Uploading family member image...");
-
     if (file.size > 5 * 1024 * 1024) {
       alert('Image size should be less than 5MB');
       return;
@@ -108,43 +153,28 @@ export const FamilyTreeSection: React.FC = () => {
     setUploading(true);
 
     try {
-      // Get token from localStorage
       const token = localStorage.getItem('token');
       if (!token) {
-        throw new Error('Authentication token not found. Please log in again.');
+        throw new Error('Please log in again.');
       }
 
-      // Upload directly to your backend, which will handle ImageKit upload
       const formData = new FormData();
       formData.append('file', file);
       formData.append('folder', 'memorials/family');
 
       const uploadResponse = await fetch('https://wings-of-memories-backend.onrender.com/api/imagekit/upload', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Authorization': `Bearer ${token}` },
         body: formData,
       });
 
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
-        console.error("❌ Upload error response:", errorText);
-        
-        if (uploadResponse.status === 401 || uploadResponse.status === 403) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          throw new Error('Session expired. Please log in again.');
-        }
-        
-        throw new Error(`Upload failed (${uploadResponse.status}): ${errorText}`);
+        throw new Error(`Upload failed: ${errorText}`);
       }
 
       const data = await uploadResponse.json();
-      console.log("✅ Family image upload success:", data);
-
       setEditingMember(prev => prev ? { ...prev, image: data.url } : null);
-      alert('✅ Image uploaded successfully!');
     } catch (error) {
       console.error('❌ Upload failed:', error);
       alert('Failed to upload image. Please try again.');
@@ -172,30 +202,22 @@ export const FamilyTreeSection: React.FC = () => {
   };
 
   const handleDeleteMember = (id: string) => {
-    const newMembers = members.filter(m => m.id !== id);
-    setMembers(newMembers);
+    setMembers(prev => prev.filter(m => m.id !== id));
   };
 
-  const handleManualSave = async () => {
-    setSaving(true);
-    try {
-      await updateFamilyTree(members);
-      await saveToBackend();
-      alert('Family tree saved successfully!');
-    } catch (error) {
-      console.error('Error saving family tree:', error);
-      alert('Failed to save family tree. Please try again.');
-    } finally {
-      setSaving(false);
-    }
+  // Calculate stats
+  const stats = {
+    total: members.length,
+    relationships: new Set(members.map(m => m.relation)).size,
+    withPhotos: members.filter(m => m.image).length,
+    needsPhotos: members.filter(m => !m.image).length
   };
 
-  // Show loading state while initializing
-  if (!hasInitialized && !memorialData) {
+  if (!hasInitialized) {
     return (
       <div className="max-w-6xl space-y-6">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <div className="animate-pulse text-center py-8">Loading family tree data...</div>
+          <div className="animate-pulse text-center py-8">Loading family tree...</div>
         </div>
       </div>
     );
@@ -203,53 +225,64 @@ export const FamilyTreeSection: React.FC = () => {
 
   return (
     <div className="max-w-6xl space-y-6">
-      {/* Header */}
+      {/* Header with Save Status */}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-semibold text-gray-800">Family Tree</h2>
           <p className="text-gray-600 mt-1">Add family members and their relationships</p>
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={handleAddMember}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full hover:from-amber-600 hover:to-orange-600 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            Add Family Member
-          </button>
-          <button
-            onClick={handleManualSave}
-            disabled={saving || !hasChanges(members)}
-            className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all disabled:opacity-50"
-          >
-            <Save className="w-4 h-4" />
-            {saving ? 'Saving...' : 'Save All'}
-          </button>
+        <div className="flex items-center gap-4">
+          {/* Save Status Indicator */}
+          {saveStatus === 'saving' && (
+            <span className="text-sm text-blue-600 animate-pulse">Saving...</span>
+          )}
+          {saveStatus === 'success' && (
+            <span className="text-sm text-green-600 flex items-center gap-1">
+              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+              Saved
+            </span>
+          )}
+          
+          <div className="flex gap-3">
+            <button
+              onClick={handleAddMember}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full hover:from-amber-600 hover:to-orange-600 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Add Family Member
+            </button>
+            <button
+              onClick={handleManualSave}
+              disabled={saving || !hasUnsavedChanges()}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
+                hasUnsavedChanges() 
+                  ? 'bg-green-500 text-white hover:bg-green-600' 
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              <Save className="w-4 h-4" />
+              {saving ? 'Saving...' : 'Save All'}
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
-          <div className="text-2xl font-bold text-gray-800">{members.length}</div>
+          <div className="text-2xl font-bold text-gray-800">{stats.total}</div>
           <div className="text-sm text-gray-600">Total Members</div>
         </div>
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
-          <div className="text-2xl font-bold text-gray-800">
-            {new Set(members.map(m => m.relation)).size}
-          </div>
+          <div className="text-2xl font-bold text-gray-800">{stats.relationships}</div>
           <div className="text-sm text-gray-600">Relationships</div>
         </div>
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
-          <div className="text-2xl font-bold text-gray-800">
-            {members.filter(m => m.image).length}
-          </div>
+          <div className="text-2xl font-bold text-gray-800">{stats.withPhotos}</div>
           <div className="text-sm text-gray-600">With Photos</div>
         </div>
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
-          <div className="text-2xl font-bold text-gray-800">
-            {members.filter(m => !m.image).length}
-          </div>
+          <div className="text-2xl font-bold text-gray-800">{stats.needsPhotos}</div>
           <div className="text-sm text-gray-600">Need Photos</div>
         </div>
       </div>
@@ -323,7 +356,7 @@ export const FamilyTreeSection: React.FC = () => {
             <button
               onClick={handleSaveMember}
               disabled={!editingMember.name.trim()}
-              className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
             >
               Save Member
             </button>
@@ -382,7 +415,7 @@ export const FamilyTreeSection: React.FC = () => {
         ))}
       </div>
 
-      {members.length === 0 && (
+      {members.length === 0 && !showForm && (
         <div className="text-center py-12">
           <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-400 rounded-full flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl text-white">👨‍👩‍👧‍👦</span>

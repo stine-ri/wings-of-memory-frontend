@@ -1,4 +1,4 @@
-// App.tsx - FIXED VERSION
+// App.tsx - UPDATED VERSION
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './Components/Home';
 import { Dashboard } from './Pages/Dashboard';
@@ -17,7 +17,8 @@ import { PDFPreviewPage } from './Pages/PDFPreviewPage';
 import LoginPage from './Pages/LoginPage';
 import RegisterPage from './Pages/RegisterPage';
 import Help from './Components/Help';
-import PublicMemorialPage from './Pages/PublicMemorialPage';
+// import PublicMemorialPage from './Pages/PublicMemorialPage';
+import {MemorialDisplayPage} from './Pages/MemorialDisplayPage';
 import './App.css';
 
 function App() {
@@ -42,8 +43,12 @@ function App() {
           
           {/* Separate routes for different purposes */}
           <Route path="/memorial/pdf/:id" element={<PDFPreviewPage />} />
-          <Route path="/memorial/:identifier" element={<PublicMemorialPage />} />
+          
+          {/* FIXED: Separate routes for public memorial and display */}
+         <Route path="/memorial/:identifier" element={<MemorialDisplayPage />} />
+          {/* <Route path="/memorial/:identifier" element={<PublicMemorialPage />} /> */}
 
+          
           {/* Protected dashboard route */}
           <Route
             path="/dashboard"

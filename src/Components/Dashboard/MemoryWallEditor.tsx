@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MessageCircle, Heart, Trash2, Upload, Plus, Save } from 'lucide-react';
 import { useMemorial } from '../../hooks/useMemorial';
 
@@ -12,26 +12,39 @@ interface Memory {
   isFeatured: boolean;
   createdAt: string;
 }
-
-// Debounce hook for auto-saving
-const useDebounce = <T,>(value: T, delay: number): T => {
-  const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
-
-  return debouncedValue;
+interface RawMemory {
+  id?: string;
+  text?: string;
+  author?: string;
+  date?: string;
+  images?: string[];
+  likes?: number;
+  isFeatured?: boolean;
+  createdAt?: string;
+}
+// Custom equality check for memories
+const areMemoriesEqual = (mem1: Memory[], mem2: Memory[]): boolean => {
+  if (mem1.length !== mem2.length) return false;
+  
+  for (let i = 0; i < mem1.length; i++) {
+    const m1 = mem1[i];
+    const m2 = mem2[i];
+    
+    if (m1.id !== m2.id || 
+        m1.text !== m2.text || 
+        m1.author !== m2.author ||
+        m1.isFeatured !== m2.isFeatured ||
+        m1.likes !== m2.likes ||
+        JSON.stringify(m1.images) !== JSON.stringify(m2.images)) {
+      return false;
+    }
+  }
+  
+  return true;
 };
 
 export const MemoryWallSection: React.FC = () => {
-  const { memorialData, updateMemoryWall, saveToBackend } = useMemorial();
+  const { memorialData, updateMemoryWall } = useMemorial();
   const [memories, setMemories] = useState<Memory[]>([]);
   const [showMemoryForm, setShowMemoryForm] = useState(false);
   const [newMemory, setNewMemory] = useState({
@@ -42,58 +55,127 @@ export const MemoryWallSection: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [hasInitialized, setHasInitialized] = useState(false);
+  const [lastSavedMemories, setLastSavedMemories] = useState<Memory[] | null>(null);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
 
-  const debouncedMemories = useDebounce(memories, 1000);
+  // Use ref to prevent unnecessary re-renders
+  const backendMemoriesRef = useRef<Memory[]>([]);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Initialize with memorial data from backend (only once)
+  // Initialize memories from backend
   useEffect(() => {
     if (memorialData?.memoryWall && !hasInitialized) {
-      setMemories(memorialData.memoryWall as Memory[]);
-      setHasInitialized(true);
+      try {
+        const memoryWallData = Array.isArray(memorialData.memoryWall) 
+          ? memorialData.memoryWall 
+          : [];
+        
+        const safeMemories = memoryWallData.map((memory: RawMemory) => ({
+          id: memory.id || crypto.randomUUID(),
+          text: memory.text || '',
+          author: memory.author || '',
+          date: memory.date || new Date().toISOString().split('T')[0],
+          images: Array.isArray(memory.images) ? memory.images : [],
+          likes: typeof memory.likes === 'number' ? memory.likes : 0,
+          isFeatured: Boolean(memory.isFeatured),
+          createdAt: memory.createdAt || new Date().toISOString()
+        })) as Memory[];
+        
+        setMemories(safeMemories);
+        backendMemoriesRef.current = safeMemories;
+        setLastSavedMemories(safeMemories);
+        setHasInitialized(true);
+        
+        console.log('✅ MemoryWall initialized with', safeMemories.length, 'memories');
+      } catch (error) {
+        console.error('❌ Failed to initialize memories:', error);
+        setHasInitialized(true);
+      }
     }
   }, [memorialData, hasInitialized]);
 
-  // Memoize the comparison function
-  const hasChanges = useCallback((currentMemories: Memory[]) => {
-    if (!memorialData?.memoryWall) return currentMemories.length > 0;
-    return JSON.stringify(currentMemories) !== JSON.stringify(memorialData.memoryWall);
-  }, [memorialData]);
+  // Check if we have changes (optimized)
+  const hasUnsavedChanges = useCallback(() => {
+    if (!lastSavedMemories) return memories.length > 0;
+    return !areMemoriesEqual(memories, lastSavedMemories);
+  }, [memories, lastSavedMemories]);
 
-  // Auto-save debounced changes
+  // Auto-save with debounce
   useEffect(() => {
-    if (hasInitialized && hasChanges(debouncedMemories)) {
-      updateMemoryWall(debouncedMemories);
+    if (!hasInitialized || !hasUnsavedChanges()) return;
+
+    // Clear any existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
     }
-  }, [debouncedMemories, hasInitialized, hasChanges, updateMemoryWall]);
 
-  // Warn about unsaved changes
-  useEffect(() => {
-    const hasUnsavedChanges = hasChanges(memories);
-    
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (hasUnsavedChanges) {
-        e.preventDefault();
-        e.returnValue = '';
+    // Set new timeout
+    saveTimeoutRef.current = setTimeout(async () => {
+      try {
+        console.log('💾 Auto-saving memory wall...');
+        await updateMemoryWall(memories);
+        setLastSavedMemories([...memories]);
+        console.log('✅ Auto-save completed');
+      } catch (error) {
+        console.error('❌ Auto-save failed:', error);
+      }
+    }, 2000); // Wait 2 seconds of inactivity before saving
+
+    // Cleanup
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
       }
     };
+  }, [memories, hasInitialized, hasUnsavedChanges, updateMemoryWall]);
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [memories, hasChanges]);
+  // Manual save function
+  const handleManualSave = async () => {
+    if (saving || !hasUnsavedChanges()) return;
+    
+    setSaving(true);
+    setSaveStatus('saving');
+    
+    try {
+      console.log('💾 Manual save triggered');
+      await updateMemoryWall(memories);
+      setLastSavedMemories([...memories]);
+      setSaveStatus('success');
+      
+      // Show success message briefly
+      setTimeout(() => setSaveStatus('idle'), 2000);
+      
+      console.log('✅ Manual save completed');
+    } catch (error) {
+      console.error('❌ Manual save failed:', error);
+      setSaveStatus('error');
+      alert('Failed to save. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Calculate stats safely
+  const stats = {
+    total: memories.length,
+    featured: memories.filter(m => m.isFeatured).length,
+    withImages: memories.filter(m => 
+      m.images && Array.isArray(m.images) && m.images.length > 0
+    ).length,
+    totalLikes: memories.reduce((sum, memory) => sum + (memory.likes || 0), 0)
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    console.log("🖼️ Uploading memory images...");
     setUploading(true);
     const uploadedImages: string[] = [];
 
     try {
-      // Get token from localStorage
       const token = localStorage.getItem('token');
       if (!token) {
-        throw new Error('Authentication token not found. Please log in again.');
+        throw new Error('Please log in again.');
       }
 
       for (let i = 0; i < Math.min(files.length, 3); i++) {
@@ -109,44 +191,30 @@ export const MemoryWallSection: React.FC = () => {
           continue;
         }
 
-        // Upload to backend
         const formData = new FormData();
         formData.append('file', file);
         formData.append('folder', 'memorials/memory-wall');
         
         const uploadResponse = await fetch('https://wings-of-memories-backend.onrender.com/api/imagekit/upload', {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
+          headers: { 'Authorization': `Bearer ${token}` },
           body: formData,
         });
 
         if (!uploadResponse.ok) {
           const errorText = await uploadResponse.text();
-          console.error("❌ Upload error response:", errorText);
-          
-          if (uploadResponse.status === 401 || uploadResponse.status === 403) {
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
-            throw new Error('Session expired. Please log in again.');
-          }
-          
-          throw new Error(`Upload failed (${uploadResponse.status}): ${errorText}`);
+          throw new Error(`Upload failed: ${errorText}`);
         }
 
         const data = await uploadResponse.json();
-        console.log("✅ Memory image upload success:", data);
         uploadedImages.push(data.url);
       }
 
-      setNewMemory(prev => ({
-        ...prev,
-        images: [...prev.images, ...uploadedImages]
-      }));
-      
       if (uploadedImages.length > 0) {
-        alert(`✅ ${uploadedImages.length} image(s) uploaded successfully!`);
+        setNewMemory(prev => ({
+          ...prev,
+          images: [...prev.images, ...uploadedImages]
+        }));
       }
     } catch (error) {
       console.error('❌ Upload failed:', error);
@@ -167,64 +235,39 @@ export const MemoryWallSection: React.FC = () => {
       text: newMemory.text.trim(),
       author: newMemory.author.trim(),
       date: new Date().toISOString().split('T')[0],
-      images: newMemory.images,
+      images: newMemory.images || [],
       likes: 0,
       isFeatured: false,
       createdAt: new Date().toISOString()
     };
 
-    const newMemories = [memory, ...memories];
-    setMemories(newMemories);
+    setMemories(prev => [memory, ...prev]);
     setNewMemory({ text: '', author: '', images: [] });
     setShowMemoryForm(false);
   };
 
   const handleDeleteMemory = (id: string) => {
-    const newMemories = memories.filter(memory => memory.id !== id);
-    setMemories(newMemories);
+    setMemories(prev => prev.filter(memory => memory.id !== id));
   };
 
   const handleToggleFeatured = (id: string) => {
-    const newMemories = memories.map(memory =>
+    setMemories(prev => prev.map(memory =>
       memory.id === id ? { ...memory, isFeatured: !memory.isFeatured } : memory
-    );
-    setMemories(newMemories);
-  };
-
-  const handleManualSave = async () => {
-    setSaving(true);
-    try {
-      await updateMemoryWall(memories);
-      await saveToBackend();
-      alert('Memory Wall saved successfully!');
-    } catch (error) {
-      console.error('Error saving memory wall:', error);
-      alert('Failed to save memory wall. Please try again.');
-    } finally {
-      setSaving(false);
-    }
+    ));
   };
 
   const removeImageFromNewMemory = (index: number) => {
     setNewMemory(prev => ({
       ...prev,
-      images: prev.images.filter((_, i) => i !== index)
+      images: (prev.images || []).filter((_, i) => i !== index)
     }));
   };
 
-  const stats = {
-    total: memories.length,
-    featured: memories.filter(m => m.isFeatured).length,
-    withImages: memories.filter(m => m.images.length > 0).length,
-    totalLikes: memories.reduce((sum, memory) => sum + memory.likes, 0)
-  };
-
-  // Show loading state while initializing
-  if (!hasInitialized && !memorialData) {
+  if (!hasInitialized) {
     return (
       <div className="max-w-4xl space-y-6">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <div className="animate-pulse text-center py-8">Loading memory wall data...</div>
+          <div className="animate-pulse text-center py-8">Loading memory wall...</div>
         </div>
       </div>
     );
@@ -232,28 +275,45 @@ export const MemoryWallSection: React.FC = () => {
 
   return (
     <div className="max-w-4xl space-y-6">
-      {/* Header */}
+      {/* Header with Save Status */}
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-semibold text-gray-800">Memory Wall</h2>
           <p className="text-gray-600 mt-1">Manage shared memories and stories</p>
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={() => setShowMemoryForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full hover:from-amber-600 hover:to-orange-600 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            Add Memory
-          </button>
-          <button
-            onClick={handleManualSave}
-            disabled={saving || !hasChanges(memories)}
-            className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all disabled:opacity-50"
-          >
-            <Save className="w-4 h-4" />
-            {saving ? 'Saving...' : 'Save All'}
-          </button>
+        <div className="flex items-center gap-4">
+          {/* Save Status Indicator */}
+          {saveStatus === 'saving' && (
+            <span className="text-sm text-blue-600 animate-pulse">Saving...</span>
+          )}
+          {saveStatus === 'success' && (
+            <span className="text-sm text-green-600 flex items-center gap-1">
+              <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+              Saved
+            </span>
+          )}
+          
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowMemoryForm(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full hover:from-amber-600 hover:to-orange-600 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Add Memory
+            </button>
+            <button
+              onClick={handleManualSave}
+              disabled={saving || !hasUnsavedChanges()}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full transition-all ${
+                hasUnsavedChanges() 
+                  ? 'bg-green-500 text-white hover:bg-green-600' 
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              <Save className="w-4 h-4" />
+              {saving ? 'Saving...' : 'Save All'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -310,7 +370,7 @@ export const MemoryWallSection: React.FC = () => {
                 Add Photos (Optional - max 3)
               </label>
               
-              {newMemory.images.length > 0 && (
+              {newMemory.images && newMemory.images.length > 0 && (
                 <div className="flex gap-3 mb-4 flex-wrap">
                   {newMemory.images.map((image, index) => (
                     <div key={index} className="relative group">
@@ -330,7 +390,7 @@ export const MemoryWallSection: React.FC = () => {
                 </div>
               )}
 
-              {newMemory.images.length < 3 && (
+              {(!newMemory.images || newMemory.images.length < 3) && (
                 <label className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-amber-400 transition-colors cursor-pointer block">
                   <input
                     type="file"
@@ -356,7 +416,7 @@ export const MemoryWallSection: React.FC = () => {
             <button
               onClick={handleAddMemory}
               disabled={!newMemory.text.trim() || !newMemory.author.trim()}
-              className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
             >
               Share Memory
             </button>
@@ -413,7 +473,7 @@ export const MemoryWallSection: React.FC = () => {
               {memory.text}
             </p>
 
-            {memory.images.length > 0 && (
+            {memory.images && memory.images.length > 0 && (
               <div className="flex gap-3 mb-4 flex-wrap">
                 {memory.images.map((image, index) => (
                   <img
@@ -430,11 +490,7 @@ export const MemoryWallSection: React.FC = () => {
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-1">
                   <Heart className="w-4 h-4" />
-                  <span>{memory.likes} likes</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <MessageCircle className="w-4 h-4" />
-                  <span>0 comments</span>
+                  <span>{memory.likes || 0} likes</span>
                 </div>
               </div>
               <span>Added {new Date(memory.createdAt).toLocaleDateString()}</span>

@@ -150,10 +150,7 @@ const AboutUs: React.FC = () => {
               </div>
               
               <div className="flex flex-wrap gap-2 sm:gap-3 pt-2 sm:pt-4">
-                <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg">
-                  <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600" />
-                  <span className="font-semibold text-gray-800 text-xs sm:text-sm lg:text-base">Free to Start</span>
-                </div>
+                
                 <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 sm:px-4 sm:py-2 rounded-lg">
                   <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-slate-600" />
                   <span className="font-semibold text-gray-800 text-xs sm:text-sm lg:text-base">Easy to Use</span>
