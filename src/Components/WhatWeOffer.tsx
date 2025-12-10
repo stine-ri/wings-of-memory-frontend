@@ -76,41 +76,6 @@ const WhatWeOffer: React.FC = () => {
     }
   ];
 
-  const pricingPlans = [
-    {
-      name: "Free Memorial",
-      price: "Free",
-      description: "Your first memorial template is completely free",
-      features: [
-        "One free memorial PDF",
-        "Digital memorial page",
-        "Unlimited photos",
-        "Multiple templates",
-        "Family collaboration",
-        "Lifetime access"
-      ],
-      cta: "Get Started Free",
-      popular: true,
-      note: "Perfect for honoring your loved one"
-    },
-    {
-      name: "Premium Features",
-      price: "Coming Soon",
-      description: "Additional features and multiple memorials",
-      features: [
-        "Additional memorial PDFs",
-        "Premium templates",
-        "High-resolution printing",
-        "Priority support",
-        "Advanced customization",
-        "Video memorials"
-      ],
-      cta: "Join Waitlist",
-      popular: false,
-      note: "Launching later this year"
-    }
-  ];
-
   const memorialFormFields = [
     { name: 'fullName', label: 'Full Name', type: 'text', icon: User },
     { name: 'birthDate', label: 'Date of Birth', type: 'date', icon: Calendar },
@@ -325,88 +290,61 @@ const WhatWeOffer: React.FC = () => {
         </div>
       </section>
 
-      {/* Pricing */}
-      <section id="pricing" className="py-20 bg-white">
+      {/* Simple & Free Section */}
+      <section id="simple-free" className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
               Simple & Free
             </h2>
             <p className="text-lg text-gray-600">
-              Create your first memorial completely free. Additional features coming soon.
+              Create your first memorial completely free. We believe in making memorial creation accessible to everyone.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {pricingPlans.map((plan, index) => (
-              <div key={index} className={`relative rounded-2xl p-8 ${
-                plan.popular 
-                  ? 'bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200' 
-                  : 'bg-gray-50 border-2 border-gray-200 opacity-90'
-              }`}>
-                {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-orange-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
-                      Available Now
-                    </span>
-                  </div>
-                )}
-                
-                {!plan.popular && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-blue-500 text-white px-4 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
-                      <CalendarIcon className="w-3 h-3" />
-                      Coming Soon
-                    </span>
-                  </div>
-                )}
-                
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">{plan.name}</h3>
-                <div className="mb-4">
-                  <span className={`text-4xl font-bold ${
-                    plan.price === "Coming Soon" ? 'text-gray-500' : 'text-gray-900'
-                  }`}>
-                    {plan.price}
-                  </span>
-                  {plan.price === "Free" && <span className="text-gray-600"> memorial</span>}
-                </div>
-                <p className="text-gray-600 mb-2">{plan.description}</p>
-                {plan.note && (
-                  <p className={`text-sm mb-4 font-semibold ${
-                    plan.popular ? 'text-orange-600' : 'text-blue-600'
-                  }`}>
-                    {plan.note}
-                  </p>
-                )}
-                
-                <ul className="space-y-4 mb-8">
-                  {plan.features.map((feature, featureIndex) => (
-                    <li key={featureIndex} className="flex items-center gap-3">
-                      <CheckCircle className={`w-5 h-5 ${
-                        plan.popular ? 'text-orange-500' : 'text-gray-400'
-                      }`} />
-                      <span className={`${
-                        plan.popular ? 'text-gray-700' : 'text-gray-500'
-                      }`}>
-                        {feature}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                
-                <button 
-                  onClick={plan.popular ? handleGetStarted : () => {}}
-                  className={`w-full py-4 rounded-xl font-bold text-lg transition-all duration-300 ${
-                    plan.popular
-                      ? 'bg-orange-600 text-white hover:bg-orange-700 shadow-lg hover:shadow-xl'
-                      : 'bg-gray-300 text-gray-600 cursor-not-allowed'
-                  }`}
-                  disabled={!plan.popular}
-                >
-                  {plan.cta}
-                </button>
+          <div className="max-w-2xl mx-auto">
+            <div className="relative rounded-2xl p-8 bg-gradient-to-br from-orange-50 to-amber-50 border-2 border-orange-200">
+              <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                <span className="bg-orange-500 text-white px-4 py-1 rounded-full text-sm font-semibold">
+                  Available Now
+                </span>
               </div>
-            ))}
+              
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">Free Memorial</h3>
+              <div className="mb-4">
+                <span className="text-4xl font-bold text-gray-900">
+                  Free
+                </span>
+                <span className="text-gray-600"> memorial</span>
+              </div>
+              <p className="text-gray-600 mb-2">Your first memorial template is completely free</p>
+              <p className="text-sm text-orange-600 font-semibold mb-6">
+                Perfect for honoring your loved one
+              </p>
+              
+              <ul className="space-y-4 mb-8">
+                {[
+                  "One free memorial PDF",
+                  "Digital memorial page",
+                  "Unlimited photos",
+                  "Multiple templates",
+                  "Family collaboration",
+                  "Lifetime access"
+                ].map((feature, featureIndex) => (
+                  <li key={featureIndex} className="flex items-center gap-3">
+                    <CheckCircle className="w-5 h-5 text-orange-500" />
+                    <span className="text-gray-700">{feature}</span>
+                  </li>
+                ))}
+              </ul>
+              
+              <button 
+                onClick={handleGetStarted}
+                className="w-full py-4 bg-orange-600 text-white rounded-xl font-bold text-lg hover:bg-orange-700 shadow-lg hover:shadow-xl transition-all duration-300"
+              >
+                Get Started Free
+              </button>
+            </div>
           </div>
 
           {/* Future Features Info */}

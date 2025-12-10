@@ -1863,6 +1863,7 @@ const MemorialFooter: React.FC<{ memorialName: string }> = ({ memorialName }) =>
 };
 
 // Main Component
+// Main Component
 export const MemorialDisplayPage: React.FC = () => {
   const { identifier } = useParams<{ identifier: string }>();
   const navigate = useNavigate();
@@ -1873,163 +1874,176 @@ export const MemorialDisplayPage: React.FC = () => {
   const [activeSection, setActiveSection] = useState('obituary');
   const [showShareModal, setShowShareModal] = useState(false);
   const [showTributeForm, setShowTributeForm] = useState(false);
-   const [isScrolled, setIsScrolled] = useState(false); 
+  const [isScrolled, setIsScrolled] = useState(false); 
   const [isScrollDisabled, setIsScrollDisabled] = useState(false);
-   const [currentSessionId, setCurrentSessionId] = useState('');
-const [likedMemories, setLikedMemories] = useState<Set<string>>(new Set());
-const [editingTribute, setEditingTribute] = useState<Tribute | null>(null);
+  const [currentSessionId, setCurrentSessionId] = useState('');
+  const [likedMemories, setLikedMemories] = useState<Set<string>>(new Set());
+  const [editingTribute, setEditingTribute] = useState<Tribute | null>(null);
+  
+  // Check if user is logged in (has a token)
+  const isLoggedIn = () => {
+    // Check for token in localStorage or sessionStorage
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    return !!token;
+  };
 
-const fetchMemorial = useCallback(async () => {
-  try {
-    setLoading(true);
-    const response = await fetch(
-      `https://wings-of-memories-backend.onrender.com/api/memorials/public/${identifier}`
-    );
+  // Handle navigation based on login status
+  const handleBackNavigation = () => {
+    if (isLoggedIn()) {
+      navigate('/dashboard');
+    } else {
+      navigate('/');
+    }
+  };
 
-    if (!response.ok) throw new Error(`Memorial not found`);
+  const fetchMemorial = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(
+        `https://wings-of-memories-backend.onrender.com/api/memorials/public/${identifier}`
+      );
 
-    const data = await response.json();
-    const memorialData = data.memorial || data;
-    
-    // Get current session ID for comparison - THIS IS IMPORTANT
-    const sessionId = getOrCreateSessionId(identifier || '');
-    
-    const safeMemorial: MemorialData = {
-      id: memorialData.id || '',
-      name: memorialData.name || 'Unknown',
-      profileImage: memorialData.profileImage || '',
-      birthDate: memorialData.birthDate || '',
-      deathDate: memorialData.deathDate || '',
-      location: memorialData.location || '',
-      obituary: memorialData.obituary || '',
-      timeline: Array.isArray(memorialData.timeline) ? memorialData.timeline : [],
-      favorites: Array.isArray(memorialData.favorites) ? memorialData.favorites : [],
-      familyTree: Array.isArray(memorialData.familyTree) ? memorialData.familyTree : [],
-      gallery: Array.isArray(memorialData.gallery) ? memorialData.gallery : [],
-      serviceInfo: memorialData.serviceInfo || memorialData.service || {},
-      service: memorialData.service || memorialData.serviceInfo || {},
-      memoryWall: Array.isArray(memorialData.memoryWall) ? memorialData.memoryWall : [],
-      memories: Array.isArray(memorialData.memories) ? memorialData.memories : [],
-      tributes: Array.isArray(memorialData.tributes || memorialData.memoryWall) 
-        ? (memorialData.tributes || memorialData.memoryWall).map((tribute: {
-            id: string;
-            authorName?: string;
-            authorLocation?: string;
-            message: string;
-            authorImage?: string;
-            createdAt?: string;
-            sessionId?: string;
-            isAnonymous?: boolean;
-            name?: string;
-            location?: string;
-            date?: string;
-            image?: string;
-          }) => ({
-            id: tribute.id,
-            name: tribute.authorName || tribute.name || 'Anonymous',
-            location: tribute.authorLocation || tribute.location || '',
-            message: tribute.message || '',
-            image: tribute.authorImage || tribute.image || '',
-            date: tribute.createdAt || tribute.date || new Date().toISOString(),
-            sessionId: tribute.sessionId,
-            isAnonymous: tribute.authorName === 'Anonymous' || tribute.isAnonymous
-          }))
-        : [],
-      isPublished: Boolean(memorialData.isPublished),
-      customUrl: memorialData.customUrl || '',
-      theme: memorialData.theme || 'default'
-    };
-    
-    setMemorial(safeMemorial);
-    // Also set the current session ID for the UI
-    setCurrentSessionId(sessionId);
-  } catch (err) {
-    console.error('Error fetching memorial:', err);
-    setError(err instanceof Error ? err.message : 'Failed to load memorial');
-  } finally {
-    setLoading(false);
-  }
-}, [identifier]);
+      if (!response.ok) throw new Error(`Memorial not found`);
+
+      const data = await response.json();
+      const memorialData = data.memorial || data;
+      
+      // Get current session ID for comparison - THIS IS IMPORTANT
+      const sessionId = getOrCreateSessionId(identifier || '');
+      
+      const safeMemorial: MemorialData = {
+        id: memorialData.id || '',
+        name: memorialData.name || 'Unknown',
+        profileImage: memorialData.profileImage || '',
+        birthDate: memorialData.birthDate || '',
+        deathDate: memorialData.deathDate || '',
+        location: memorialData.location || '',
+        obituary: memorialData.obituary || '',
+        timeline: Array.isArray(memorialData.timeline) ? memorialData.timeline : [],
+        favorites: Array.isArray(memorialData.favorites) ? memorialData.favorites : [],
+        familyTree: Array.isArray(memorialData.familyTree) ? memorialData.familyTree : [],
+        gallery: Array.isArray(memorialData.gallery) ? memorialData.gallery : [],
+        serviceInfo: memorialData.serviceInfo || memorialData.service || {},
+        service: memorialData.service || memorialData.serviceInfo || {},
+        memoryWall: Array.isArray(memorialData.memoryWall) ? memorialData.memoryWall : [],
+        memories: Array.isArray(memorialData.memories) ? memorialData.memories : [],
+        tributes: Array.isArray(memorialData.tributes || memorialData.memoryWall) 
+          ? (memorialData.tributes || memorialData.memoryWall).map((tribute: {
+              id: string;
+              authorName?: string;
+              authorLocation?: string;
+              message: string;
+              authorImage?: string;
+              createdAt?: string;
+              sessionId?: string;
+              isAnonymous?: boolean;
+              name?: string;
+              location?: string;
+              date?: string;
+              image?: string;
+            }) => ({
+              id: tribute.id,
+              name: tribute.authorName || tribute.name || 'Anonymous',
+              location: tribute.authorLocation || tribute.location || '',
+              message: tribute.message || '',
+              image: tribute.authorImage || tribute.image || '',
+              date: tribute.createdAt || tribute.date || new Date().toISOString(),
+              sessionId: tribute.sessionId,
+              isAnonymous: tribute.authorName === 'Anonymous' || tribute.isAnonymous
+            }))
+          : [],
+        isPublished: Boolean(memorialData.isPublished),
+        customUrl: memorialData.customUrl || '',
+        theme: memorialData.theme || 'default'
+      };
+      
+      setMemorial(safeMemorial);
+      // Also set the current session ID for the UI
+      setCurrentSessionId(sessionId);
+    } catch (err) {
+      console.error('Error fetching memorial:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load memorial');
+    } finally {
+      setLoading(false);
+    }
+  }, [identifier]);
 
   useEffect(() => {
     fetchMemorial();
   }, [fetchMemorial]);
 
-useEffect(() => {
-  const handleScroll = () => {
-    // Skip scroll detection if we're in the middle of a navigation click
-    if (isScrollDisabled) return;
-    
-    const currentScroll = window.scrollY;
-    setIsScrolled(currentScroll > 100);
-    
-    // Your existing section detection logic...
+  useEffect(() => {
+    const handleScroll = () => {
+      // Skip scroll detection if we're in the middle of a navigation click
+      if (isScrollDisabled) return;
+      
+      const currentScroll = window.scrollY;
+      setIsScrolled(currentScroll > 100);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [isScrollDisabled]);
+
+  useEffect(() => {
+    // Initialize session ID
+    if (identifier) {
+      const sessionId = getOrCreateSessionId(identifier);
+      setCurrentSessionId(sessionId);
+      console.log('Current Session ID:', sessionId);
+    }
+  }, [identifier]);
+
+  const toggleLike = (tributeId: string) => {
+    const newLiked = new Set(likedMemories);
+    if (newLiked.has(tributeId)) {
+      newLiked.delete(tributeId);
+    } else {
+      newLiked.add(tributeId);
+    }
+    setLikedMemories(newLiked);
   };
 
-  window.addEventListener('scroll', handleScroll, { passive: true });
-  return () => window.removeEventListener('scroll', handleScroll);
-}, [isScrollDisabled]); // Add isScrollDisabled to dependencies
+  const handleEditTribute = (tribute: Tribute) => {
+    setEditingTribute(tribute);
+    setShowTributeForm(true);
+  };
 
-// In the useEffect for initializing session ID:
-useEffect(() => {
-  // Initialize session ID
-  if (identifier) {
-    const sessionId = getOrCreateSessionId(identifier); // ADD identifier parameter here
-    setCurrentSessionId(sessionId);
-    console.log('Current Session ID:', sessionId);
-  }
-}, [identifier]);
+  const handleDeleteTribute = async (tributeId: string) => {
+    if (!window.confirm('Are you sure you want to delete this memory?')) return;
 
+    try {
+      const sessionId = getOrCreateSessionId(identifier || '');
+      
+      const response = await fetch(
+        `https://wings-of-memories-backend.onrender.com/api/memorials/public/${identifier}/tributes/${tributeId}`,
+        {
+          method: 'DELETE',
+          headers: { 
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ sessionId })
+        }
+      );
 
-const toggleLike = (tributeId: string) => {
-  const newLiked = new Set(likedMemories);
-  if (newLiked.has(tributeId)) {
-    newLiked.delete(tributeId);
-  } else {
-    newLiked.add(tributeId);
-  }
-  setLikedMemories(newLiked);
-};
-const handleEditTribute = (tribute: Tribute) => {
-  setEditingTribute(tribute);
-  setShowTributeForm(true);
-};
-
-const handleDeleteTribute = async (tributeId: string) => {
-  if (!window.confirm('Are you sure you want to delete this memory?')) return;
-
-  try {
-    const sessionId = getOrCreateSessionId(identifier || ''); // FIX: Pass identifier parameter
-    
-    const response = await fetch(
-      `https://wings-of-memories-backend.onrender.com/api/memorials/public/${identifier}/tributes/${tributeId}`,
-      {
-        method: 'DELETE',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ sessionId })
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        if (response.status === 403) {
+          alert('You can only delete your own memories.');
+          return;
+        }
+        throw new Error(`Failed to delete tribute: ${errorData.error || 'Unknown error'}`);
       }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      if (response.status === 403) {
-        alert('You can only delete your own memories.');
-        return;
-      }
-      throw new Error(`Failed to delete tribute: ${errorData.error || 'Unknown error'}`);
+      
+      // Refresh tributes
+      fetchMemorial();
+      alert('Memory deleted successfully');
+      
+    } catch (error) {
+      console.error('Error deleting tribute:', error);
+      alert(error instanceof Error ? error.message : 'Failed to delete tribute. Please try again.');
     }
-    
-    // Refresh tributes
-    fetchMemorial();
-    alert('Memory deleted successfully');
-    
-  } catch (error) {
-    console.error('Error deleting tribute:', error);
-    alert(error instanceof Error ? error.message : 'Failed to delete tribute. Please try again.');
-  }
-};
+  };
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Unknown';
@@ -2110,391 +2124,400 @@ const handleDeleteTribute = async (tributeId: string) => {
     { id: 'service', label: 'Service', icon: Calendar }
   ];
 
-
-
   return (
     <div className="min-h-screen bg-white">
-{/* REDESIGNED HEADER - Modern & Warm */}
-<div className="min-h-screen bg-gray-50">
-
-  {/* HEADER WITH WARM BACKGROUND IMAGE */}
-  <header className={`sticky top-0 z-40 transition-all duration-500 ${
-    isScrolled 
-      ? 'bg-white shadow-md' 
-      : 'relative bg-gray-900'
-  }`}>
-    
-    {/* Background Image Layer - FIXED: Now uses opacity transition to prevent flicker */}
-    <div className={`absolute inset-0 z-0 overflow-hidden transition-opacity duration-700 ${
-      isScrolled ? 'opacity-0 pointer-events-none' : 'opacity-100'
-    }`}>
-      {/* Warm memorial background image with better gradient */}
-      <div 
-        className="absolute inset-0 w-full h-full"
-        style={{
-          backgroundImage: `url("https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2000")`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        }}
-      >
-        {/* Improved overlay with your color scheme */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/70 to-orange-950/60"></div>
-      </div>
-    </div>
-    
-    {/* Container with dynamic padding */}
-    <div className={`relative z-10 max-w-7xl mx-auto px-4 sm:px-6 transition-all duration-500 ${
-      isScrolled ? 'py-4' : 'py-16 md:py-24'
-    }`}>
-      
-      {/* Main flex container */}
-      <div className={`flex items-center transition-all duration-500 ${
-        isScrolled 
-          ? 'gap-4 justify-start'
-          : 'gap-8 md:gap-12 justify-center'
-      }`}>
-        
-        {/* Profile Image with smooth transitions */}
-        <div className="relative flex-shrink-0">
-          {memorial.profileImage ? (
-            <img
-              src={memorial.profileImage}
-              alt={memorial.name}
-              className={`object-cover shadow-2xl transition-all duration-500 ease-in-out ${
-                isScrolled 
-                  ? 'w-12 h-12 rounded-full border-2 border-orange-500'
-                  : 'w-40 h-52 md:w-48 md:h-64 rounded-2xl border-4 border-orange-500 shadow-orange-500/20'
-              }`}
-              style={{ willChange: 'transform, width, height' }}
-            />
-          ) : (
-            <div className={`bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center shadow-2xl transition-all duration-500 ease-in-out ${
-                isScrolled 
-                  ? 'w-12 h-12 rounded-full border-2 border-orange-500'
-                  : 'w-40 h-52 md:w-48 md:h-64 rounded-2xl border-4 border-orange-500 shadow-orange-500/20'
-            }`}>
-              <User className={`text-orange-400 transition-all duration-500 ${
-                isScrolled ? 'w-6 h-6' : 'w-16 h-16 md:w-20 md:h-20'
-              }`} />
-            </div>
-          )}
-        </div>
-
-        {/* Text content with smooth transitions */}
-        <div className={`transition-all duration-500 ${
-          isScrolled ? 'flex-1' : ''
+      {/* REDESIGNED HEADER - Modern & Warm */}
+      <div className="min-h-screen bg-gray-50">
+        {/* HEADER WITH WARM BACKGROUND IMAGE */}
+        <header className={`sticky top-0 z-40 transition-all duration-500 ${
+          isScrolled 
+            ? 'bg-white shadow-md' 
+            : 'relative bg-gray-900'
         }`}>
           
-          {/* Name - Smooth animation */}
-          <h1 className={`font-serif transition-all duration-500 ease-in-out ${
-            isScrolled 
-              ? 'text-lg text-gray-900 font-semibold'
-              : 'text-4xl md:text-5xl lg:text-6xl text-white font-bold drop-shadow-2xl mb-8'
-          }`}
-          style={{ willChange: 'font-size, color' }}>
-            {memorial.name}
-          </h1>
-          
-          {/* Dates & Location - TIMELINE STYLE WITHOUT CARD */}
-          <div className={`transition-all duration-700 ease-in-out ${
-            isScrolled 
-              ? 'opacity-0 max-h-0 overflow-hidden' 
-              : 'opacity-100 max-h-96'
+          {/* Background Image Layer */}
+          <div className={`absolute inset-0 z-0 overflow-hidden transition-opacity duration-700 ${
+            isScrolled ? 'opacity-0 pointer-events-none' : 'opacity-100'
           }`}>
-            <div className="space-y-6 relative pl-8 border-l-4 border-orange-500">
+            {/* Warm memorial background image with better gradient */}
+            <div 
+              className="absolute inset-0 w-full h-full"
+              style={{
+                backgroundImage: `url("https://images.unsplash.com/photo-1518709268805-4e9042af9f23?q=80&w=2000")`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat'
+              }}
+            >
+              {/* Improved overlay with your color scheme */}
+              <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/70 to-orange-950/60"></div>
+            </div>
+          </div>
+          
+          {/* Container with dynamic padding */}
+          <div className={`relative z-10 max-w-7xl mx-auto px-4 sm:px-6 transition-all duration-500 ${
+            isScrolled ? 'py-4' : 'py-16 md:py-24'
+          }`}>
+            
+            {/* BACK BUTTON - Top Left */}
+            <div className="absolute top-4 left-4 sm:top-6 sm:left-6">
+              <button
+                onClick={handleBackNavigation}
+                className="flex items-center gap-2 text-white hover:text-orange-300 transition-colors group"
+              >
+                <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                <span className="text-sm font-medium">
+                  {isLoggedIn() ? 'Back to Dashboard' : 'Back to Home'}
+                </span>
+              </button>
+            </div>
+            
+            {/* Main flex container */}
+            <div className={`flex items-center transition-all duration-500 ${
+              isScrolled 
+                ? 'gap-4 justify-start'
+                : 'gap-8 md:gap-12 justify-center'
+            }`}>
               
-              {/* Birth Date - TIMELINE ITEM with staggered animation - NOW USES REAL DATA */}
-              <div className="relative animate-fade-in" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
-                {/* Timeline dot */}
-                <div className="absolute -left-10 top-1 w-4 h-4 rounded-full bg-orange-500 ring-4 ring-orange-500/30"></div>
-                
-                <div className="flex items-center gap-3 mb-1">
-                  <Calendar className="w-5 h-5 text-orange-400" />
-                  <span className="text-orange-400 text-sm font-bold uppercase tracking-widest">Born</span>
-                </div>
-                <p className="text-3xl md:text-4xl text-white font-bold tracking-tight">
-                  {formatDate(memorial.birthDate)}
-                </p>
+              {/* Profile Image with smooth transitions */}
+              <div className="relative flex-shrink-0">
+                {memorial.profileImage ? (
+                  <img
+                    src={memorial.profileImage}
+                    alt={memorial.name}
+                    className={`object-cover shadow-2xl transition-all duration-500 ease-in-out ${
+                      isScrolled 
+                        ? 'w-12 h-12 rounded-full border-2 border-orange-500'
+                        : 'w-40 h-52 md:w-48 md:h-64 rounded-2xl border-4 border-orange-500 shadow-orange-500/20'
+                    }`}
+                    style={{ willChange: 'transform, width, height' }}
+                  />
+                ) : (
+                  <div className={`bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center shadow-2xl transition-all duration-500 ease-in-out ${
+                      isScrolled 
+                        ? 'w-12 h-12 rounded-full border-2 border-orange-500'
+                        : 'w-40 h-52 md:w-48 md:h-64 rounded-2xl border-4 border-orange-500 shadow-orange-500/20'
+                  }`}>
+                    <User className={`text-orange-400 transition-all duration-500 ${
+                      isScrolled ? 'w-6 h-6' : 'w-16 h-16 md:w-20 md:h-20'
+                    }`} />
+                  </div>
+                )}
               </div>
-              
-              {/* Connecting line animation */}
-              <div className="absolute left-0 w-0.5 h-6 bg-gradient-to-b from-orange-500/50 to-transparent -ml-0.5 animate-fade-in" style={{ animationDelay: '0.3s', animationFillMode: 'both' }}></div>
-              
-              {/* Sunset Date - TIMELINE ITEM with staggered animation - NOW USES REAL DATA */}
-              <div className="relative animate-fade-in" style={{ animationDelay: '0.5s', animationFillMode: 'both' }}>
-                {/* Timeline dot */}
-                <div className="absolute -left-10 top-1 w-4 h-4 rounded-full bg-white ring-4 ring-white/30"></div>
+
+              {/* Text content with smooth transitions */}
+              <div className={`transition-all duration-500 ${
+                isScrolled ? 'flex-1' : ''
+              }`}>
                 
-                <div className="flex items-center gap-3 mb-1">
-                  <Calendar className="w-5 h-5 text-white" />
-                  <span className="text-white/80 text-sm font-bold uppercase tracking-widest">Sunset</span>
+                {/* Name - Smooth animation */}
+                <h1 className={`font-serif transition-all duration-500 ease-in-out ${
+                  isScrolled 
+                    ? 'text-lg text-gray-900 font-semibold'
+                    : 'text-4xl md:text-5xl lg:text-6xl text-white font-bold drop-shadow-2xl mb-8'
+                }`}
+                style={{ willChange: 'font-size, color' }}>
+                  {memorial.name}
+                </h1>
+                
+                {/* Dates & Location - TIMELINE STYLE WITHOUT CARD */}
+                <div className={`transition-all duration-700 ease-in-out ${
+                  isScrolled 
+                    ? 'opacity-0 max-h-0 overflow-hidden' 
+                    : 'opacity-100 max-h-96'
+                }`}>
+                  <div className="space-y-6 relative pl-8 border-l-4 border-orange-500">
+                    
+                    {/* Birth Date - TIMELINE ITEM with staggered animation - NOW USES REAL DATA */}
+                    <div className="relative animate-fade-in" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
+                      {/* Timeline dot */}
+                      <div className="absolute -left-10 top-1 w-4 h-4 rounded-full bg-orange-500 ring-4 ring-orange-500/30"></div>
+                      
+                      <div className="flex items-center gap-3 mb-1">
+                        <Calendar className="w-5 h-5 text-orange-400" />
+                        <span className="text-orange-400 text-sm font-bold uppercase tracking-widest">Born</span>
+                      </div>
+                      <p className="text-3xl md:text-4xl text-white font-bold tracking-tight">
+                        {formatDate(memorial.birthDate)}
+                      </p>
+                    </div>
+                    
+                    {/* Connecting line animation */}
+                    <div className="absolute left-0 w-0.5 h-6 bg-gradient-to-b from-orange-500/50 to-transparent -ml-0.5 animate-fade-in" style={{ animationDelay: '0.3s', animationFillMode: 'both' }}></div>
+                    
+                    {/* Sunset Date - TIMELINE ITEM with staggered animation - NOW USES REAL DATA */}
+                    <div className="relative animate-fade-in" style={{ animationDelay: '0.5s', animationFillMode: 'both' }}>
+                      {/* Timeline dot */}
+                      <div className="absolute -left-10 top-1 w-4 h-4 rounded-full bg-white ring-4 ring-white/30"></div>
+                      
+                      <div className="flex items-center gap-3 mb-1">
+                        <Calendar className="w-5 h-5 text-white" />
+                        <span className="text-white/80 text-sm font-bold uppercase tracking-widest">Sunset</span>
+                      </div>
+                      <p className="text-3xl md:text-4xl text-white font-bold tracking-tight">
+                        {formatDate(memorial.deathDate)}
+                      </p>
+                    </div>
+                    
+                    {/* Age Display - REDESIGNED with PROPER NULL CHECK */}
+                    {age !== null && age > 0 && (
+                      <div className="relative animate-fade-in pt-2" style={{ animationDelay: '0.7s', animationFillMode: 'both' }}>
+                        <div className="flex items-center gap-2 px-4 py-3 bg-orange-500/20 rounded-lg border-l-4 border-orange-500 backdrop-blur-sm">
+                          <Sparkles className="w-5 h-5 text-orange-400" />
+                          <p className="text-white text-lg md:text-xl font-medium">
+                            <span className="font-bold text-orange-400 text-2xl">{age}</span> years of beautiful memories
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Location - TIMELINE ITEM with staggered animation */}
+                    {memorial.location && (
+                      <div className="relative animate-fade-in pt-4" style={{ animationDelay: '0.9s', animationFillMode: 'both' }}>
+                        {/* Timeline dot */}
+                        <div className="absolute -left-10 top-5 w-4 h-4 rounded-full bg-gray-300 ring-4 ring-gray-300/30"></div>
+                        
+                        <div className="flex items-center gap-3 mb-1">
+                          <MapPin className="w-5 h-5 text-gray-300" />
+                          <span className="text-gray-300 text-sm font-bold uppercase tracking-widest">Resting Place</span>
+                        </div>
+                        <p className="text-2xl md:text-3xl text-white font-bold tracking-tight">
+                          {memorial.location}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <p className="text-3xl md:text-4xl text-white font-bold tracking-tight">
-                  {formatDate(memorial.deathDate)}
-                </p>
               </div>
-              
-              {/* Age Display - REDESIGNED with PROPER NULL CHECK */}
-              {age !== null && age > 0 && (
-                <div className="relative animate-fade-in pt-2" style={{ animationDelay: '0.7s', animationFillMode: 'both' }}>
-                  <div className="flex items-center gap-2 px-4 py-3 bg-orange-500/20 rounded-lg border-l-4 border-orange-500 backdrop-blur-sm">
-                    <Sparkles className="w-5 h-5 text-orange-400" />
-                    <p className="text-white text-lg md:text-xl font-medium">
-                      <span className="font-bold text-orange-400 text-2xl">{age}</span> years of beautiful memories
+            </div>
+          </div>
+        </header>
+
+        {/* CLEAN NAVIGATION */}
+        <nav className={`sticky z-30 bg-white border-b border-gray-200 transition-all duration-300 ${
+          isScrolled ? 'top-[88px]' : 'top-0'
+        }`}>
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex justify-center">
+              <div className="flex gap-1 py-3 overflow-x-auto scrollbar-hide scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                {navigationItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = activeSection === item.id;
+                  
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        // Disable scroll detection temporarily
+                        setIsScrollDisabled(true);
+                        setActiveSection(item.id);
+                        
+                        const element = document.getElementById(item.id);
+                        if (element) {
+                          const offset = isScrolled ? 180 : 90;
+                          const elementPosition = element.getBoundingClientRect().top;
+                          const offsetPosition = elementPosition + window.pageYOffset - offset;
+                          
+                          window.scrollTo({
+                            top: offsetPosition,
+                            behavior: 'smooth'
+                          });
+                        }
+                        
+                        // Re-enable scroll detection after animation completes
+                        setTimeout(() => setIsScrollDisabled(false), 1000);
+                      }}
+                      className={`relative flex items-center gap-2 px-4 md:px-6 py-3 text-sm md:text-base font-medium whitespace-nowrap transition-all duration-300 ${
+                        isActive
+                          ? 'text-orange-600'
+                          : 'text-gray-600 hover:text-orange-600'
+                      }`}
+                    >
+                      <Icon className={`w-4 h-4 md:w-5 md:h-5 transition-all duration-300 ${
+                        isActive ? 'scale-110' : ''
+                      }`} />
+                      <span>{item.label}</span>
+                      
+                      <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-orange-600 transition-all duration-300 ${
+                        isActive ? 'opacity-100' : 'opacity-0'
+                      }`}></div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </nav>
+
+        {/* Main Content */}
+        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="space-y-8">
+            {/* Obituary Section */}
+            <section id="obituary" className="animate-fadeIn scroll-mt-2">
+              <div className="py-16 sm:py-20 px-3 sm:px-4">
+                <div className="max-w-6xl mx-auto">
+                  {/* Header matching Favorites style */}
+                  <div className="mb-8 sm:mb-12">
+                    {/* Life Story Title with Half Underline */}
+                    <div className="mb-6 sm:mb-8">
+                      <h2 className="text-4xl sm:text-5xl font-serif text-gray-800 inline-block relative">
+                        Life Story
+                        <div className="absolute -bottom-2 left-0 w-1/2 h-1 bg-amber-500 rounded-full"></div>
+                      </h2>
+                      <p className="text-sm text-gray-600 mt-2">A celebration of life</p>
+                    </div>
+                  </div>
+                  
+                  <div className="prose prose-lg max-w-none">
+                    {memorial.obituary ? (
+                      <div className="text-gray-700 leading-relaxed space-y-6">
+                        {memorial.obituary.split('\n\n').map((paragraph, idx) => (
+                          <p 
+                            key={idx} 
+                            className={`text-lg leading-8 ${
+                              idx === 0 
+                                ? 'first-letter:text-7xl first-letter:font-serif first-letter:font-bold first-letter:text-amber-600 first-letter:float-left first-letter:leading-none first-letter:mr-3 first-letter:mt-1' 
+                                : ''
+                            }`}
+                          >
+                            {paragraph}
+                          </p>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-gray-500 italic text-center py-8">No life story available</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            {/* Timeline Section */}
+            {memorial.timeline.length > 0 && (
+              <TimelineSection timeline={memorial.timeline} />
+            )}
+
+            {/* Favorites Section */}
+            {memorial.favorites.length > 0 && (
+              <FavoritesSection favorites={memorial.favorites} />
+            )}
+
+            {/* Gallery Section */}
+            {memorial.gallery.length > 0 && (
+              <GallerySection gallery={memorial.gallery} />
+            )}
+
+            {/* Tributes Section */}
+            <section id="tributes" className="animate-fadeIn scroll-mt-24 py-16 sm:py-20 px-3 sm:px-4">
+              <div className="max-w-6xl mx-auto">
+                {/* Header matching other sections */}
+                <div className="mb-8 sm:mb-12">
+                  <div className="mb-6 sm:mb-8">
+                    <h2 className="text-4xl sm:text-5xl font-serif text-gray-800 inline-block relative">
+                      Memory Wall
+                      <div className="absolute -bottom-2 left-0 w-1/2 h-1 bg-amber-500 rounded-full"></div>
+                    </h2>
+                    <p className="text-sm text-gray-600 mt-2">
+                      {memorial.tributes.length} memory{memorial.tributes.length !== 1 ? 'ies' : ''} shared
                     </p>
                   </div>
                 </div>
-              )}
-              
-              {/* Location - TIMELINE ITEM with staggered animation */}
-              {memorial.location && (
-                <div className="relative animate-fade-in pt-4" style={{ animationDelay: '0.9s', animationFillMode: 'both' }}>
-                  {/* Timeline dot */}
-                  <div className="absolute -left-10 top-5 w-4 h-4 rounded-full bg-gray-300 ring-4 ring-gray-300/30"></div>
-                  
-                  <div className="flex items-center gap-3 mb-1">
-                    <MapPin className="w-5 h-5 text-gray-300" />
-                    <span className="text-gray-300 text-sm font-bold uppercase tracking-widest">Resting Place</span>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+                  <div>
+                    <button
+                      onClick={() => {
+                        setEditingTribute(null);
+                        setShowTributeForm(true);
+                      }}
+                      className="bg-orange-400 text-white px-4 py-2.5 rounded-lg hover:bg-orange-500 transition-colors flex items-center gap-2 text-sm font-medium"
+                    >
+                      Contribute →
+                    </button>
                   </div>
-                  <p className="text-2xl md:text-3xl text-white font-bold tracking-tight">
-                    {memorial.location}
-                  </p>
                 </div>
-              )}
-            </div>
+
+                {showTributeForm && (
+                  <TributeForm
+                    memorialName={memorial.name}
+                    onSuccess={() => {
+                      fetchMemorial();
+                      setShowTributeForm(false);
+                      setEditingTribute(null);
+                    }}
+                    onCancel={() => {
+                      setShowTributeForm(false);
+                      setEditingTribute(null);
+                    }}
+                    editingTribute={editingTribute}
+                    isEdit={!!editingTribute}
+                    identifier={identifier || ''}
+                  />
+                )}
+
+                {memorial.tributes.length > 0 ? (
+                  <div className="space-y-6 sm:space-y-8">
+                    {memorial.tributes.map((tribute) => (
+                      <div key={tribute.id} className="pb-6 sm:pb-8 border-b border-gray-100 last:border-b-0 last:pb-0">
+                        <TributeCard
+                          tribute={tribute}
+                          onEdit={handleEditTribute}
+                          onDelete={handleDeleteTribute}
+                          currentSessionId={currentSessionId}
+                          onLike={toggleLike}
+                          isLiked={likedMemories.has(tribute.id || '')}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-16 bg-gray-50/50 rounded-xl">
+                    <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No memories yet</h3>
+                    <p className="text-gray-600 mb-6">Be the first to share a memory of {memorial.name}</p>
+                    <button
+                      onClick={() => setShowTributeForm(true)}
+                      className="px-6 py-2.5 bg-orange-400 hover:bg-orange-500 text-white rounded-lg transition-all font-medium"
+                    >
+                      Share Your Memory
+                    </button>
+                  </div>
+                )}
+              </div>
+            </section>
+
+            {/* Family Tree Section */}
+            <FamilyTreeSection familyTree={memorial.familyTree} />
+
+            {/* Service Section */}
+            {serviceInfo && (serviceInfo.venue || serviceInfo.date) && (
+              <ServiceSection serviceInfo={serviceInfo} />
+            )}
           </div>
+        </main>
+
+        {/* Footer */}
+        <MemorialFooter memorialName={memorial.name} />
+
+        {/* Floating Action Buttons */}
+        <div className="fixed right-4 bottom-4 z-40 flex flex-col gap-3">
+          <button
+            onClick={() => setShowShareModal(true)}
+            className="group w-14 h-14 bg-white border border-gray-300 text-gray-700 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center"
+            title="Share"
+          >
+            <Share2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
+          </button>
         </div>
+
+        {/* Share Modal */}
+        <ShareModal
+          isOpen={showShareModal}
+          onClose={() => setShowShareModal(false)}
+          memorialUrl={memorialUrl}
+          memorialName={memorial.name}
+        />
       </div>
-    </div>
-  </header>
-
-  {/* CLEAN NAVIGATION */}
-<nav className={`sticky z-30 bg-white border-b border-gray-200 transition-all duration-300 ${
-  isScrolled ? 'top-[88px]' : 'top-0'
-}`}>
-  <div className="max-w-7xl mx-auto px-4">
-    <div className="flex justify-center">
-      <div className="flex gap-1 py-3 overflow-x-auto scrollbar-hide scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-        {navigationItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeSection === item.id;
-          
-          return (
-            <button
-              key={item.id}
-              onClick={() => {
-                // Disable scroll detection temporarily
-                setIsScrollDisabled(true);
-                setActiveSection(item.id);
-                
-                const element = document.getElementById(item.id);
-                if (element) {
-                  const offset = isScrolled ? 180 : 90;
-                  const elementPosition = element.getBoundingClientRect().top;
-                  const offsetPosition = elementPosition + window.pageYOffset - offset;
-                  
-                  window.scrollTo({
-                    top: offsetPosition,
-                    behavior: 'smooth'
-                  });
-                }
-                
-                // Re-enable scroll detection after animation completes
-                setTimeout(() => setIsScrollDisabled(false), 1000);
-              }}
-              className={`relative flex items-center gap-2 px-4 md:px-6 py-3 text-sm md:text-base font-medium whitespace-nowrap transition-all duration-300 ${
-                isActive
-                  ? 'text-orange-600'
-                  : 'text-gray-600 hover:text-orange-600'
-              }`}
-            >
-              <Icon className={`w-4 h-4 md:w-5 md:h-5 transition-all duration-300 ${
-                isActive ? 'scale-110' : ''
-              }`} />
-              <span>{item.label}</span>
-              
-              <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-orange-600 transition-all duration-300 ${
-                isActive ? 'opacity-100' : 'opacity-0'
-              }`}></div>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  </div>
-</nav>
-{/* Main Content */}
-<main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-  <div className="space-y-8">
-    {/* Obituary Section */}
-        {/* Obituary Section */}
-    <section id="obituary" className="animate-fadeIn scroll-mt-2">
-  <div className="py-16 sm:py-20 px-3 sm:px-4">
-    <div className="max-w-6xl mx-auto">
-      {/* Header matching Favorites style */}
-      <div className="mb-8 sm:mb-12">
-        {/* Life Story Title with Half Underline */}
-        <div className="mb-6 sm:mb-8">
-          <h2 className="text-4xl sm:text-5xl font-serif text-gray-800 inline-block relative">
-            Life Story
-            <div className="absolute -bottom-2 left-0 w-1/2 h-1 bg-amber-500 rounded-full"></div>
-          </h2>
-          <p className="text-sm text-gray-600 mt-2">A celebration of life</p>
-        </div>
-      </div>
-      
-      <div className="prose prose-lg max-w-none">
-        {memorial.obituary ? (
-          <div className="text-gray-700 leading-relaxed space-y-6">
-            {memorial.obituary.split('\n\n').map((paragraph, idx) => (
-              <p 
-                key={idx} 
-                className={`text-lg leading-8 ${
-                  idx === 0 
-                    ? 'first-letter:text-7xl first-letter:font-serif first-letter:font-bold first-letter:text-amber-600 first-letter:float-left first-letter:leading-none first-letter:mr-3 first-letter:mt-1' 
-                    : ''
-                }`}
-              >
-                {paragraph}
-              </p>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500 italic text-center py-8">No life story available</p>
-        )}
-      </div>
-    </div>
-  </div>
-</section>
-          {/* Timeline Section */}
-          {memorial.timeline.length > 0 && (
-            <TimelineSection timeline={memorial.timeline} />
-          )}
-
-          {/* Favorites Section */}
-          {memorial.favorites.length > 0 && (
-            <FavoritesSection favorites={memorial.favorites} />
-          )}
-
-          {/* Gallery Section */}
-          {memorial.gallery.length > 0 && (
-            <GallerySection gallery={memorial.gallery} />
-          )}
-
-          {/* Tributes Section */}
-        {/* Tributes Section */}
-<section id="tributes" className="animate-fadeIn scroll-mt-24 py-16 sm:py-20 px-3 sm:px-4">
-  <div className="max-w-6xl mx-auto">
-    {/* Header matching other sections */}
-    <div className="mb-8 sm:mb-12">
-      <div className="mb-6 sm:mb-8">
-        <h2 className="text-4xl sm:text-5xl font-serif text-gray-800 inline-block relative">
-          Memory Wall
-          <div className="absolute -bottom-2 left-0 w-1/2 h-1 bg-amber-500 rounded-full"></div>
-        </h2>
-        <p className="text-sm text-gray-600 mt-2">
-          {memorial.tributes.length} memory{memorial.tributes.length !== 1 ? 'ies' : ''} shared
-        </p>
-      </div>
-    </div>
-
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-      <div>
-        <button
-          onClick={() => {
-            setEditingTribute(null);
-            setShowTributeForm(true);
-          }}
-          className="bg-orange-400 text-white px-4 py-2.5 rounded-lg hover:bg-orange-500 transition-colors flex items-center gap-2 text-sm font-medium"
-        >
-          Contribute →
-        </button>
-      </div>
-    </div>
-
-    {showTributeForm && (
-      <TributeForm
-        memorialName={memorial.name}
-        onSuccess={() => {
-          fetchMemorial();
-          setShowTributeForm(false);
-          setEditingTribute(null);
-        }}
-        onCancel={() => {
-          setShowTributeForm(false);
-          setEditingTribute(null);
-        }}
-        editingTribute={editingTribute}
-        isEdit={!!editingTribute}
-        identifier={identifier || ''}
-      />
-    )}
-
-    {memorial.tributes.length > 0 ? (
-      <div className="space-y-6 sm:space-y-8">
-        {memorial.tributes.map((tribute) => (
-          <div key={tribute.id} className="pb-6 sm:pb-8 border-b border-gray-100 last:border-b-0 last:pb-0">
-            <TributeCard
-              tribute={tribute}
-              onEdit={handleEditTribute}
-              onDelete={handleDeleteTribute}
-              currentSessionId={currentSessionId}
-              onLike={toggleLike}
-              isLiked={likedMemories.has(tribute.id || '')}
-            />
-          </div>
-        ))}
-      </div>
-    ) : (
-      <div className="text-center py-16 bg-gray-50/50 rounded-xl">
-        <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-gray-900 mb-2">No memories yet</h3>
-        <p className="text-gray-600 mb-6">Be the first to share a memory of {memorial.name}</p>
-        <button
-          onClick={() => setShowTributeForm(true)}
-          className="px-6 py-2.5 bg-orange-400 hover:bg-orange-500 text-white rounded-lg transition-all font-medium"
-        >
-          Share Your Memory
-        </button>
-      </div>
-    )}
-  </div>
-</section>
-
-          {/* Family Tree Section */}
-          <FamilyTreeSection familyTree={memorial.familyTree} />
-
-          {/* Service Section */}
-          {serviceInfo && (serviceInfo.venue || serviceInfo.date) && (
-  <ServiceSection serviceInfo={serviceInfo} />
-)}
-        </div>
-      </main>
-
-      {/* Footer */}
-      <MemorialFooter memorialName={memorial.name} />
-
-      {/* Floating Action Buttons */}
-      <div className="fixed right-4 bottom-4 z-40 flex flex-col gap-3">
-    
-        <button
-          onClick={() => setShowShareModal(true)}
-          className="group w-14 h-14 bg-white border border-gray-300 text-gray-700 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center"
-          title="Share"
-        >
-          <Share2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
-        </button>
-      </div>
-
-      {/* Share Modal */}
-      <ShareModal
-        isOpen={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        memorialUrl={memorialUrl}
-        memorialName={memorial.name}
-      />
-    </div>
     </div>
   );
 };

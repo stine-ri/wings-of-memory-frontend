@@ -75,8 +75,8 @@ const HowItWorks: React.FC = () => {
   const features = [
     {
       icon: Crown,
-      title: "First Memorial Free",
-      description: "Your first memorial PDF is completely free. No hidden costs."
+      title: "Completely Free",
+      description: "Your memorial PDF is completely free. No hidden costs."
     },
     {
       icon: Shield,
@@ -181,7 +181,7 @@ const HowItWorks: React.FC = () => {
               How It Works
             </h2>
             <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto">
-              Create a beautiful memorial in 5 simple steps. Start with our free template - no payment required.
+              Create a beautiful memorial in 5 simple steps. Everything is free - no payment required.
             </p>
           </div>
 
@@ -190,10 +190,11 @@ const HowItWorks: React.FC = () => {
             <div className="bg-gradient-to-r from-blue-500 to-indigo-500 rounded-2xl p-6 text-white text-center">
               <div className="flex items-center justify-center gap-3 mb-2">
                 <Calendar className="w-5 h-5" />
-                <span className="text-lg font-semibold">Premium Features Coming Soon!</span>
+                <span className="text-lg font-semibold">Future Features Coming Soon!</span>
               </div>
               <p className="text-blue-100">
-                We're currently offering completely free memorials. Additional features and paid plans for multiple memorials will be introduced later.
+                We're currently focused on providing the best free memorial experience. 
+                Additional features will be introduced later this year.
               </p>
             </div>
           </div>
@@ -355,7 +356,7 @@ const HowItWorks: React.FC = () => {
             </h3>
             <p className="text-orange-100 text-lg mb-6 max-w-2xl mx-auto">
               Join our growing community and create a beautiful tribute for your loved one. 
-              No payment required - your first memorial is completely free.
+              No payment required - everything is completely free.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button className="px-8 py-4 bg-white text-orange-600 rounded-xl font-bold text-lg hover:bg-orange-50 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-3">
