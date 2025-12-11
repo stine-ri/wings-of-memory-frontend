@@ -284,3 +284,15 @@ body > div.fixed.inset-0 .relative.z-\[10000\] {
   position: relative !important;
   z-index: 2 !important;
 }
+/* Add to your global CSS file */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 100px; /* Adjust based on your header height */
+}
+
+/* Ensure transitions are GPU-accelerated */
+.transition-all {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000;
+}

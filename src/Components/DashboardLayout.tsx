@@ -1,8 +1,8 @@
-// Components/DashboardLayout.tsx - FIXED VERSION
+// Components/DashboardLayout.tsx - CLEANED VERSION (White line removed)
 import React, { useState, useEffect } from 'react';
 import { 
   LayoutDashboard, User, Clock, Heart, Users, Images, Calendar,
-  Download, Menu, LogOut, X, ChevronDown, Plus
+  Download, Menu, LogOut, X, ChevronDown, Plus, Globe, AlertCircle
 } from 'lucide-react';
 
 interface UserData {
@@ -139,63 +139,64 @@ const MemorialSelector: React.FC<{
   );
 };
 
-// Data Status Indicator Component
-const DataStatusIndicator: React.FC<{
+// Status Bar Component
+const StatusBar: React.FC<{
+  memorialData: MemorialData | null;
   dataStatus?: {
     loading?: boolean;
     error?: string | null;
     integrity?: DataIntegrityCheck;
   };
-}> = ({ dataStatus }) => {
-  if (!dataStatus) return null;
+}> = ({ memorialData, dataStatus }) => {
+  return (
+    <div className="flex items-center justify-between bg-gradient-to-r from-amber-50 to-orange-50 px-4 py-2">
+      {/* Left side - Status Indicators */}
+      <div className="flex items-center gap-3">
+        {/* Publication Status */}
+        {memorialData?.isPublished && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg shadow-sm">
+            <Globe className="w-3 h-3" />
+            <span className="text-xs font-medium">Published</span>
+          </div>
+        )}
+        
+        {/* Loading State */}
+        {dataStatus?.loading && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-100 text-blue-700 rounded-lg border border-blue-200">
+            <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-500"></div>
+            <span className="text-xs">Loading...</span>
+          </div>
+        )}
 
-  if (dataStatus.loading) {
-    return (
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-        <div className="flex items-center">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
-          <span className="text-blue-700 text-sm">Loading memorial data...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (dataStatus.error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-4">
-        <div className="flex items-center">
-          <svg className="w-4 h-4 text-red-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-          </svg>
-          <span className="text-red-700 text-sm">Error: {dataStatus.error}</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (dataStatus.integrity && !dataStatus.integrity.isComplete) {
-    return (
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <svg className="w-4 h-4 text-yellow-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-            </svg>
-            <span className="text-yellow-700 text-sm">
-              Data incomplete ({dataStatus.integrity.loadedSections}/{dataStatus.integrity.totalSections} sections loaded)
+        {/* Data Integrity Warning */}
+        {dataStatus?.integrity && !dataStatus.integrity.isComplete && !dataStatus.loading && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-100 text-amber-800 rounded-lg border border-amber-200">
+            <AlertCircle className="w-3 h-3" />
+            <span className="text-xs">
+              {dataStatus.integrity.loadedSections}/{dataStatus.integrity.totalSections} sections complete
             </span>
           </div>
-          {dataStatus.integrity.missingSections.length > 0 && (
-            <span className="text-yellow-600 text-xs bg-yellow-100 px-2 py-1 rounded">
-              {dataStatus.integrity.missingSections.length} missing
-            </span>
-          )}
-        </div>
-      </div>
-    );
-  }
+        )}
 
-  return null;
+        {/* Error State */}
+        {dataStatus?.error && !dataStatus.loading && (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-red-100 text-red-700 rounded-lg border border-red-200">
+            <AlertCircle className="w-3 h-3" />
+            <span className="text-xs">Data error</span>
+          </div>
+        )}
+      </div>
+
+      {/* Right side - Quick Stats (optional) */}
+      <div className="hidden md:flex items-center gap-4 text-xs text-gray-600">
+        {dataStatus?.integrity && (
+          <span className="font-medium">
+            {dataStatus.integrity.loadedSections} of {dataStatus.integrity.totalSections} sections loaded
+          </span>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
@@ -207,7 +208,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   currentMemorialId = '',
   onSelectMemorial,
   onCreateNew,
-  dataStatus, // Add the dataStatus prop
+  dataStatus,
 }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [user, setUser] = useState<UserData | null>(null);
@@ -242,7 +243,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         fixed top-0 bottom-0 left-0 z-50 w-[85vw] max-w-sm bg-white shadow-2xl transform transition-all duration-300 ease-in-out lg:translate-x-0 lg:sticky lg:top-0 lg:z-30 lg:w-80
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <div className="flex flex-col h-full border-r-2 border-gray-200">
+        <div className="flex flex-col h-full">
           {/* Mobile Header */}
           <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-200 bg-white">
             <h2 className="text-lg font-semibold text-gray-800">Menu</h2>
@@ -253,12 +254,9 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               <X className="w-5 h-5" />
             </button>
           </div>
-
-          {/* Decorative Top Bar */}
-          <div className="hidden lg:block h-1 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400"></div>
           
-          {/* Header with User Info */}
-          <div className="p-3 lg:p-6 border-b-2 border-gray-200 bg-gradient-to-br from-amber-50 to-orange-50 space-y-3">
+          {/* Header with User Info - NO SEPARATOR LINE */}
+          <div className="p-3 lg:p-6 bg-gradient-to-br from-amber-50 to-orange-50 space-y-3">
             {/* User Info */}
             {user && (
               <div className="flex items-center gap-3 p-3 bg-white rounded-xl shadow-sm border border-amber-200">
@@ -270,7 +268,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-gray-800 truncate">{user.name}</p>
                   <p className="text-xs text-gray-600 truncate mt-0.5">{user.email}</p>
-
                 </div>
               </div>
             )}
@@ -325,10 +322,10 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-h-screen w-full lg:w-auto">
-        {/* Decorative Line */}
-        <div className="hidden lg:block h-1 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-400"></div>
+        {/* Status Bar - Replaces the old status indicators */}
+        <StatusBar memorialData={memorialData} dataStatus={dataStatus} />
         
-        {/* Top bar */}
+        {/* Top bar - Clean without status indicators */}
         <header className="bg-white shadow-sm border-b border-gray-200 shrink-0 sticky top-0 z-40">
           <div className="flex items-center justify-between px-4 py-3 sm:px-6">
             <div className="flex items-center gap-3">
@@ -350,23 +347,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
               </div>
             </div>
 
-            {/* Status indicator */}
-            <div className="flex items-center gap-2">
-              {memorialData?.isPublished && (
-                <div className="px-3 py-1.5 bg-green-100 text-green-800 rounded-full text-xs font-medium border border-green-200 whitespace-nowrap">
-                  <span className="hidden xs:inline">✓ Published</span>
-                  <span className="xs:hidden">✓ Live</span>
-                </div>
-              )}
-              
-              {/* Data Status Badge */}
-              {dataStatus?.integrity && !dataStatus.integrity.isComplete && (
-                <div className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs font-medium border border-yellow-200 whitespace-nowrap">
-                  <span className="hidden sm:inline">⚠ Incomplete</span>
-                  <span className="sm:hidden">⚠</span>
-                </div>
-              )}
-            </div>
+            {/* No status badges here - they're in StatusBar */}
           </div>
         </header>
 
@@ -385,9 +366,6 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 <p className="text-gray-600 text-sm xs:text-base">Share and download memorial</p>
               )}
             </div>
-            
-            {/* Data Status Indicator */}
-            <DataStatusIndicator dataStatus={dataStatus} />
             
             {/* Content area */}
             <div className="bg-white rounded-lg xs:rounded-xl lg:rounded-2xl shadow-sm border border-gray-200 p-4 xs:p-6 min-h-[60vh]">

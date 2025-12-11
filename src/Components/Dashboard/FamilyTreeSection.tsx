@@ -7,13 +7,21 @@ interface FamilyMember {
   name: string;
   image?: string;
   relation: string;
+  isDeceased?: boolean;
+  birthYear?: string;
+  deathYear?: string;
 }
+
 interface RawFamilyMember {
   id?: string;
   name?: string;
   image?: string;
   relation?: string;
+  isDeceased?: boolean;
+  birthYear?: string;
+  deathYear?: string;
 }
+
 export const FamilyTreeSection: React.FC = () => {
   const { memorialData, updateFamilyTree } = useMemorial();
   const [members, setMembers] = useState<FamilyMember[]>([]);
@@ -36,11 +44,14 @@ export const FamilyTreeSection: React.FC = () => {
           ? memorialData.familyTree 
           : [];
         
-        const safeMembers = familyTreeData.map((member: RawFamilyMember ) => ({
+        const safeMembers = familyTreeData.map((member: RawFamilyMember) => ({
           id: member.id || crypto.randomUUID(),
           name: member.name || '',
           image: member.image || '',
-          relation: member.relation || 'Spouse'
+          relation: member.relation || 'Spouse',
+          isDeceased: member.isDeceased || false,
+          birthYear: member.birthYear || '',
+          deathYear: member.deathYear || ''
         })) as FamilyMember[];
         
         setMembers(safeMembers);
@@ -124,14 +135,17 @@ export const FamilyTreeSection: React.FC = () => {
   const relationOptions = [
     'Father', 'Mother', 'Spouse', 'Son', 'Daughter', 'Brother', 'Sister',
     'Grandfather', 'Grandmother', 'Grandson', 'Granddaughter', 'Uncle', 'Aunt',
-    'Cousin', 'Nephew', 'Niece', 'Father-in-law', 'Mother-in-law'
+    'Cousin', 'Nephew', 'Niece', 'Father-in-law', 'Mother-in-law', 'Self', 'Memorialized'
   ];
 
   const handleAddMember = () => {
     setEditingMember({
       id: 'new-' + Date.now(),
       name: '',
-      relation: 'Spouse'
+      relation: 'Spouse',
+      isDeceased: false,
+      birthYear: '',
+      deathYear: ''
     });
     setShowForm(true);
   };
@@ -189,6 +203,14 @@ export const FamilyTreeSection: React.FC = () => {
       return;
     }
 
+    // Validate dates
+    if (editingMember.isDeceased && editingMember.deathYear && editingMember.birthYear) {
+      if (parseInt(editingMember.deathYear) < parseInt(editingMember.birthYear)) {
+        alert('Death year must be after birth year.');
+        return;
+      }
+    }
+
     let newMembers: FamilyMember[];
     if (editingMember.id.startsWith('new-')) {
       newMembers = [...members, { ...editingMember, id: Date.now().toString() }];
@@ -205,9 +227,27 @@ export const FamilyTreeSection: React.FC = () => {
     setMembers(prev => prev.filter(m => m.id !== id));
   };
 
+  // Toggle deceased status
+  const handleToggleDeceased = () => {
+    if (editingMember) {
+      const updatedMember = {
+        ...editingMember,
+        isDeceased: !editingMember.isDeceased
+      };
+      setEditingMember(updatedMember);
+      
+      // Clear death year if marking as not deceased
+      if (!updatedMember.isDeceased) {
+        setEditingMember(prev => prev ? { ...prev, deathYear: '' } : null);
+      }
+    }
+  };
+
   // Calculate stats
   const stats = {
     total: members.length,
+    deceased: members.filter(m => m.isDeceased).length,
+    living: members.filter(m => !m.isDeceased).length,
     relationships: new Set(members.map(m => m.relation)).size,
     withPhotos: members.filter(m => m.image).length,
     needsPhotos: members.filter(m => !m.image).length
@@ -268,10 +308,18 @@ export const FamilyTreeSection: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
           <div className="text-2xl font-bold text-gray-800">{stats.total}</div>
           <div className="text-sm text-gray-600">Total Members</div>
+        </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
+          <div className="text-2xl font-bold text-green-600">{stats.living}</div>
+          <div className="text-sm text-gray-600">Living</div>
+        </div>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
+          <div className="text-2xl font-bold text-gray-600">{stats.deceased}</div>
+          <div className="text-sm text-gray-600">Deceased</div>
         </div>
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
           <div className="text-2xl font-bold text-gray-800">{stats.relationships}</div>
@@ -296,17 +344,23 @@ export const FamilyTreeSection: React.FC = () => {
           
           <div className="flex flex-col md:flex-row gap-6 mb-6">
             {/* Image Upload */}
-            <div className="flex-shrink-0">
-              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg bg-gray-200 mb-4">
+            <div className="shrink-0">
+              <div className={`w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg mb-4 ${
+                editingMember.isDeceased ? 'bg-gray-200 opacity-75' : 'bg-gray-100'
+              }`}>
                 {editingMember.image ? (
                   <img 
                     src={editingMember.image} 
                     alt="Preview" 
-                    className="w-full h-full object-cover"
+                    className={`w-full h-full object-cover ${editingMember.isDeceased ? 'grayscale' : ''}`}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    <span className="text-4xl">👤</span>
+                    {editingMember.isDeceased ? (
+                      <span className="text-4xl">🕊️</span>
+                    ) : (
+                      <span className="text-4xl">👤</span>
+                    )}
                   </div>
                 )}
               </div>
@@ -349,6 +403,65 @@ export const FamilyTreeSection: React.FC = () => {
                   ))}
                 </select>
               </div>
+
+              {/* Deceased Toggle */}
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      checked={editingMember.isDeceased || false}
+                      onChange={handleToggleDeceased}
+                      className="sr-only"
+                    />
+                    <div className={`w-12 h-6 rounded-full transition-colors duration-200 ${
+                      editingMember.isDeceased ? 'bg-gray-700' : 'bg-gray-300'
+                    }`}>
+                      <div className={`w-5 h-5 bg-white rounded-full transform transition-transform duration-200 ${
+                        editingMember.isDeceased ? 'translate-x-7' : 'translate-x-1'
+                      }`}></div>
+                    </div>
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">
+                    {editingMember.isDeceased ? 'Deceased' : 'Living'}
+                  </span>
+                </label>
+                
+                {editingMember.isDeceased && (
+                  <span className="text-xs text-gray-500 flex items-center gap-1">
+                    <span className="w-2 h-2 bg-gray-600 rounded-full"></span>
+                    Will appear in "In Loving Memory" section
+                  </span>
+                )}
+              </div>
+
+              {/* Birth Year */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Birth Year (Optional)</label>
+                <input
+                  type="text"
+                  value={editingMember.birthYear || ''}
+                  onChange={(e) => setEditingMember(prev => prev ? { ...prev, birthYear: e.target.value } : null)}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  placeholder="e.g., 1950"
+                  maxLength={4}
+                />
+              </div>
+
+              {/* Death Year (only for deceased) */}
+              {editingMember.isDeceased && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Death Year (Optional)</label>
+                  <input
+                    type="text"
+                    value={editingMember.deathYear || ''}
+                    onChange={(e) => setEditingMember(prev => prev ? { ...prev, deathYear: e.target.value } : null)}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                    placeholder="e.g., 2023"
+                    maxLength={4}
+                  />
+                </div>
+              )}
             </div>
           </div>
 
@@ -376,18 +489,33 @@ export const FamilyTreeSection: React.FC = () => {
       {/* Family Members Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         {members.map((member) => (
-          <div key={member.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center hover:shadow-md transition-shadow">
+          <div key={member.id} className={`bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center hover:shadow-md transition-shadow relative ${
+            member.isDeceased ? 'opacity-90' : ''
+          }`}>
+            {/* Deceased Indicator */}
+            {member.isDeceased && (
+              <div className="absolute top-2 right-2 bg-gray-800 text-white text-xs px-2 py-1 rounded-full">
+                ✝ Deceased
+              </div>
+            )}
+            
             <div className="relative inline-block mb-4">
-              <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-lg bg-gray-200 mx-auto">
+              <div className={`w-20 h-20 rounded-full overflow-hidden border-4 border-white shadow-lg mx-auto ${
+                member.isDeceased ? 'bg-gray-200' : 'bg-gray-100'
+              }`}>
                 {member.image ? (
                   <img 
                     src={member.image} 
                     alt={member.name} 
-                    className="w-full h-full object-cover"
+                    className={`w-full h-full object-cover ${member.isDeceased ? 'grayscale' : ''}`}
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-gray-400">
-                    <span className="text-2xl">👤</span>
+                    {member.isDeceased ? (
+                      <span className="text-2xl">🕊️</span>
+                    ) : (
+                      <span className="text-2xl">👤</span>
+                    )}
                   </div>
                 )}
               </div>
@@ -411,6 +539,18 @@ export const FamilyTreeSection: React.FC = () => {
             </div>
             <h3 className="font-semibold text-gray-800 mb-1">{member.name}</h3>
             <p className="text-sm text-amber-600 font-medium">{member.relation}</p>
+            
+            {/* Years Information */}
+            {(member.birthYear || member.deathYear) && (
+              <p className="text-xs text-gray-500 mt-2">
+                {member.birthYear && member.deathYear 
+                  ? `${member.birthYear} - ${member.deathYear}`
+                  : member.birthYear 
+                    ? `Born ${member.birthYear}`
+                    : `Passed ${member.deathYear}`
+                }
+              </p>
+            )}
           </div>
         ))}
       </div>

@@ -7,7 +7,7 @@ import {
   Facebook, Twitter, Mail, Link, MessageSquare,
   Check, User, Star,
   ChevronDown,
-  Smartphone, ChevronUp, 
+   ChevronUp, 
     Trash2, 
   Video, Plus,
   Play, Pause, 
@@ -53,8 +53,10 @@ interface FamilyMember {
   relation: string;
   isDeceased?: boolean;
   children?: FamilyMember[];
-  spouse?: string;
-  parentId?: string;
+  spouse?: string | null; 
+   parentId?: string | null;
+  birthYear?: string | number;
+  deathYear?: string | number;
 }
 
 interface GalleryImage {
@@ -388,22 +390,30 @@ const handleSubmit = async (e: React.FormEvent) => {
           </label>
         </div>
 
-        {!formData.isAnonymous && (
-          <div>
-            <label className="block text-gray-700 mb-2 text-sm font-medium">Your Name *</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-400 text-sm sm:text-base"
-              placeholder="Enter your name"
-              required={!formData.isAnonymous}
-            />
-          </div>
-        )}
+       {!formData.isAnonymous && (
+  <div>
+    <label className="block text-gray-700 mb-2 text-sm font-medium">Your First Name *</label>
+    <input
+      type="text"
+      value={formData.name}
+      onChange={(e) => {
+        // Only allow letters, spaces, hyphens, and apostrophes
+        const value = e.target.value;
+        // Extract only the first word (first name)
+        const firstName = value.trim().split(/\s+/)[0];
+        setFormData({ ...formData, name: firstName });
+      }}
+      className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-orange-400 text-sm sm:text-base"
+      placeholder="Enter your first name only"
+      maxLength={20}
+      required={!formData.isAnonymous}
+    />
+    <p className="text-xs text-gray-500 mt-1">Only your first name will be displayed</p>
+  </div>
+)}
 
         <div>
-          <label className="block text-gray-700 mb-2 text-sm font-medium">Location (Optional)</label>
+          <label className="block text-gray-700 mb-2 text-sm font-medium">Location </label>
           <input
             type="text"
             value={formData.location}
@@ -796,14 +806,9 @@ const GallerySection: React.FC<{ gallery: GalleryImage[] }> = ({ gallery }) => {
 };
 
 // Enhanced Family Tree with Relationship Lines
-import { motion, AnimatePresence } from 'framer-motion';
-
-// Enhanced Family Tree with Relationship Lines using Framer Motion
-
-
+import { motion } from 'framer-motion';
 
 const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTree }) => {
-  const [expandedMembers, setExpandedMembers] = useState<Set<string>>(new Set());
   const [hoveredMember, setHoveredMember] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
@@ -814,497 +819,454 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
       setIsMobile(isMobileDevice);
     };
     
-    // Check immediately
     checkMobile();
-    
-    // Listen for resize
     window.addEventListener('resize', checkMobile);
-    
-    // Cleanup
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  if (familyTree.length === 0) return null;
+  if (familyTree.length === 0) {
+    return (
+      <section id="family" className="py-12 sm:py-16 lg:py-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-6xl mx-auto">
+          <div className="mb-8 sm:mb-12">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-serif text-gray-800 inline-block relative">
+              Family Tree
+              <div className="absolute -bottom-2 left-0 w-1/2 h-1 bg-amber-500 rounded-full"></div>
+            </h2>
+            <p className="text-sm text-gray-600 mt-3">
+              Family information coming soon
+            </p>
+          </div>
+          <div className="text-center py-12 bg-gray-50 rounded-xl">
+            <p className="text-gray-500">No family members to display yet.</p>
+          </div>
+        </div>
+      </section>
+    );
+  }
 
-  const toggleMember = (memberId: string) => {
-    const newExpanded = new Set(expandedMembers);
-    if (newExpanded.has(memberId)) {
-      newExpanded.delete(memberId);
-    } else {
-      newExpanded.add(memberId);
+  // Organize family members into generations
+  const organizeFamilyTree = () => {
+    let mainPerson = familyTree.find(m => 
+      m.relation?.toLowerCase() === 'memorialized' || 
+      m.relation?.toLowerCase() === 'self'
+    );
+
+    if (!mainPerson) {
+      mainPerson = familyTree.find(m => m.isDeceased);
     }
-    setExpandedMembers(newExpanded);
+
+    if (!mainPerson) {
+      mainPerson = familyTree[0];
+    }
+
+    const generations = {
+      parents: [] as FamilyMember[],
+      main: [] as FamilyMember[],
+      spouse: [] as FamilyMember[],
+      siblings: [] as FamilyMember[],
+      children: [] as FamilyMember[],
+      grandchildren: [] as FamilyMember[],
+      others: [] as FamilyMember[]
+    };
+
+    familyTree.forEach(member => {
+      const relation = member.relation?.toLowerCase() || '';
+      
+      if (member.id === mainPerson?.id) {
+        generations.main.push(member);
+      } 
+      else if (relation.includes('spouse') || relation.includes('partner') || relation.includes('husband') || relation.includes('wife')) {
+        generations.spouse.push(member);
+      }
+      else if (relation.includes('daughter') || relation.includes('son') || relation.includes('child')) {
+        generations.children.push(member);
+      }
+      else if (relation.includes('grand')) {
+        generations.grandchildren.push(member);
+      }
+      else if (relation.includes('sister') || relation.includes('brother') || relation.includes('sibling')) {
+        generations.siblings.push(member);
+      }
+      else if (relation.includes('mother') || relation.includes('father') || relation.includes('parent')) {
+        generations.parents.push(member);
+      }
+      else {
+        generations.others.push(member);
+      }
+    });
+
+    return { mainPerson, generations };
   };
 
-  const getChildren = (memberId: string): FamilyMember[] => {
-    return familyTree.filter(m => m.parentId === memberId);
-  };
+  const { mainPerson, generations } = organizeFamilyTree();
 
-  const getSpouse = (memberId: string): FamilyMember | undefined => {
-    const member = familyTree.find(m => m.id === memberId);
-    return member?.spouse ? familyTree.find(m => m.id === member.spouse) : undefined;
-  };
-
-  // Get the main person (the one being memorialized)
-  const mainPerson = familyTree.find(m => m.isDeceased) || 
-                     familyTree.find(m => !m.parentId && !m.spouse) || 
-                     familyTree[0];
-
-  // Organize family structure
-  const parents = familyTree.filter(m => m.parentId === null && m.id !== mainPerson?.id);
-  const mainPersonSpouse = mainPerson?.spouse ? familyTree.find(m => m.id === mainPerson.spouse) : null;
-  const mainPersonChildren = mainPerson ? getChildren(mainPerson.id) : [];
-  const spouseChildren = mainPersonSpouse ? getChildren(mainPersonSpouse.id) : [];
-  const allChildren = [...new Set([...mainPersonChildren, ...spouseChildren])];
-  const siblings = mainPerson?.parentId 
-    ? familyTree.filter(m => m.parentId === mainPerson.parentId && m.id !== mainPerson.id)
-    : [];
-
-  // Get all displayed member IDs to find other relatives
-  const displayedMemberIds = new Set([
-    ...parents.map(p => p.id),
-    mainPerson?.id,
-    mainPersonSpouse?.id,
-    ...siblings.map(s => s.id),
-    ...allChildren.map(c => c.id)
-  ].filter(Boolean) as string[]);
-
-  // Get other relatives not in the main structure
-  const otherRelatives = familyTree.filter(member => 
-    !displayedMemberIds.has(member.id)
-  );
-
-  // Member Card Component - Timeline Style
+  // Member Card Component
   const MemberCard: React.FC<{ 
-    member: FamilyMember; 
-    index: number;
-    showSpouse?: boolean;
-  }> = ({ member, index, showSpouse = true }) => {
-    const children = getChildren(member.id);
-    const spouse = getSpouse(member.id);
-    const hasChildren = children.length > 0;
-    const isExpanded = expandedMembers.has(member.id);
+    member: FamilyMember;
+    isMain?: boolean;
+    generation?: string;
+  }> = ({ member, isMain = false, generation = '' }) => {
     const isHovered = hoveredMember === member.id;
-    const isMainPerson = member.id === mainPerson?.id;
+    const isDeceased = member.isDeceased;
+
+    // Color scheme based on generation - REMOVED BG COLORS
+    const colorScheme = {
+      parent: { border: 'border-blue-400', text: 'text-blue-700', badge: 'bg-blue-500' },
+      main: { border: 'border-purple-500', text: 'text-purple-800', badge: 'bg-purple-600' },
+      spouse: { border: 'border-pink-400', text: 'text-pink-700', badge: 'bg-pink-500' },
+      child: { border: 'border-green-400', text: 'text-green-700', badge: 'bg-green-500' },
+      grandchild: { border: 'border-amber-400', text: 'text-amber-700', badge: 'bg-amber-500' },
+      default: { border: 'border-gray-300', text: 'text-gray-700', badge: 'bg-gray-500' }
+    };
+
+    const colors = isMain ? colorScheme.main :
+                   generation === 'spouse' ? colorScheme.spouse :
+                   generation === 'child' ? colorScheme.child :
+                   generation === 'parent' ? colorScheme.parent :
+                   generation === 'grandchild' ? colorScheme.grandchild :
+                   colorScheme.default;
 
     return (
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.4, delay: index * 0.1 }}
-        onMouseEnter={() => setHoveredMember(member.id)}
-        onMouseLeave={() => setHoveredMember(null)}
+        transition={{ duration: 0.3 }}
+        whileHover={{ scale: isMobile ? 1 : 1.03 }}
+        onMouseEnter={() => !isMobile && setHoveredMember(member.id)}
+        onMouseLeave={() => !isMobile && setHoveredMember(null)}
         className="relative"
       >
-        {/* Glow effect on hover */}
-        {isHovered && (
-          <motion.div 
-            className={`absolute inset-0 rounded-lg blur-xl opacity-30 ${
-              member.isDeceased ? 'bg-gray-400' : 
-              isMainPerson ? 'bg-purple-400' : 'bg-amber-400'
-            }`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 0.3 }}
-            transition={{ duration: 0.3 }}
-          />
-        )}
-
-        <div className={`border-2 rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-lg transition-all relative ${
-          member.isDeceased 
-            ? 'border-gray-300' 
-            : isMainPerson 
-              ? 'border-purple-400' 
-              : 'border-amber-300'
-        }`}>
-          {/* Member Info Row */}
-          <div className="flex items-center gap-3 mb-3">
-            {/* Profile Image */}
-            <div className={`relative ${
-              isMainPerson ? 'w-16 h-16' : 'w-12 h-12'
-            } rounded-full overflow-hidden flex-shrink-0 ${
-              member.isDeceased ? 'border-2 border-gray-300' : 
-              isMainPerson ? 'border-3 border-purple-400' : 'border-2 border-amber-400'
-            }`}>
-              {member.image ? (
-                <img 
-                  src={member.image} 
-                  alt={member.name} 
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <User className={`${isMainPerson ? 'w-8 h-8' : 'w-6 h-6'} ${
-                    member.isDeceased ? 'text-gray-400' : 
-                    isMainPerson ? 'text-purple-500' : 'text-amber-500'
-                  }`} />
-                </div>
-              )}
-
-              {/* Status Badge Overlays */}
-              {member.isDeceased && (
-                <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-gray-700 text-white text-xs px-2 py-0.5 rounded-full whitespace-nowrap">
-                  ✝
-                </div>
-              )}
-              {isMainPerson && !member.isDeceased && (
-                <motion.div 
-                  className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-br from-purple-500 to-purple-700 rounded-full border-2 border-white flex items-center justify-center"
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  transition={{ delay: 0.3, type: "spring" }}
-                >
-                  <Star className="w-2.5 h-2.5 text-white" />
-                </motion.div>
-              )}
-            </div>
-
-            {/* Name and Relation */}
-            <div className="flex-1 min-w-0">
-              <h3 className={`font-bold truncate ${
-                isMainPerson ? 'text-lg' : 'text-base'
-              } ${
-                member.isDeceased ? 'text-gray-600' : 
-                isMainPerson ? 'text-purple-800' : 'text-gray-900'
-              }`}>
-                {member.name}
-              </h3>
-              <p className={`text-xs px-2 py-1 rounded-full inline-block ${
-                member.isDeceased 
-                  ? 'text-gray-600' 
-                  : isMainPerson 
-                    ? 'text-purple-700' 
-                    : 'text-amber-700'
-              }`}>
-                {member.relation}
-              </p>
-            </div>
-
-            {/* Spouse Badge */}
-            {spouse && showSpouse && (
-              <div className="flex-shrink-0">
-                <div className="w-8 h-8 bg-gradient-to-br from-pink-400 to-pink-600 rounded-full flex items-center justify-center">
-                  <Heart className="w-4 h-4 text-white" />
-                </div>
-              </div>
-            )}
+        <div className={`relative bg-white rounded-xl sm:rounded-2xl p-3 sm:p-5 shadow-sm hover:shadow-md transition-all duration-300 border-2 ${colors.border} ${
+          isHovered && !isMobile ? 'ring-2 ring-opacity-30' : ''
+        } ${isMain ? 'ring-purple-200' : ''}`}>
+          
+          {/* Generation Badge - Smaller on mobile */}
+          <div className={`absolute -top-2 sm:-top-3 -right-2 sm:-right-3 ${colors.badge} text-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold shadow-sm sm:shadow-lg flex items-center gap-1`}>
+            {isMain ? '★' : 
+             generation === 'spouse' ? '❤️' : 
+             generation === 'child' ? '👶' :
+             generation === 'parent' ? '👨‍👩' :
+             generation === 'grandchild' ? '🌟' :
+             '👤'}
+            <span className="hidden sm:inline">
+              {isMain ? ' Memorial' : 
+               generation === 'spouse' ? ' Spouse' : 
+               generation === 'child' ? ' Child' :
+               generation === 'parent' ? ' Parent' :
+               generation === 'grandchild' ? ' Grand' :
+               ''}
+            </span>
           </div>
 
-          {/* Spouse Info Section */}
-          {spouse && showSpouse && (
-            <div className="mt-3 pt-3 border-t-2 border-pink-100 -mx-4 -mb-4 px-4 pb-4 rounded-b-xl">
-              <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-pink-300">
-                  {spouse.image ? (
-                    <img src={spouse.image} alt={spouse.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <User className="w-5 h-5 text-pink-600" />
-                    </div>
-                  )}
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold text-sm text-gray-800">{spouse.name}</p>
-                  <p className="text-xs text-gray-600">{spouse.relation}</p>
-                </div>
-                <Heart className="w-4 h-4 text-pink-500" />
-              </div>
+          {/* Deceased Ribbon - Smaller on mobile */}
+          {isDeceased && (
+            <div className="absolute -top-1.5 sm:-top-2 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-2 sm:px-4 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-semibold shadow-sm sm:shadow-lg flex items-center gap-1 sm:gap-1.5 z-10">
+              <span className="text-xs sm:text-sm">✝</span>
+              <span className="hidden sm:inline">In Memory</span>
             </div>
           )}
 
-          {/* Children Toggle */}
-          {hasChildren && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation(); // Prevent event bubbling
-                e.preventDefault(); // Prevent default behavior
-                toggleMember(member.id);
-              }}
-              className="mt-3 w-full flex items-center justify-center gap-2 text-xs text-gray-600 hover:text-amber-600 py-2 border-t border-gray-200 transition-colors"
-            >
-              <Users className="w-3 h-3" />
-              {isExpanded ? 'Hide' : 'Show'} {children.length} child{children.length > 1 ? 'ren' : ''}
-              <motion.div
-                animate={{ rotate: isExpanded ? 180 : 0 }}
-                transition={{ duration: 0.3 }}
-              >
-                <ChevronDown className="w-3 h-3" />
-              </motion.div>
-            </button>
-          )}
-        </div>
-
-        {/* Expanded Children Panel */}
-        <AnimatePresence>
-          {isExpanded && hasChildren && (
-            <motion.div
-              className="mt-4 ml-8 pl-6 border-l-2 border-amber-300 space-y-3"
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3 }}
-            >
-              {children.map((child, idx) => (
-                <motion.div
-                  key={child.id}
-                  className="relative"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                >
-                  {/* Horizontal connection line */}
-                  <div className="absolute -left-6 top-1/2 w-6 h-0.5 bg-amber-300"></div>
-                  
-                  <div className="border border-gray-200 rounded-lg p-3 hover:border-amber-300 transition-colors">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full overflow-hidden border border-gray-200">
-                        {child.image ? (
-                          <img src={child.image} alt={child.name} className="w-full h-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <User className="w-4 h-4 text-gray-400" />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-semibold truncate ${child.isDeceased ? 'text-gray-500' : 'text-gray-800'}`}>
-                          {child.name}
-                        </p>
-                        <p className="text-xs text-gray-500 truncate">{child.relation}</p>
-                      </div>
-                      {child.isDeceased && (
-                        <span className="text-xs text-gray-500">✝</span>
-                      )}
-                    </div>
+          {/* Profile Image or Placeholder */}
+          <div className="flex flex-col items-center mt-1 sm:mt-2">
+            <div className={`relative mb-2 sm:mb-4 ${isMain ? 'w-16 h-16 sm:w-28 sm:h-28' : 'w-14 h-14 sm:w-24 sm:h-24'}`}>
+              <div className={`w-full h-full rounded-full overflow-hidden border-2 sm:border-4 ${colors.border} shadow-sm sm:shadow-lg ${
+                isDeceased ? 'opacity-75 grayscale' : ''
+              }`}>
+                {member.image ? (
+                  <img 
+                    src={member.image} 
+                    alt={member.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className={`w-full h-full flex flex-col items-center justify-center ${
+                    isDeceased ? 'bg-gray-100' : 'bg-gray-50'
+                  }`}>
+                    {isDeceased ? (
+                      <>
+                        <div className="text-xl sm:text-3xl mb-0.5 sm:mb-1">🕊️</div>
+                        <div className="text-[8px] sm:text-xs text-gray-500 font-medium hidden sm:block">Rest in Peace</div>
+                      </>
+                    ) : (
+                      <User className={`w-6 h-6 sm:w-10 sm:h-10 ${colors.text} opacity-60`} />
+                    )}
                   </div>
-                </motion.div>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+                )}
+              </div>
+              
+              {/* Relationship Indicator Ring - Hidden on mobile */}
+              {isMain && !isMobile && (
+                <div className="absolute inset-0 rounded-full border-2 sm:border-4 border-purple-400 animate-pulse"></div>
+              )}
+            </div>
+
+            {/* Name and Details */}
+            <div className="text-center w-full">
+              <h3 className={`font-bold mb-1 ${isMain ? 'text-base sm:text-xl' : 'text-sm sm:text-lg'} ${
+                isDeceased ? 'text-gray-700' : colors.text
+              } line-clamp-2`}>
+                {member.name}
+              </h3>
+              
+              {/* Relation Badge - Smaller on mobile */}
+              <div className={`inline-flex items-center gap-1 px-2 sm:px-3 py-0.5 sm:py-1.5 rounded-full text-[10px] sm:text-sm font-semibold ${
+                isDeceased ? 'bg-gray-100 text-gray-600' : 'bg-white text-gray-700'
+              } border ${colors.border}`}>
+                {generation === 'spouse' && <Heart className="w-2 h-2 sm:w-3 sm:h-3" />}
+                {generation === 'child' && <Users className="w-2 h-2 sm:w-3 sm:h-3" />}
+                {member.relation}
+              </div>
+
+              {/* Additional Info - Hidden on mobile if no space */}
+              {member.birthYear && (
+                <p className="text-[10px] sm:text-xs text-gray-500 mt-1 sm:mt-2">
+                  {isDeceased && member.deathYear 
+                    ? `${member.birthYear} - ${member.deathYear}`
+                    : `Born ${member.birthYear}`
+                  }
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
       </motion.div>
     );
   };
 
   return (
-    <section id="family" className="py-16 sm:py-20 px-3 sm:px-4">
-      <div className="max-w-6xl mx-auto">
-        {/* Left-aligned Title with Half Underline - matching Timeline */}
-        <div className="mb-12 sm:mb-16">
-          <h2 className="text-4xl sm:text-5xl font-serif text-gray-800 inline-block relative">
+    <section id="family" className="py-8 sm:py-12 lg:py-16 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header - Mobile optimized */}
+        <div className="mb-6 sm:mb-10 text-center">
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-serif text-gray-800 inline-block relative">
             Family Tree
-            <div className="absolute -bottom-2 left-0 w-1/2 h-1 bg-amber-500 rounded-full"></div>
+            <div className="absolute -bottom-1 sm:-bottom-2 left-0 w-1/2 h-0.5 sm:h-1 bg-amber-500 rounded-full"></div>
           </h2>
-          <p className="text-sm text-gray-600 mt-3">
-            {familyTree.length} family member{familyTree.length > 1 ? 's' : ''}
+          <p className="text-xs sm:text-sm text-gray-600 mt-2 sm:mt-4">
+            {familyTree.length} family member{familyTree.length > 1 ? 's' : ''} • Showing generational relationships
           </p>
         </div>
 
+        {/* Family Tree Visualization */}
         <div className="relative">
-          {/* Vertical Timeline Line */}
-          <div className="absolute left-4 sm:left-1/2 top-0 bottom-0 w-0.5 bg-gray-300 transform sm:-translate-x-1/2"></div>
-
-          <div className="space-y-12 sm:space-y-16">
-            {/* Parents Section */}
-            {parents.length > 0 && (
+          <div className="space-y-6 sm:space-y-10 lg:space-y-14">
+            
+            {/* Parents Generation */}
+            {generations.parents.length > 0 && (
               <div className="relative">
-                {parents.map((parent, index) => (
-                  <div 
-                    key={parent.id}
-                    className={`relative flex items-center mb-8 ${
-                      index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'
-                    }`}
-                  >
-                    {/* Side Content */}
-                    <div className={`flex-1 ${
-                      index % 2 === 0 ? 'pr-8 sm:pr-12' : 'pl-8 sm:pl-12'
-                    }`}>
-                      <div className={index % 2 === 0 ? 'sm:ml-auto sm:max-w-md' : 'sm:max-w-md'}>
-                        <MemberCard member={parent} index={index} />
-                      </div>
-                    </div>
-
-                    {/* Center Icon */}
-                    <div className="flex-shrink-0 relative z-10">
-                      <div className="w-10 h-10 sm:w-14 sm:h-14 border-4 border-blue-400 rounded-full flex items-center justify-center shadow-lg">
-                        <User className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
-                      </div>
-                    </div>
-
-                    {/* Empty space for alignment */}
-                    <div className="flex-1"></div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Main Person Section - Centered */}
-            {mainPerson && (
-              <div className="relative">
-                <div className="flex items-center">
-                  {/* Left side - empty on mobile, content on desktop */}
-                  <div className="hidden sm:block flex-1 pr-12">
-                    {mainPersonSpouse && (
-                      <div className="ml-auto max-w-md">
-                        <MemberCard member={mainPersonSpouse} index={0} showSpouse={false} />
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Center - Main Person Icon */}
-                  <div className="flex-shrink-0 relative z-10">
-                    <motion.div 
-                      className="w-12 h-12 sm:w-16 sm:h-16 border-4 border-purple-500 rounded-full flex items-center justify-center shadow-xl"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      transition={{ type: "spring", delay: 0.2 }}
-                    >
-                      <Star className="w-6 h-6 sm:w-8 sm:h-8 text-purple-600" />
-                    </motion.div>
-                  </div>
-
-                  {/* Right side - Main Person Card */}
-                  <div className="flex-1 pl-8 sm:pl-12">
-                    <div className="max-w-md">
-                      <MemberCard member={mainPerson} index={0} />
-                    </div>
+                <div className="text-center mb-4 sm:mb-6">
+                  <div className="inline-flex items-center gap-1 sm:gap-2 px-3 py-1 sm:px-4 sm:py-2 rounded-full">
+                    <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-blue-500"></div>
+                    <h3 className="text-xs sm:text-base font-bold text-blue-800">Parents</h3>
                   </div>
                 </div>
-
-                {/* Mobile Spouse - Below main person */}
-                {mainPersonSpouse && isMobile && (
-                  <div className="mt-6 pl-16">
-                    <MemberCard member={mainPersonSpouse} index={1} showSpouse={false} />
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Siblings Section */}
-            {siblings.length > 0 && (
-              <div className="relative">
-                {siblings.map((sibling, index) => (
-                  <div 
-                    key={sibling.id}
-                    className={`relative flex items-center mb-8 ${
-                      index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'
-                    }`}
-                  >
-                    <div className={`flex-1 ${
-                      index % 2 === 0 ? 'pr-8 sm:pr-12' : 'pl-8 sm:pl-12'
-                    }`}>
-                      <div className={index % 2 === 0 ? 'sm:ml-auto sm:max-w-md' : 'sm:max-w-md'}>
-                        <MemberCard member={sibling} index={index} />
-                      </div>
-                    </div>
-
-                    <div className="flex-shrink-0 relative z-10">
-                      <div className="w-10 h-10 sm:w-14 sm:h-14 border-4 border-amber-400 rounded-full flex items-center justify-center shadow-lg">
-                        <Users className="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" />
-                      </div>
-                    </div>
-
-                    <div className="flex-1"></div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Children Section */}
-            {allChildren.length > 0 && (
-              <div className="relative">
-                {allChildren.map((child, index) => (
-                  <div 
-                    key={child.id}
-                    className={`relative flex items-center mb-8 last:mb-0 ${
-                      index % 2 === 0 ? 'flex-row' : 'flex-row-reverse'
-                    }`}
-                  >
-                    <div className={`flex-1 ${
-                      index % 2 === 0 ? 'pr-8 sm:pr-12' : 'pl-8 sm:pl-12'
-                    }`}>
-                      <div className={index % 2 === 0 ? 'sm:ml-auto sm:max-w-md' : 'sm:max-w-md'}>
-                        <MemberCard member={child} index={index} />
-                      </div>
-                    </div>
-
-                    <div className="flex-shrink-0 relative z-10">
-                      <div className="w-10 h-10 sm:w-14 sm:h-14 border-4 border-green-400 rounded-full flex items-center justify-center shadow-lg">
-                        <User className="w-5 h-5 sm:w-6 sm:h-6 text-green-600" />
-                      </div>
-                    </div>
-
-                    <div className="flex-1"></div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Other Relatives Section - Shows everyone else */}
-            {otherRelatives.length > 0 && (
-              <div className="relative pt-12">
-                <div className="text-center mb-8">
-                  <h3 className="text-xl font-serif text-gray-700 inline-block relative">
-                    Extended Family
-                    <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-gray-300 rounded-full"></div>
-                  </h3>
-                  <p className="text-sm text-gray-500 mt-2">
-                    {otherRelatives.length} additional relative{otherRelatives.length > 1 ? 's' : ''}
-                  </p>
-                </div>
-                
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {otherRelatives.map((relative, index) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 max-w-md sm:max-w-xl mx-auto">
+                  {generations.parents.map((parent) => (
                     <MemberCard 
-                      key={relative.id} 
-                      member={relative} 
-                      index={index}
+                      key={parent.id} 
+                      member={parent} 
+                      generation="parent"
                     />
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Show message if there are no relatives at all */}
-            {familyTree.length === 1 && (
-              <div className="text-center py-12">
-                <p className="text-gray-500">No other family members to display</p>
+            {/* Main & Spouse Generation */}
+            <div className="relative">
+              <div className="text-center mb-4 sm:mb-6">
+                <div className="inline-flex items-center gap-1 sm:gap-2 px-3 py-1 sm:px-4 sm:py-2 rounded-full">
+                  <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-purple-500"></div>
+                  <h3 className="text-xs sm:text-base font-bold text-purple-800">Primary Generation</h3>
+                </div>
+              </div>
+              
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-4 lg:gap-6">
+                {/* Main Person */}
+                {mainPerson && (
+                  <div className="w-full sm:w-auto max-w-[180px] sm:max-w-xs">
+                    <MemberCard 
+                      member={mainPerson} 
+                      isMain={true}
+                    />
+                  </div>
+                )}
+
+                {/* Marriage Connection - Simplified for mobile */}
+                {generations.spouse.length > 0 && (
+                  <>
+                    {/* Desktop: Horizontal line with heart */}
+                    <div className="hidden sm:flex items-center px-3 sm:px-4">
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        <div className="w-6 sm:w-8 lg:w-16 h-0.5 bg-pink-300"></div>
+                        <div className="bg-pink-50 p-1.5 sm:p-2 rounded-full">
+                          <Heart className="w-3 h-3 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-pink-500 fill-pink-400" />
+                        </div>
+                        <div className="w-6 sm:w-8 lg:w-16 h-0.5 bg-pink-300"></div>
+                      </div>
+                    </div>
+                    
+                    {/* Mobile: Simple heart icon */}
+                    <div className="sm:hidden">
+                      <div className="bg-pink-50 p-1.5 rounded-full">
+                        <Heart className="w-4 h-4 text-pink-500 fill-pink-400" />
+                      </div>
+                    </div>
+                    
+                    {/* Spouse(s) */}
+                    <div className="w-full sm:w-auto max-w-[180px] sm:max-w-xs flex flex-col gap-3 sm:gap-4">
+                      {generations.spouse.map((spouse) => (
+                        <MemberCard 
+                          key={spouse.id} 
+                          member={spouse} 
+                          generation="spouse"
+                        />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Siblings - Mobile optimized */}
+              {generations.siblings.length > 0 && (
+                <div className="mt-6 sm:mt-8">
+                  <div className="text-center mb-3 sm:mb-4">
+                    <h4 className="text-xs sm:text-sm font-semibold text-gray-600 inline-block px-3 py-1 rounded-full">
+                      Siblings
+                    </h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 max-w-2xl sm:max-w-4xl mx-auto">
+                    {generations.siblings.map((sibling) => (
+                      <MemberCard 
+                        key={sibling.id} 
+                        member={sibling}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Children Generation */}
+            {generations.children.length > 0 && (
+              <div className="relative">
+                <div className="text-center mb-4 sm:mb-6">
+                  <div className="inline-flex items-center gap-1 sm:gap-2 px-3 py-1 sm:px-4 sm:py-2 rounded-full">
+                    <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-green-500"></div>
+                    <h3 className="text-xs sm:text-base font-bold text-green-800">Children</h3>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                  {generations.children.map((child) => (
+                    <MemberCard 
+                      key={child.id} 
+                      member={child} 
+                      generation="child"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Grandchildren Generation */}
+            {generations.grandchildren.length > 0 && (
+              <div className="relative">
+                <div className="text-center mb-4 sm:mb-6">
+                  <div className="inline-flex items-center gap-1 sm:gap-2 px-3 py-1 sm:px-4 sm:py-2 rounded-full">
+                    <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-amber-500"></div>
+                    <h3 className="text-xs sm:text-base font-bold text-amber-800">Grandchildren</h3>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                  {generations.grandchildren.map((grandchild) => (
+                    <MemberCard 
+                      key={grandchild.id} 
+                      member={grandchild}
+                      generation="grandchild"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Extended Family */}
+            {generations.others.length > 0 && (
+              <div className="mt-8 sm:mt-10 pt-6 sm:pt-8 border-t border-gray-200">
+                <div className="text-center mb-4 sm:mb-6">
+                  <div className="inline-flex items-center gap-1 sm:gap-2 px-3 py-1 sm:px-4 sm:py-2 rounded-full">
+                    <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-gray-500"></div>
+                    <h3 className="text-xs sm:text-base font-bold text-gray-700">Extended Family</h3>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {generations.others.length} other relative{generations.others.length > 1 ? 's' : ''}
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+                  {generations.others.map((relative) => (
+                    <MemberCard 
+                      key={relative.id} 
+                      member={relative}
+                    />
+                  ))}
+                </div>
               </div>
             )}
           </div>
         </div>
 
-        {/* Legend - Simplified */}
-        <div className="mt-12 pt-8 border-t border-gray-200">
-          <div className="flex flex-wrap items-center justify-center gap-4 text-xs text-gray-600">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full border-2 border-purple-500"></div>
-              <span>Memorialized</span>
+        {/* Legend - Simplified for mobile */}
+        <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-gray-200">
+          <h4 className="text-center text-sm sm:text-lg font-semibold text-gray-700 mb-4">Relationship Legend</h4>
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-[10px] sm:text-xs">
+            <div className="flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 sm:py-2 rounded-lg">
+              <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-purple-500 bg-white"></div>
+              <span className="font-medium text-purple-700">Memorialized</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full border-2 border-blue-400"></div>
-              <span>Parent</span>
+            <div className="flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 sm:py-2 rounded-lg">
+              <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-pink-500 bg-white"></div>
+              <span className="font-medium text-pink-700">Spouse</span>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full border-2 border-green-400"></div>
-              <span>Child</span>
+            <div className="flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 sm:py-2 rounded-lg">
+              <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-green-500 bg-white"></div>
+              <span className="font-medium text-green-700">Children</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Heart className="w-3 h-3 text-pink-500" />
-              <span>Spouse</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-gray-600">✝</span>
-              <span>Deceased</span>
+            <div className="flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 sm:py-2 rounded-lg">
+              <span className="text-gray-700 text-sm">🕊️</span>
+              <span className="font-medium text-gray-700 ml-1">Deceased</span>
             </div>
           </div>
-          <p className="text-center text-xs text-gray-500 mt-4 italic">
-            {isMobile ? 'Tap to expand children' : 'Click members to see their children'}
-          </p>
+        </div>
+
+        {/* Family Summary - Clean without backgrounds */}
+        <div className="mt-6 sm:mt-8 border border-gray-200 rounded-xl sm:rounded-2xl p-4 sm:p-6">
+          <h4 className="text-sm sm:text-lg font-bold text-gray-900 mb-3 sm:mb-4 text-center">Family Summary</h4>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+            <div className="text-center">
+              <div className="text-lg sm:text-2xl font-bold text-gray-800 mb-0.5 sm:mb-1">{familyTree.length}</div>
+              <div className="text-xs text-gray-600 font-medium">Total Members</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg sm:text-2xl font-bold text-purple-600 mb-0.5 sm:mb-1">{generations.main.length}</div>
+              <div className="text-xs text-gray-600 font-medium">Memorialized</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg sm:text-2xl font-bold text-pink-600 mb-0.5 sm:mb-1">{generations.spouse.length}</div>
+              <div className="text-xs text-gray-600 font-medium">Spouse/Partner</div>
+            </div>
+            <div className="text-center">
+              <div className="text-lg sm:text-2xl font-bold text-green-600 mb-0.5 sm:mb-1">
+                {generations.children.length + generations.grandchildren.length}
+              </div>
+              <div className="text-xs text-gray-600 font-medium">Descendants</div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
   );
 };
+
 // Enhanced Timeline with Alternating Events
 const TimelineSection: React.FC<{ timeline: TimelineEvent[] }> = ({ timeline }) => {
   if (timeline.length === 0) return null;
@@ -1549,21 +1511,22 @@ const FavoritesSection: React.FC<{ favorites: Favorite[] }> = ({ favorites }) =>
   );
 };
 // Tribute Card Component
+// Tribute Card Component
 const TributeCard: React.FC<{ 
   tribute: Tribute;
   onEdit: (tribute: Tribute) => void;
   onDelete: (tributeId: string) => void;
-    currentSessionId: string;
+  currentSessionId: string;
   onLike: (tributeId: string) => void;
   isLiked: boolean;
 }> = ({ tribute, onEdit, onDelete, currentSessionId, onLike, isLiked }) => {
   const canModify = tribute.sessionId === currentSessionId;
 
   return (
-    <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 hover:shadow-md transition-all">
-        {/* You indicator - positioned at top right */}
+    <div className="bg-white p-4 sm:p-6 rounded-xl border border-gray-200 hover:shadow-md transition-all h-full flex flex-col relative">
+      {/* You indicator - positioned at top right */}
       {canModify && (
-        <div className="absolute -top-2 -right-2 w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs font-bold">
+        <div className="absolute -top-2 -right-2 w-6 h-6 bg-orange-500 text-white rounded-full flex items-center justify-center text-xs font-bold z-10">
           You
         </div>
       )}
@@ -1588,29 +1551,28 @@ const TributeCard: React.FC<{
             Like
           </button>
 
-           {canModify && (
-  
-        <div className="flex items-center gap-2 justify-end">
-          <button
-            onClick={() => onEdit(tribute)}
-            className="p-1.5 text-gray-500 hover:text-orange-500 hover:bg-orange-50 rounded transition-all"
-            title="Edit memory"
-          >
-            <Pencil size={14} />
-          </button>
-          <button
-            onClick={() => onDelete(tribute.id || '')}
-            className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded transition-all"
-            title="Delete memory"
-          >
-            <Trash2 size={14} />
-          </button>
-        </div>
-      )}
+          {canModify && (
+            <div className="flex items-center gap-2 justify-end">
+              <button
+                onClick={() => onEdit(tribute)}
+                className="p-1.5 text-gray-500 hover:text-orange-500 hover:bg-orange-50 rounded transition-all"
+                title="Edit memory"
+              >
+                <Pencil size={14} />
+              </button>
+              <button
+                onClick={() => onDelete(tribute.id || '')}
+                className="p-1.5 text-gray-500 hover:text-red-500 hover:bg-red-50 rounded transition-all"
+                title="Delete memory"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      <p className="text-gray-700 leading-relaxed mb-4 sm:mb-5 text-sm sm:text-base whitespace-pre-line">
+      <p className="text-gray-700 leading-relaxed mb-4 sm:mb-5 text-sm sm:text-base whitespace-pre-line flex-grow">
         {tribute.message}
       </p>
 
@@ -1624,7 +1586,7 @@ const TributeCard: React.FC<{
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mt-auto">
         <div className="flex items-center gap-2">
           {tribute.isAnonymous ? (
             <div className="flex items-center gap-2 text-gray-500">
@@ -1647,9 +1609,177 @@ const TributeCard: React.FC<{
     </div>
   );
 };
+// Tributes Carousel Component - Horizontal Auto-Sliding
+const TributesCarousel: React.FC<{
+  tributes: Tribute[];
+  onEdit: (tribute: Tribute) => void;
+  onDelete: (tributeId: string) => void;
+  currentSessionId: string;
+  likedMemories: Set<string>;
+  onLike: (tributeId: string) => void;
+}> = ({ tributes, onEdit, onDelete, currentSessionId, likedMemories, onLike }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isHovering, setIsHovering] = useState(false);
+  const [slidesToShow, setSlidesToShow] = useState(3);
+
+  // Determine how many slides to show based on screen size
+  useEffect(() => {
+    const updateSlidesToShow = () => {
+      if (window.innerWidth < 640) {
+        setSlidesToShow(1); // Mobile: 1 slide
+      } else if (window.innerWidth < 1024) {
+        setSlidesToShow(2); // Tablet: 2 slides
+      } else {
+        setSlidesToShow(3); // Desktop: 3 slides
+      }
+    };
+
+    updateSlidesToShow();
+    window.addEventListener('resize', updateSlidesToShow);
+    return () => window.removeEventListener('resize', updateSlidesToShow);
+  }, []);
+
+  // Auto-slide functionality
+  useEffect(() => {
+    if (isHovering || tributes.length <= slidesToShow) return;
+
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => {
+        const next = prev + 1;
+        // Loop back to start when reaching the end
+        return next >= tributes.length ? 0 : next;
+      });
+    }, 5000); // Slide every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [isHovering, tributes.length, slidesToShow]);
+
+  const handlePrevious = () => {
+    setCurrentIndex((prev) => {
+      const newIndex = prev - 1;
+      return newIndex < 0 ? tributes.length - 1 : newIndex;
+    });
+  };
+
+  const handleNext = () => {
+    setCurrentIndex((prev) => {
+      const next = prev + 1;
+      return next >= tributes.length ? 0 : next;
+    });
+  };
+
+  // If there are fewer tributes than slides to show, just display them all
+  if (tributes.length <= slidesToShow) {
+    return (
+      <div className={`grid gap-6 ${
+        slidesToShow === 1 ? 'grid-cols-1' : 
+        slidesToShow === 2 ? 'sm:grid-cols-2' : 
+        'sm:grid-cols-2 lg:grid-cols-3'
+      }`}>
+        {tributes.map((tribute) => (
+          <div key={tribute.id} className="relative">
+            <TributeCard
+              tribute={tribute}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              currentSessionId={currentSessionId}
+              onLike={onLike}
+              isLiked={likedMemories.has(tribute.id || '')}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div 
+      className="relative group"
+      onMouseEnter={() => setIsHovering(true)}
+      onMouseLeave={() => setIsHovering(false)}
+    >
+      {/* Carousel Container */}
+      <div className="overflow-hidden">
+        <div 
+          className="flex transition-transform duration-500 ease-in-out gap-6"
+          style={{
+            transform: `translateX(-${currentIndex * (100 / slidesToShow)}%)`
+          }}
+        >
+          {tributes.map((tribute) => (
+            <div
+              key={tribute.id}
+              className="flex-shrink-0 relative"
+              style={{ 
+                width: slidesToShow === 1 ? '100%' : 
+                       slidesToShow === 2 ? 'calc(50% - 12px)' : 
+                       'calc(33.333% - 16px)'
+              }}
+            >
+              <TributeCard
+                tribute={tribute}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                currentSessionId={currentSessionId}
+                onLike={onLike}
+                isLiked={likedMemories.has(tribute.id || '')}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Navigation Arrows - Show on hover */}
+      <button
+        onClick={handlePrevious}
+        className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-4 w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-gray-700 hover:text-orange-500 hover:scale-110 transition-all z-10 opacity-0 group-hover:opacity-100"
+        aria-label="Previous tribute"
+      >
+        <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+      </button>
+
+      <button
+        onClick={handleNext}
+        className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-4 w-10 h-10 sm:w-12 sm:h-12 bg-white rounded-full shadow-lg flex items-center justify-center text-gray-700 hover:text-orange-500 hover:scale-110 transition-all z-10 opacity-0 group-hover:opacity-100"
+        aria-label="Next tribute"
+      >
+        <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
+      </button>
+
+      {/* Dots Indicator */}
+      <div className="flex justify-center gap-2 mt-8">
+        {tributes.map((_, index) => (
+          <button
+            key={index}
+            onClick={() => setCurrentIndex(index)}
+            className={`transition-all duration-300 rounded-full ${
+              index === currentIndex
+                ? 'w-8 h-2 bg-orange-500'
+                : 'w-2 h-2 bg-gray-300 hover:bg-gray-400'
+            }`}
+            aria-label={`Go to tribute ${index + 1}`}
+          />
+        ))}
+      </div>
+
+      {/* Auto-slide indicator */}
+      <div className="text-center mt-4">
+        <p className="text-xs text-gray-500">
+          {isHovering ? '⏸️ Paused' : '▶️ Auto-sliding'} • {currentIndex + 1} of {tributes.length}
+        </p>
+      </div>
+    </div>
+  );
+};
+
 // Enhanced service section with virtual link
+// Enhanced service section with virtual link and Google Maps
 const ServiceSection: React.FC<{ serviceInfo: ServiceInfo }> = ({ serviceInfo }) => {
-  if (!serviceInfo) return null;
+  const [showVirtualOptions, setShowVirtualOptions] = useState(false);
+  
+  if (!serviceInfo || (!serviceInfo.venue && !serviceInfo.address && !serviceInfo.date && !serviceInfo.time)) {
+    return null;
+  }
   
   const formatFullDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -1661,63 +1791,120 @@ const ServiceSection: React.FC<{ serviceInfo: ServiceInfo }> = ({ serviceInfo })
     });
   };
 
+  // Google Maps embed URL
+  const mapEmbedUrl = serviceInfo.address 
+    ? `https://maps.google.com/maps?q=${encodeURIComponent(serviceInfo.address)}&t=&z=15&ie=UTF8&iwloc=&output=embed`
+    : null;
+
+  // Google Maps navigation URL for mobile
+  const getDirectionsUrl = serviceInfo.address
+    ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(serviceInfo.address)}`
+    : null;
+
+  const handleVirtualLink = (platform: 'zoom' | 'meet' | 'teams') => {
+    const url = serviceInfo.virtualLink || (platform === 'zoom' ? 'https://zoom.us/' : platform === 'meet' ? 'https://meet.google.com/' : 'https://teams.microsoft.com/');
+    
+    const win = window.open(url, '_blank');
+    
+    if (!win || win.closed || typeof win.closed === 'undefined') {
+      alert(`Please allow pop-ups in your browser to join the virtual service.`);
+    }
+    
+    setShowVirtualOptions(false);
+  };
+
   return (
     <section id="service" className="py-16 sm:py-20 px-3 sm:px-4 scroll-mt-24">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8 sm:mb-12">
           <h2 className="text-4xl sm:text-5xl font-serif text-gray-800 inline-block relative">
             Memorial Service
             <div className="absolute -bottom-2 left-0 w-1/2 h-1 bg-gradient-to-r from-amber-500 to-orange-500 rounded-full"></div>
           </h2>
-          <p className="text-sm text-gray-600 mt-2">Celebration of life details</p>
+          <p className="text-sm text-gray-600 mt-2">Join us in celebrating a life well lived</p>
         </div>
 
-        {/* Information Grid */}
-        <div className="grid md:grid-cols-2 gap-8 sm:gap-12">
-          {/* Venue & Location */}
-          {serviceInfo.venue && (
-            <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center flex-shrink-0 mt-1">
-                  <MapPin className="w-5 h-5 text-orange-500" />
+        {/* Main Grid - Map and Details */}
+        <div className="grid lg:grid-cols-2 gap-6 md:gap-8 mb-8">
+          
+          {/* Left: Google Map */}
+          {mapEmbedUrl && (
+            <div className="order-2 lg:order-1">
+              <div className="bg-gray-100 rounded-2xl overflow-hidden shadow-lg h-full min-h-[350px] md:min-h-[450px]">
+                <iframe
+                  width="100%"
+                  height="100%"
+                  src={mapEmbedUrl}
+                  title="Service Location Map"
+                  className="w-full h-full border-0"
+                  style={{ minHeight: '350px' }}
+                  loading="lazy"
+                />
+              </div>
+              
+              {/* Get Directions Button - Mobile Friendly */}
+              {getDirectionsUrl && (
+                <div className="mt-4">
+                  <a
+                    href={getDirectionsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all font-medium shadow-sm hover:shadow-md"
+                  >
+                    <MapPin className="w-5 h-5" />
+                    Get Directions via Google Maps
+                  </a>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">Location</h3>
-                  <div className="space-y-1">
-                    <p className="text-lg text-gray-900 font-medium">
-                      {serviceInfo.venue}
-                    </p>
+              )}
+            </div>
+          )}
+
+          {/* Right: Service Details */}
+          <div className="order-1 lg:order-2 space-y-6">
+            
+            {/* Venue & Address Card */}
+            {(serviceInfo.venue || serviceInfo.address) && (
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-6 border border-amber-200 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+                    <MapPin className="w-6 h-6 text-orange-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-gray-900 mb-3">Location</h3>
+                    {serviceInfo.venue && (
+                      <p className="text-xl text-gray-900 font-semibold mb-2">
+                        {serviceInfo.venue}
+                      </p>
+                    )}
                     {serviceInfo.address && (
-                      <p className="text-gray-600 leading-relaxed">
+                      <p className="text-gray-700 leading-relaxed">
                         {serviceInfo.address}
                       </p>
                     )}
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Date & Time */}
-          {(serviceInfo.date || serviceInfo.time) && (
-            <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center flex-shrink-0 mt-1">
-                  <Calendar className="w-5 h-5 text-orange-500" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 mb-2">When</h3>
-                  <div className="space-y-1">
+            {/* Date & Time Card */}
+            {(serviceInfo.date || serviceInfo.time) && (
+              <div className="bg-white rounded-2xl p-6 border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-amber-50 to-orange-50 flex items-center justify-center flex-shrink-0">
+                    <Calendar className="w-6 h-6 text-orange-500" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-gray-900 mb-3">Date & Time</h3>
                     {serviceInfo.date && (
-                      <p className="text-lg text-gray-900 font-medium">
+                      <p className="text-xl text-gray-900 font-semibold mb-2">
                         {formatFullDate(serviceInfo.date)}
                       </p>
                     )}
                     {serviceInfo.time && (
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-gray-500" />
-                        <p className="text-gray-900 font-medium">
+                      <div className="flex items-center gap-2 text-gray-700">
+                        <Clock className="w-5 h-5 text-orange-500" />
+                        <p className="text-lg font-medium">
                           {serviceInfo.time}
                         </p>
                       </div>
@@ -1725,80 +1912,127 @@ const ServiceSection: React.FC<{ serviceInfo: ServiceInfo }> = ({ serviceInfo })
                   </div>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
 
-        {/* Virtual Service */}
-        {serviceInfo.virtualLink && (
-          <div className="mt-12 sm:mt-16 pt-8 sm:pt-12 border-t border-gray-100">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-              <div className="flex-1">
+            {/* Virtual Service Card */}
+            {serviceInfo.virtualLink && (
+              <div className="bg-gradient-to-br from-purple-50 to-indigo-50 rounded-2xl p-6 border-2 border-purple-200 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-50 to-amber-50 flex items-center justify-center flex-shrink-0 mt-1">
-                    <Video className="w-5 h-5 text-orange-600" />
+                  <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center flex-shrink-0">
+                    <Video className="w-6 h-6 text-purple-600" />
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800 mb-3">
-                      Virtual Service
-                    </h3>
-                    <p className="text-gray-600 leading-relaxed mb-4 max-w-2xl">
-                      Join the memorial service online from anywhere in the world.
+                  <div className="flex-1">
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">Join Virtually</h3>
+                    <p className="text-gray-700 mb-4 text-sm leading-relaxed">
+                      Can't attend in person? Join the memorial service online from anywhere in the world
                       {serviceInfo.virtualPlatform && (
-                        <span className="font-medium text-orange-600 ml-1">
-                          (via {serviceInfo.virtualPlatform.charAt(0).toUpperCase() + serviceInfo.virtualPlatform.slice(1)})
+                        <span className="font-semibold text-purple-600 ml-1">
+                          via {serviceInfo.virtualPlatform.charAt(0).toUpperCase() + serviceInfo.virtualPlatform.slice(1)}
                         </span>
                       )}
                     </p>
+                    
+                    {!showVirtualOptions ? (
+                      <button
+                        onClick={() => setShowVirtualOptions(true)}
+                        className="w-full px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-all flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                      >
+                        <Video className="w-5 h-5" />
+                        Join Virtual Service
+                      </button>
+                    ) : (
+                      <div className="space-y-3 animate-slide-down">
+                        <button
+                          onClick={() => handleVirtualLink(serviceInfo.virtualPlatform || 'zoom')}
+                          className="w-full px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-all flex items-center justify-center gap-2"
+                        >
+                          <Video className="w-5 h-5" />
+                          Launch {serviceInfo.virtualPlatform ? serviceInfo.virtualPlatform.charAt(0).toUpperCase() + serviceInfo.virtualPlatform.slice(1) : 'Meeting'}
+                        </button>
+                        <button
+                          onClick={() => setShowVirtualOptions(false)}
+                          className="w-full px-4 py-2 text-gray-600 hover:text-gray-800 text-sm font-medium"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
-              
-              <div className="lg:text-right">
-                <a
-                  href={serviceInfo.virtualLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-3 px-6 py-3.5 text-base font-medium text-gray-900 bg-gradient-to-r from-amber-400 to-orange-400 rounded-lg hover:from-amber-500 hover:to-orange-500 transition-all duration-300 shadow-sm hover:shadow-md"
-                >
-                  <Smartphone className="w-5 h-5" />
-                  Join Online Service
-                </a>
-                <p className="text-xs text-gray-400 mt-3">
-                  Opens in new window
-                </p>
-              </div>
-            </div>
+            )}
           </div>
-        )}
-
-        {/* Service Timeline */}
-        <div className="mt-12 flex items-center justify-center gap-4">
-          {['Arrival', 'Ceremony', 'Reception'].map((step, index) => (
-            <div key={step} className="flex flex-col items-center">
-              <div className={`w-3 h-3 rounded-full ${
-                index === 0 ? 'bg-orange-500' : 'bg-gray-300'
-              }`}></div>
-              {index < 2 && (
-                <div className="w-12 h-0.5 bg-gray-200 mt-1.5"></div>
-              )}
-              <span className="text-xs text-gray-500 mt-2">{step}</span>
-            </div>
-          ))}
         </div>
 
-        {/* Additional Info */}
-        <div className="mt-8 text-center">
-          <p className="text-sm text-gray-500">
-            For additional information, please contact the family.
+        {/* Service Flow Timeline */}
+        <div className="mt-12 pt-8 border-t border-gray-200">
+          <h4 className="text-center text-sm font-semibold text-gray-600 mb-6 uppercase tracking-wider">
+            Service Schedule
+          </h4>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-6 sm:gap-8">
+            {[
+              { label: 'Arrival & Gathering', icon: Users, time: '15 min before' },
+              { label: 'Memorial Ceremony', icon: Heart, time: 'Main service' },
+              { label: 'Reception', icon: MessageCircle, time: 'After ceremony' }
+            ].map((step, index) => {
+              const Icon = step.icon;
+              return (
+                <div key={step.label} className="flex items-center gap-4">
+                  <div className="flex flex-col items-center">
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center shadow-md ${
+                      index === 0 ? 'bg-gradient-to-br from-orange-400 to-amber-500' :
+                      index === 1 ? 'bg-gradient-to-br from-purple-400 to-indigo-500' :
+                      'bg-gradient-to-br from-blue-400 to-cyan-500'
+                    }`}>
+                      <Icon className="w-7 h-7 text-white" />
+                    </div>
+                    <p className="text-sm font-semibold text-gray-800 mt-3 text-center max-w-[120px]">
+                      {step.label}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">{step.time}</p>
+                  </div>
+                  {index < 2 && (
+                    <div className="hidden sm:block w-12 h-0.5 bg-gray-300 mb-16"></div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Additional Information Footer */}
+        <div className="mt-12 pt-8 border-t border-gray-200 text-center">
+          <p className="text-gray-600 leading-relaxed">
+            Your presence would mean a great deal to the family. For any questions or special accommodations, please contact the family directly.
+          </p>
+          <p className="text-sm text-gray-500 mt-4">
+            We look forward to celebrating this beautiful life together
           </p>
         </div>
       </div>
+
+      <style>{`
+        @keyframes slide-down {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        .animate-slide-down {
+          animation: slide-down 0.3s ease-out forwards;
+        }
+      `}</style>
     </section>
   );
 };
 
 // Animated Footer with Floating Icons
+// Redesigned Memorial Footer with Enhanced Responsiveness
 const MemorialFooter: React.FC<{ memorialName: string }> = ({ memorialName }) => {
   const [iconIndex, setIconIndex] = useState(0);
   const icons = [Heart, Flower2, Sparkles, Star];
@@ -1808,60 +2042,106 @@ const MemorialFooter: React.FC<{ memorialName: string }> = ({ memorialName }) =>
       setIconIndex((prev) => (prev + 1) % icons.length);
     }, 3000);
     return () => clearInterval(interval);
-  }, [icons.length]);
+  }, []);
 
   const Icon = icons[iconIndex];
 
   return (
-    <footer className="mt-16 relative overflow-hidden">
-      {/* Animated Background */}
-      <div className="absolute inset-0 bg-linear-to-b from-transparent via-amber-50/20 to-amber-100/10"></div>
+    <footer className="mt-8 sm:mt-12 lg:mt-16 relative overflow-hidden">
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes float {
+          0%, 100% { 
+            transform: translateY(0) rotate(0deg); 
+            opacity: 0.2; 
+          }
+          50% { 
+            transform: translateY(-15px) rotate(5deg); 
+            opacity: 0.4; 
+          }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
       
-      {/* Floating Icons */}
+      {/* Gradient Background */}
+      <div className="absolute inset-0 bg-gradient-to-b from-transparent via-amber-50/30 to-amber-100/20"></div>
+      
+      {/* Decorative Top Border */}
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent"></div>
+      
+      {/* Floating Icons - Responsive Count */}
       <div className="absolute inset-0 pointer-events-none">
-        {[...Array(12)].map((_, i) => {
+        {[...Array(6)].map((_, i) => {
           const RandIcon = icons[Math.floor(Math.random() * icons.length)];
+          const isVisible = i < 3 ? 'block' : 'hidden sm:block';
+          
           return (
             <div
               key={i}
-              className="absolute"
+              className={`absolute ${isVisible}`}
               style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                animation: `float ${3 + Math.random() * 4}s ease-in-out infinite`,
+                left: `${10 + Math.random() * 80}%`,
+                top: `${10 + Math.random() * 80}%`,
+                animation: `float ${4 + Math.random() * 3}s ease-in-out infinite`,
                 animationDelay: `${Math.random() * 2}s`,
               }}
             >
-              <RandIcon className="w-4 h-4 text-amber-300/30" />
+              <RandIcon className="w-3 h-3 sm:w-4 sm:h-4 text-amber-300/40" />
             </div>
           );
         })}
       </div>
       
-      <div className="relative max-w-4xl mx-auto px-4 py-12 text-center">
-        <div className="flex justify-center items-center gap-3 mb-4">
-          <div className="animate-pulse">
-            <Icon className="w-6 h-6 text-amber-400 fill-amber-400" />
+      {/* Main Content */}
+      <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 lg:py-12">
+        {/* Header Section */}
+        <div className="text-center space-y-3 sm:space-y-4">
+          {/* Icon and Title Row */}
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-2 sm:gap-3">
+            <div className="animate-pulse hidden sm:block">
+              <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 fill-amber-400" />
+            </div>
+            
+            <h3 className="text-xl sm:text-2xl lg:text-3xl font-serif font-bold text-gray-900 leading-tight">
+              Forever in our hearts
+            </h3>
+            
+            <div className="animate-pulse hidden sm:block">
+              <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 fill-amber-400" />
+            </div>
           </div>
-          <h3 className="text-2xl font-serif font-bold text-gray-900">
-            Forever in our hearts
-          </h3>
-          <div className="animate-pulse">
-            <Icon className="w-6 h-6 text-amber-400 fill-amber-400" />
+          
+          {/* Memorial Message */}
+          <div className="max-w-2xl mx-auto space-y-2">
+            <p className="text-sm sm:text-base lg:text-lg text-gray-700 px-4">
+              {memorialName}'s memory lives on in the hearts of those who loved them
+            </p>
+            
+            {/* Divider */}
+            <div className="flex items-center justify-center gap-2 py-2">
+              <div className="h-px w-8 sm:w-12 bg-gradient-to-r from-transparent to-amber-300/50"></div>
+              <Heart className="w-3 h-3 sm:w-4 sm:h-4 text-amber-400 fill-amber-400" />
+              <div className="h-px w-8 sm:w-12 bg-gradient-to-l from-transparent to-amber-300/50"></div>
+            </div>
+            
+            {/* Footer Info */}
+            <p className="text-xs sm:text-sm text-gray-500">
+              {new Date().getFullYear()} • Created with love
+            </p>
           </div>
         </div>
         
-        <p className="text-gray-600 mb-2">
-          {memorialName}'s memory lives on in the hearts of those who loved them
-        </p>
-        <p className="text-sm text-gray-500">
-          {new Date().getFullYear()} • Created with love
-        </p>
+
       </div>
+      
+      {/* Bottom Fade */}
+      <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-t from-amber-100/30 to-transparent"></div>
     </footer>
   );
 };
-
 // Main Component
 // Main Component
 export const MemorialDisplayPage: React.FC = () => {
@@ -1874,8 +2154,10 @@ export const MemorialDisplayPage: React.FC = () => {
   const [activeSection, setActiveSection] = useState('obituary');
   const [showShareModal, setShowShareModal] = useState(false);
   const [showTributeForm, setShowTributeForm] = useState(false);
-  const [isScrolled, setIsScrolled] = useState(false); 
-  const [isScrollDisabled, setIsScrollDisabled] = useState(false);
+ const [isScrolled, setIsScrolled] = useState(false); 
+const [headerLocked, setHeaderLocked] = useState(false);
+const [headerLockedTime, setHeaderLockedTime] = useState<number>(0);
+const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState('');
   const [likedMemories, setLikedMemories] = useState<Set<string>>(new Set());
   const [editingTribute, setEditingTribute] = useState<Tribute | null>(null);
@@ -1906,56 +2188,125 @@ export const MemorialDisplayPage: React.FC = () => {
       if (!response.ok) throw new Error(`Memorial not found`);
 
       const data = await response.json();
+    // Get family tree data safely
+const familyTreeData = data?.familyTree || data?.memorial?.familyTree;
+
+// Log all the debugging info in a safer way
+console.log('=== Family Tree Debug Info ===');
+console.log('Data has memorial property:', 'memorial' in data);
+console.log('Data.familyTree exists:', 'familyTree' in data);
+console.log('Data.memorial?.familyTree exists:', data?.memorial?.familyTree !== undefined);
+
+if (familyTreeData === undefined) {
+  console.log('Family tree: undefined');
+} else if (familyTreeData === null) {
+  console.log('Family tree: null');
+} else if (Array.isArray(familyTreeData)) {
+  console.log('Family tree length:', familyTreeData.length);
+  console.log('Family tree data:', familyTreeData);
+} else if (typeof familyTreeData === 'string') {
+  console.log('Family tree is a string:', familyTreeData);
+  // Try to parse if it looks like JSON
+  if (familyTreeData.startsWith('[') || familyTreeData.startsWith('{')) {
+    try {
+      const parsed = JSON.parse(familyTreeData);
+      console.log('Parsed family tree:', parsed);
+    } catch  {
+      console.log('Could not parse as JSON');
+    }
+  }
+} else {
+  console.log('Family tree type:', typeof familyTreeData, 'value:', familyTreeData);
+}
+console.log('=== End Family Tree Debug ===');
       const memorialData = data.memorial || data;
       
       // Get current session ID for comparison - THIS IS IMPORTANT
       const sessionId = getOrCreateSessionId(identifier || '');
       
-      const safeMemorial: MemorialData = {
-        id: memorialData.id || '',
-        name: memorialData.name || 'Unknown',
-        profileImage: memorialData.profileImage || '',
-        birthDate: memorialData.birthDate || '',
-        deathDate: memorialData.deathDate || '',
-        location: memorialData.location || '',
-        obituary: memorialData.obituary || '',
-        timeline: Array.isArray(memorialData.timeline) ? memorialData.timeline : [],
-        favorites: Array.isArray(memorialData.favorites) ? memorialData.favorites : [],
-        familyTree: Array.isArray(memorialData.familyTree) ? memorialData.familyTree : [],
-        gallery: Array.isArray(memorialData.gallery) ? memorialData.gallery : [],
-        serviceInfo: memorialData.serviceInfo || memorialData.service || {},
-        service: memorialData.service || memorialData.serviceInfo || {},
-        memoryWall: Array.isArray(memorialData.memoryWall) ? memorialData.memoryWall : [],
-        memories: Array.isArray(memorialData.memories) ? memorialData.memories : [],
-        tributes: Array.isArray(memorialData.tributes || memorialData.memoryWall) 
-          ? (memorialData.tributes || memorialData.memoryWall).map((tribute: {
-              id: string;
-              authorName?: string;
-              authorLocation?: string;
-              message: string;
-              authorImage?: string;
-              createdAt?: string;
-              sessionId?: string;
-              isAnonymous?: boolean;
-              name?: string;
-              location?: string;
-              date?: string;
-              image?: string;
-            }) => ({
-              id: tribute.id,
-              name: tribute.authorName || tribute.name || 'Anonymous',
-              location: tribute.authorLocation || tribute.location || '',
-              message: tribute.message || '',
-              image: tribute.authorImage || tribute.image || '',
-              date: tribute.createdAt || tribute.date || new Date().toISOString(),
-              sessionId: tribute.sessionId,
-              isAnonymous: tribute.authorName === 'Anonymous' || tribute.isAnonymous
-            }))
-          : [],
-        isPublished: Boolean(memorialData.isPublished),
-        customUrl: memorialData.customUrl || '',
-        theme: memorialData.theme || 'default'
+     const safeMemorial: MemorialData = {
+  id: memorialData.id || '',
+  name: memorialData.name || 'Unknown',
+  profileImage: memorialData.profileImage || '',
+  birthDate: memorialData.birthDate || '',
+  deathDate: memorialData.deathDate || '',
+  location: memorialData.location || '',
+  obituary: memorialData.obituary || '',
+  timeline: Array.isArray(memorialData.timeline) ? memorialData.timeline : [],
+  favorites: Array.isArray(memorialData.favorites) ? memorialData.favorites : [],
+  
+  // Make sure familyTree is properly handled
+ familyTree: (() => {
+  const rawData = memorialData.familyTree || [];
+  console.log('Raw family tree data:', rawData);
+  
+  if (Array.isArray(rawData)) {
+    return rawData.map((member: unknown, index: number) => {
+      // Type guard to ensure member has the expected structure
+      const typedMember = member as {
+        id?: string;
+        name?: string;
+        image?: string;
+        photo?: string;
+        relation?: string;
+        isDeceased?: boolean;
+        parentId?: string;
+        spouse?: string;
       };
+      
+      return {
+        id: typedMember.id || `member-${index}`,
+        name: typedMember.name || 'Unknown',
+        image: typedMember.image || typedMember.photo || '',
+        relation: typedMember.relation || 'Family Member',
+        isDeceased: typedMember.isDeceased || false,
+        parentId: typedMember.parentId || null,
+        spouse: typedMember.spouse || null,
+        original: typedMember
+      };
+    });
+  }
+  return [];
+})(),
+  
+  gallery: Array.isArray(memorialData.gallery) ? memorialData.gallery : [],
+  serviceInfo: memorialData.serviceInfo || memorialData.service || {},
+  service: memorialData.service || memorialData.serviceInfo || {},
+  memoryWall: Array.isArray(memorialData.memoryWall) ? memorialData.memoryWall : [],
+  memories: Array.isArray(memorialData.memories) ? memorialData.memories : [],
+  tributes: Array.isArray(memorialData.tributes || memorialData.memoryWall) 
+  ? (memorialData.tributes || memorialData.memoryWall).map((tribute: unknown) => {
+      const typedTribute = tribute as {
+        id?: string;
+        authorName?: string;
+        name?: string;
+        authorLocation?: string;
+        location?: string;
+        message?: string;
+        authorImage?: string;
+        image?: string;
+        createdAt?: string;
+        date?: string;
+        sessionId?: string;
+        isAnonymous?: boolean;
+      };
+      
+      return {
+        id: typedTribute.id || '',
+        name: typedTribute.authorName || typedTribute.name || 'Anonymous',
+        location: typedTribute.authorLocation || typedTribute.location || '',
+        message: typedTribute.message || '',
+        image: typedTribute.authorImage || typedTribute.image || '',
+        date: typedTribute.createdAt || typedTribute.date || new Date().toISOString(),
+        sessionId: typedTribute.sessionId,
+        isAnonymous: typedTribute.authorName === 'Anonymous' || typedTribute.isAnonymous
+      };
+    })
+  : [],
+  isPublished: Boolean(memorialData.isPublished),
+  customUrl: memorialData.customUrl || '',
+  theme: memorialData.theme || 'default'
+};
       
       setMemorial(safeMemorial);
       // Also set the current session ID for the UI
@@ -1972,18 +2323,47 @@ export const MemorialDisplayPage: React.FC = () => {
     fetchMemorial();
   }, [fetchMemorial]);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      // Skip scroll detection if we're in the middle of a navigation click
-      if (isScrollDisabled) return;
+useEffect(() => {
+  const handleScroll = () => {
+    const currentScroll = window.scrollY;
+    
+    // If user scrolls to the very top (within 20px)
+    if (currentScroll <= 20) {
+      // Only unlock if enough time has passed since locking (1 second minimum)
+      const timeSinceLock = Date.now() - headerLockedTime;
+      if (timeSinceLock > 1000) {
+        setHeaderLocked(false);
+        setIsScrolled(false);
+      }
+      return;
+    }
+    
+    // Don't update scroll state if header is locked (navigation was clicked)
+    if (headerLocked) return;
+    
+    // Clear any pending timeout
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+    
+    // Debounce: wait 100ms after last scroll before updating state
+    scrollTimeoutRef.current = setTimeout(() => {
+      const shouldBeScrolled = currentScroll > 100;
       
-      const currentScroll = window.scrollY;
-      setIsScrolled(currentScroll > 100);
-    };
+      // Only update if state actually needs to change
+      setIsScrolled(prev => prev !== shouldBeScrolled ? shouldBeScrolled : prev);
+    }, 100);
+  };
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [isScrollDisabled]);
+  window.addEventListener('scroll', handleScroll, { passive: true });
+  
+  return () => {
+    window.removeEventListener('scroll', handleScroll);
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
+    }
+  };
+}, [headerLocked, headerLockedTime]);
 
   useEffect(() => {
     // Initialize session ID
@@ -2128,15 +2508,28 @@ export const MemorialDisplayPage: React.FC = () => {
     <div className="min-h-screen bg-white">
       {/* REDESIGNED HEADER - Modern & Warm */}
       <div className="min-h-screen bg-gray-50">
+         {/* BACK BUTTON - Fixed positioning */}
+  <div className="fixed top-4 left-4 sm:top-6 sm:left-6 z-50">
+    <button
+      onClick={handleBackNavigation}
+      className="flex items-center gap-2 bg-white/90 backdrop-blur-sm text-gray-800 hover:text-orange-600 transition-colors group px-4 py-2.5 rounded-lg shadow-lg hover:shadow-xl border border-gray-200"
+    >
+      <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+      <span className="text-sm font-medium">
+        {isLoggedIn() ? 'Back to Dashboard' : 'Back to Home'}
+      </span>
+    </button>
+  </div>
+
         {/* HEADER WITH WARM BACKGROUND IMAGE */}
-        <header className={`sticky top-0 z-40 transition-all duration-500 ${
+        <header className={`sticky top-0 z-40 transition-all duration-200 ${
           isScrolled 
             ? 'bg-white shadow-md' 
             : 'relative bg-gray-900'
         }`}>
           
           {/* Background Image Layer */}
-          <div className={`absolute inset-0 z-0 overflow-hidden transition-opacity duration-700 ${
+          <div className={`absolute inset-0 z-0 overflow-hidden transition-opacity duration-300 ${
             isScrolled ? 'opacity-0 pointer-events-none' : 'opacity-100'
           }`}>
             {/* Warm memorial background image with better gradient */}
@@ -2155,23 +2548,11 @@ export const MemorialDisplayPage: React.FC = () => {
           </div>
           
           {/* Container with dynamic padding */}
-          <div className={`relative z-10 max-w-7xl mx-auto px-4 sm:px-6 transition-all duration-500 ${
+          <div className={`relative z-10 max-w-7xl mx-auto px-4 sm:px-6 transition-all duration-200 ${
             isScrolled ? 'py-4' : 'py-16 md:py-24'
           }`}>
             
-            {/* BACK BUTTON - Top Left */}
-            <div className="absolute top-4 left-4 sm:top-6 sm:left-6">
-              <button
-                onClick={handleBackNavigation}
-                className="flex items-center gap-2 text-white hover:text-orange-300 transition-colors group"
-              >
-                <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-                <span className="text-sm font-medium">
-                  {isLoggedIn() ? 'Back to Dashboard' : 'Back to Home'}
-                </span>
-              </button>
-            </div>
-            
+          
             {/* Main flex container */}
             <div className={`flex items-center transition-all duration-500 ${
               isScrolled 
@@ -2185,7 +2566,7 @@ export const MemorialDisplayPage: React.FC = () => {
                   <img
                     src={memorial.profileImage}
                     alt={memorial.name}
-                    className={`object-cover shadow-2xl transition-all duration-500 ease-in-out ${
+                    className={`object-cover shadow-2xl transition-all duration-200 ease-in-out ${
                       isScrolled 
                         ? 'w-12 h-12 rounded-full border-2 border-orange-500'
                         : 'w-40 h-52 md:w-48 md:h-64 rounded-2xl border-4 border-orange-500 shadow-orange-500/20'
@@ -2206,12 +2587,12 @@ export const MemorialDisplayPage: React.FC = () => {
               </div>
 
               {/* Text content with smooth transitions */}
-              <div className={`transition-all duration-500 ${
+              <div className={`transition-all duration-200 ${
                 isScrolled ? 'flex-1' : ''
               }`}>
                 
                 {/* Name - Smooth animation */}
-                <h1 className={`font-serif transition-all duration-500 ease-in-out ${
+                <h1 className={`font-serif transition-all duration-200 ease-in-out ${
                   isScrolled 
                     ? 'text-lg text-gray-900 font-semibold'
                     : 'text-4xl md:text-5xl lg:text-6xl text-white font-bold drop-shadow-2xl mb-8'
@@ -2221,7 +2602,7 @@ export const MemorialDisplayPage: React.FC = () => {
                 </h1>
                 
                 {/* Dates & Location - TIMELINE STYLE WITHOUT CARD */}
-                <div className={`transition-all duration-700 ease-in-out ${
+                <div className={`transition-all duration-300 ease-in-out ${
                   isScrolled 
                     ? 'opacity-0 max-h-0 overflow-hidden' 
                     : 'opacity-100 max-h-96'
@@ -2294,9 +2675,7 @@ export const MemorialDisplayPage: React.FC = () => {
         </header>
 
         {/* CLEAN NAVIGATION */}
-        <nav className={`sticky z-30 bg-white border-b border-gray-200 transition-all duration-300 ${
-          isScrolled ? 'top-[88px]' : 'top-0'
-        }`}>
+        <nav className="sticky top-[72px] z-30 bg-white border-b border-gray-200 transition-all duration-200">
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex justify-center">
               <div className="flex gap-1 py-3 overflow-x-auto scrollbar-hide scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -2307,26 +2686,31 @@ export const MemorialDisplayPage: React.FC = () => {
                   return (
                     <button
                       key={item.id}
-                      onClick={() => {
-                        // Disable scroll detection temporarily
-                        setIsScrollDisabled(true);
-                        setActiveSection(item.id);
-                        
-                        const element = document.getElementById(item.id);
-                        if (element) {
-                          const offset = isScrolled ? 180 : 90;
-                          const elementPosition = element.getBoundingClientRect().top;
-                          const offsetPosition = elementPosition + window.pageYOffset - offset;
-                          
-                          window.scrollTo({
-                            top: offsetPosition,
-                            behavior: 'smooth'
-                          });
-                        }
-                        
-                        // Re-enable scroll detection after animation completes
-                        setTimeout(() => setIsScrollDisabled(false), 1000);
-                      }}
+onClick={() => {
+  // Lock the header in collapsed state and record the time
+  setHeaderLocked(true);
+  setIsScrolled(true);
+  setHeaderLockedTime(Date.now());
+  setActiveSection(item.id);
+  
+  const element = document.getElementById(item.id);
+  if (element) {
+    // Fixed offset since nav is now always at same position
+    const navHeight = 72; // Height of collapsed header
+    const navBarHeight = 60; // Height of nav bar itself
+    const totalOffset = navHeight + navBarHeight + 20; // 20px padding
+    
+    const elementPosition = element.getBoundingClientRect().top;
+    const offsetPosition = elementPosition + window.pageYOffset - totalOffset;
+    
+    window.scrollTo({
+      top: offsetPosition,
+      behavior: 'smooth'
+    });
+  }
+  
+  // Header stays locked until user scrolls to very top AND 1 second has passed
+}}
                       className={`relative flex items-center gap-2 px-4 md:px-6 py-3 text-sm md:text-base font-medium whitespace-nowrap transition-all duration-300 ${
                         isActive
                           ? 'text-orange-600'
@@ -2408,20 +2792,21 @@ export const MemorialDisplayPage: React.FC = () => {
             )}
 
             {/* Tributes Section */}
+            {/* Tributes Section - Horizontal Auto-Sliding Carousel */}
             <section id="tributes" className="animate-fadeIn scroll-mt-24 py-16 sm:py-20 px-3 sm:px-4">
-              <div className="max-w-6xl mx-auto">
+              <div className="max-w-7xl mx-auto">
                 {/* Header matching other sections */}
-                <div className="mb-8 sm:mb-12">
-                  <div className="mb-6 sm:mb-8">
-                    <h2 className="text-4xl sm:text-5xl font-serif text-gray-800 inline-block relative">
-                      Memory Wall
-                      <div className="absolute -bottom-2 left-0 w-1/2 h-1 bg-amber-500 rounded-full"></div>
-                    </h2>
-                    <p className="text-sm text-gray-600 mt-2">
-                      {memorial.tributes.length} memory{memorial.tributes.length !== 1 ? 'ies' : ''} shared
-                    </p>
-                  </div>
-                </div>
+               <div className="mb-8 sm:mb-12">
+  <div className="mb-6 sm:mb-8">
+    <h2 className="text-4xl sm:text-5xl font-serif text-gray-800 inline-block relative">
+      Memory Wall
+      <div className="absolute -bottom-2 left-0 w-1/2 h-1 bg-amber-500 rounded-full"></div>
+    </h2>
+    <p className="text-sm text-gray-600 mt-2">
+      {memorial.tributes.length} {memorial.tributes.length === 1 ? 'memory' : 'memories'} shared
+    </p>
+  </div>
+</div>
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
                   <div>
@@ -2456,20 +2841,14 @@ export const MemorialDisplayPage: React.FC = () => {
                 )}
 
                 {memorial.tributes.length > 0 ? (
-                  <div className="space-y-6 sm:space-y-8">
-                    {memorial.tributes.map((tribute) => (
-                      <div key={tribute.id} className="pb-6 sm:pb-8 border-b border-gray-100 last:border-b-0 last:pb-0">
-                        <TributeCard
-                          tribute={tribute}
-                          onEdit={handleEditTribute}
-                          onDelete={handleDeleteTribute}
-                          currentSessionId={currentSessionId}
-                          onLike={toggleLike}
-                          isLiked={likedMemories.has(tribute.id || '')}
-                        />
-                      </div>
-                    ))}
-                  </div>
+                  <TributesCarousel
+                    tributes={memorial.tributes}
+                    onEdit={handleEditTribute}
+                    onDelete={handleDeleteTribute}
+                    currentSessionId={currentSessionId}
+                    likedMemories={likedMemories}
+                    onLike={toggleLike}
+                  />
                 ) : (
                   <div className="text-center py-16 bg-gray-50/50 rounded-xl">
                     <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
