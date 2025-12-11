@@ -2533,7 +2533,7 @@ useEffect(() => {
     <div className="min-h-screen bg-white">
       {/* REDESIGNED HEADER - Modern & Warm */}
       <div className="min-h-screen bg-gray-50">
-         {/* BACK BUTTON - Fixed positioning */}
+  {/* BACK BUTTON - Fixed positioning */}
   <div className="fixed top-4 left-4 sm:top-6 sm:left-6 z-50">
     <button
       onClick={handleBackNavigation}
@@ -2574,7 +2574,7 @@ useEffect(() => {
           
           {/* Container with dynamic padding */}
           <div className={`relative z-10 max-w-7xl mx-auto px-4 sm:px-6 transition-all duration-200 ${
-            isScrolled ? 'py-4' : 'py-16 md:py-24'
+            isScrolled ? 'py-4' : 'py-8 sm:py-16 md:py-24'
           }`}>
             
           
@@ -2582,7 +2582,7 @@ useEffect(() => {
             <div className={`flex items-center transition-all duration-500 ${
               isScrolled 
                 ? 'gap-4 justify-start'
-                : 'gap-8 md:gap-12 justify-center'
+                : 'gap-4 sm:gap-8 md:gap-12 justify-center'
             }`}>
               
               {/* Profile Image with smooth transitions */}
@@ -2593,19 +2593,19 @@ useEffect(() => {
                     alt={memorial.name}
                     className={`object-cover shadow-2xl transition-all duration-200 ease-in-out ${
                       isScrolled 
-                        ? 'w-12 h-12 rounded-full border-2 border-orange-500'
-                        : 'w-40 h-52 md:w-48 md:h-64 rounded-2xl border-4 border-orange-500 shadow-orange-500/20'
+                        ? 'w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-orange-500'
+                        : 'w-32 h-40 sm:w-40 sm:h-52 md:w-48 md:h-64 rounded-2xl border-4 border-orange-500 shadow-orange-500/20'
                     }`}
                     style={{ willChange: 'transform, width, height' }}
                   />
                 ) : (
                   <div className={`bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center shadow-2xl transition-all duration-500 ease-in-out ${
                       isScrolled 
-                        ? 'w-12 h-12 rounded-full border-2 border-orange-500'
-                        : 'w-40 h-52 md:w-48 md:h-64 rounded-2xl border-4 border-orange-500 shadow-orange-500/20'
+                        ? 'w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-orange-500'
+                        : 'w-32 h-40 sm:w-40 sm:h-52 md:w-48 md:h-64 rounded-2xl border-4 border-orange-500 shadow-orange-500/20'
                   }`}>
                     <User className={`text-orange-400 transition-all duration-500 ${
-                      isScrolled ? 'w-6 h-6' : 'w-16 h-16 md:w-20 md:h-20'
+                      isScrolled ? 'w-5 h-5 sm:w-6 sm:h-6' : 'w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20'
                     }`} />
                   </div>
                 )}
@@ -2619,8 +2619,8 @@ useEffect(() => {
                 {/* Name - Smooth animation */}
                 <h1 className={`font-serif transition-all duration-200 ease-in-out ${
                   isScrolled 
-                    ? 'text-lg text-gray-900 font-semibold'
-                    : 'text-4xl md:text-5xl lg:text-6xl text-white font-bold drop-shadow-2xl mb-8'
+                    ? 'text-base sm:text-lg text-gray-900 font-semibold'
+                    : 'text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-white font-bold drop-shadow-2xl mb-8'
                 }`}
                 style={{ willChange: 'font-size, color' }}>
                   {memorial.name}
@@ -2632,18 +2632,18 @@ useEffect(() => {
                     ? 'opacity-0 max-h-0 overflow-hidden' 
                     : 'opacity-100 max-h-96'
                 }`}>
-                  <div className="space-y-6 relative pl-8 border-l-4 border-orange-500">
+                  <div className="space-y-4 sm:space-y-6 relative pl-6 sm:pl-8 border-l-2 sm:border-l-4 border-orange-500">
                     
                     {/* Birth Date - TIMELINE ITEM with staggered animation - NOW USES REAL DATA */}
                     <div className="relative animate-fade-in" style={{ animationDelay: '0.1s', animationFillMode: 'both' }}>
                       {/* Timeline dot */}
-                      <div className="absolute -left-10 top-1 w-4 h-4 rounded-full bg-orange-500 ring-4 ring-orange-500/30"></div>
+                      <div className="absolute -left-8 sm:-left-10 top-1 w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-orange-500 ring-4 ring-orange-500/30"></div>
                       
                       <div className="flex items-center gap-3 mb-1">
-                        <Calendar className="w-5 h-5 text-orange-400" />
-                        <span className="text-orange-400 text-sm font-bold uppercase tracking-widest">Born</span>
+                        <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400" />
+                        <span className="text-orange-400 text-xs sm:text-sm font-bold uppercase tracking-widest">Born</span>
                       </div>
-                      <p className="text-3xl md:text-4xl text-white font-bold tracking-tight">
+                      <p className="text-2xl sm:text-3xl md:text-4xl text-white font-bold tracking-tight">
                         {formatDate(memorial.birthDate)}
                       </p>
                     </div>
@@ -2654,13 +2654,13 @@ useEffect(() => {
                     {/* Sunset Date - TIMELINE ITEM with staggered animation - NOW USES REAL DATA */}
                     <div className="relative animate-fade-in" style={{ animationDelay: '0.5s', animationFillMode: 'both' }}>
                       {/* Timeline dot */}
-                      <div className="absolute -left-10 top-1 w-4 h-4 rounded-full bg-white ring-4 ring-white/30"></div>
+                      <div className="absolute -left-8 sm:-left-10 top-1 w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-white ring-4 ring-white/30"></div>
                       
                       <div className="flex items-center gap-3 mb-1">
-                        <Calendar className="w-5 h-5 text-white" />
-                        <span className="text-white/80 text-sm font-bold uppercase tracking-widest">Sunset</span>
+                        <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                        <span className="text-white/80 text-xs sm:text-sm font-bold uppercase tracking-widest">Sunset</span>
                       </div>
-                      <p className="text-3xl md:text-4xl text-white font-bold tracking-tight">
+                      <p className="text-2xl sm:text-3xl md:text-4xl text-white font-bold tracking-tight">
                         {formatDate(memorial.deathDate)}
                       </p>
                     </div>
@@ -2668,10 +2668,10 @@ useEffect(() => {
                     {/* Age Display - REDESIGNED with PROPER NULL CHECK */}
                     {age !== null && age > 0 && (
                       <div className="relative animate-fade-in pt-2" style={{ animationDelay: '0.7s', animationFillMode: 'both' }}>
-                        <div className="flex items-center gap-2 px-4 py-3 bg-orange-500/20 rounded-lg border-l-4 border-orange-500 backdrop-blur-sm">
-                          <Sparkles className="w-5 h-5 text-orange-400" />
-                          <p className="text-white text-lg md:text-xl font-medium">
-                            <span className="font-bold text-orange-400 text-2xl">{age}</span> years of beautiful memories
+                        <div className="flex items-center gap-2 px-3 sm:px-4 py-2 sm:py-3 bg-orange-500/20 rounded-lg border-l-2 sm:border-l-4 border-orange-500 backdrop-blur-sm">
+                          <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-orange-400" />
+                          <p className="text-white text-base sm:text-lg md:text-xl font-medium">
+                            <span className="font-bold text-orange-400 text-xl sm:text-2xl">{age}</span> years of beautiful memories
                           </p>
                         </div>
                       </div>
@@ -2681,13 +2681,13 @@ useEffect(() => {
                     {memorial.location && (
                       <div className="relative animate-fade-in pt-4" style={{ animationDelay: '0.9s', animationFillMode: 'both' }}>
                         {/* Timeline dot */}
-                        <div className="absolute -left-10 top-5 w-4 h-4 rounded-full bg-gray-300 ring-4 ring-gray-300/30"></div>
+                        <div className="absolute -left-8 sm:-left-10 top-5 w-3 h-3 sm:w-4 sm:h-4 rounded-full bg-gray-300 ring-4 ring-gray-300/30"></div>
                         
                         <div className="flex items-center gap-3 mb-1">
-                          <MapPin className="w-5 h-5 text-gray-300" />
-                          <span className="text-gray-300 text-sm font-bold uppercase tracking-widest">Resting Place</span>
+                          <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-gray-300" />
+                          <span className="text-gray-300 text-xs sm:text-sm font-bold uppercase tracking-widest">Resting Place</span>
                         </div>
-                        <p className="text-2xl md:text-3xl text-white font-bold tracking-tight">
+                        <p className="text-xl sm:text-2xl md:text-3xl text-white font-bold tracking-tight">
                           {memorial.location}
                         </p>
                       </div>
@@ -2703,7 +2703,7 @@ useEffect(() => {
         <nav className="sticky top-[72px] z-30 bg-white border-b border-gray-200 transition-all duration-200">
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex justify-center">
-              <div className="flex gap-1 py-3 overflow-x-auto scrollbar-hide scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <div className="flex gap-0.5 sm:gap-1 py-2.5 sm:py-3 overflow-x-auto scrollbar-hide scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                 {navigationItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = activeSection === item.id;
@@ -2711,32 +2711,32 @@ useEffect(() => {
                   return (
                     <button
                       key={item.id}
-onClick={() => {
-  // Lock the header in collapsed state and record the time
-  setHeaderLocked(true);
-  setIsScrolled(true);
-  setHeaderLockedTime(Date.now());
-  setActiveSection(item.id);
-  
-  const element = document.getElementById(item.id);
-  if (element) {
-    // Fixed offset since nav is now always at same position
-    const navHeight = 72; // Height of collapsed header
-    const navBarHeight = 60; // Height of nav bar itself
-    const totalOffset = navHeight + navBarHeight + 20; // 20px padding
-    
-    const elementPosition = element.getBoundingClientRect().top;
-    const offsetPosition = elementPosition + window.pageYOffset - totalOffset;
-    
-    window.scrollTo({
-      top: offsetPosition,
-      behavior: 'smooth'
-    });
-  }
-  
-  // Header stays locked until user scrolls to very top AND 1 second has passed
-}}
-                      className={`relative flex items-center gap-2 px-4 md:px-6 py-3 text-sm md:text-base font-medium whitespace-nowrap transition-all duration-300 ${
+                      onClick={() => {
+                        // Lock the header in collapsed state and record the time
+                        setHeaderLocked(true);
+                        setIsScrolled(true);
+                        setHeaderLockedTime(Date.now());
+                        setActiveSection(item.id);
+                        
+                        const element = document.getElementById(item.id);
+                        if (element) {
+                          // Fixed offset since nav is now always at same position
+                          const navHeight = 72; // Height of collapsed header
+                          const navBarHeight = 60; // Height of nav bar itself
+                          const totalOffset = navHeight + navBarHeight + 20; // 20px padding
+                          
+                          const elementPosition = element.getBoundingClientRect().top;
+                          const offsetPosition = elementPosition + window.pageYOffset - totalOffset;
+                          
+                          window.scrollTo({
+                            top: offsetPosition,
+                            behavior: 'smooth'
+                          });
+                        }
+                        
+                        // Header stays locked until user scrolls to very top AND 1 second has passed
+                      }}
+                      className={`relative flex items-center gap-2 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 text-sm md:text-base font-medium whitespace-nowrap transition-all duration-300 ${
                         isActive
                           ? 'text-orange-600'
                           : 'text-gray-600 hover:text-orange-600'
