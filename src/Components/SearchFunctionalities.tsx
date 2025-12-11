@@ -299,11 +299,11 @@ export default function SearchNavbar({
 
             {/* Search Results Dropdown - ALWAYS opens below input */}
             {showResults && showResultsDropdown && (
-  <div 
-    ref={resultsRef}
-    className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-amber-300 
-             rounded-xl shadow-2xl z-[9999] max-h-96 overflow-y-auto animate-fade-in"
-  >
+              <div 
+                ref={resultsRef}
+                className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-amber-300 
+                         rounded-xl shadow-2xl z-50 max-h-96 overflow-y-auto animate-fade-in"
+              >
                 {isSearching ? (
                   <div className="p-8 text-center">
                     <Loader className="w-8 h-8 animate-spin mx-auto text-amber-500" />
