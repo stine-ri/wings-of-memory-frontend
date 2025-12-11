@@ -665,89 +665,114 @@ const GallerySection: React.FC<{ gallery: GalleryImage[] }> = ({ gallery }) => {
         </div>
 
         {/* Slideshow Modal */}
-        {isSlideshowActive && (
-          <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
-            {/* Close Button */}
-            <button
-              onClick={closeSlideshow}
-              className="absolute top-4 sm:top-6 right-4 sm:right-6 text-white hover:text-gray-300 transition-colors z-10"
-            >
-              <X size={24} className="sm:size-[36px]" />
-            </button>
+{isSlideshowActive && (
+  <div className="fixed inset-0 bg-black z-50 flex items-center justify-center p-4">
+    {/* Close Button */}
+    <button
+      onClick={closeSlideshow}
+      className="absolute top-4 sm:top-6 right-4 sm:right-6 text-white hover:text-gray-300 transition-colors z-20 bg-black/50 rounded-full p-2 hover:bg-black/70"
+    >
+      <X size={28} />
+    </button>
 
-            {/* Navigation Buttons */}
-            <button
-              onClick={prevSlide}
-              className="absolute left-2 sm:left-6 text-white hover:text-gray-300 transition-colors z-10"
-            >
-              <ChevronLeft size={32} className="sm:size-[48px]" />
-            </button>
+    {/* Navigation Buttons - Always visible */}
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        prevSlide();
+      }}
+      className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 z-20 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white p-3 sm:p-4 rounded-full transition-all hover:scale-110"
+      aria-label="Previous image"
+    >
+      <ChevronLeft size={32} className="sm:w-12 sm:h-12" />
+    </button>
 
-            <button
-              onClick={nextSlide}
-              className="absolute right-2 sm:right-6 text-white hover:text-gray-300 transition-colors z-10"
-            >
-              <ChevronRight size={32} className="sm:size-[48px]" />
-            </button>
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        nextSlide();
+      }}
+      className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 z-20 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white p-3 sm:p-4 rounded-full transition-all hover:scale-110"
+      aria-label="Next image"
+    >
+      <ChevronRight size={32} className="sm:w-12 sm:h-12" />
+    </button>
 
-            {/* Main Image */}
-            <div className="max-w-4xl max-h-[80vh] w-full px-4 sm:px-20">
-              <img
-                src={filteredImages[currentSlide]?.url}
-                alt={filteredImages[currentSlide]?.caption || `Slide ${currentSlide + 1}`}
-                className="w-full h-full object-contain rounded-lg"
-              />
-              
-              {/* Image Info */}
-              <div className="mt-4 text-center">
-                {(filteredImages[currentSlide]?.category || filteredImages[currentSlide]?.caption) && (
-                  <div className="bg-black/40 backdrop-blur-sm rounded-lg p-4 inline-block">
-                    {filteredImages[currentSlide]?.category && (
-                      <h3 className="text-xl font-bold text-white mb-1">
-                        {filteredImages[currentSlide].category}
-                      </h3>
-                    )}
-                    {filteredImages[currentSlide]?.caption && (
-                      <p className="text-gray-300 max-w-2xl mx-auto text-sm sm:text-base">
-                        {filteredImages[currentSlide].caption}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Controls Bar */}
-            <div className="absolute bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-3 sm:gap-4">
-              <button
-                onClick={() => setIsPlaying(!isPlaying)}
-                className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-full transition-all flex items-center gap-2 text-sm sm:text-base"
-              >
-                {isPlaying ? <Pause size={16} className="sm:size-[20px]" /> : <Play size={16} className="sm:size-[20px]" />}
-                {isPlaying ? 'Pause' : 'Play'}
-              </button>
-              <div className="text-white text-base sm:text-lg">
-                {currentSlide + 1} / {filteredImages.length}
-              </div>
-            </div>
-
-            {/* Progress Indicator Dots - Mobile only */}
-            <div className="sm:hidden absolute bottom-20 left-1/2 -translate-x-1/2 flex gap-2">
-              {filteredImages.slice(0, 5).map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setCurrentSlide(idx)}
-                  className={`w-2 h-2 rounded-full transition-all ${
-                    idx === currentSlide ? 'bg-white w-4' : 'bg-white/50'
-                  }`}
-                />
-              ))}
-              {filteredImages.length > 5 && (
-                <span className="text-white/70 text-xs ml-1">+{filteredImages.length - 5}</span>
-              )}
-            </div>
+    {/* Main Image Container - Fixed for better display */}
+    <div className="relative w-full h-full flex flex-col items-center justify-center px-4 sm:px-24 py-20 sm:py-24">
+      <div className="relative max-w-6xl max-h-[70vh] w-full flex items-center justify-center">
+        <img
+          src={gallery[currentSlide]?.url}
+          alt={gallery[currentSlide]?.caption || `Slide ${currentSlide + 1}`}
+          className="max-w-full max-h-[70vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
+          style={{ display: 'block' }}
+        />
+      </div>
+      
+      {/* Image Info */}
+      {(gallery[currentSlide]?.category || gallery[currentSlide]?.caption) && (
+        <div className="mt-6 text-center max-w-3xl">
+          <div className="bg-black/60 backdrop-blur-md rounded-xl p-4 sm:p-6 inline-block">
+            {gallery[currentSlide]?.category && (
+              <h3 className="text-xl sm:text-2xl font-bold text-white mb-2">
+                {gallery[currentSlide].category}
+              </h3>
+            )}
+            {gallery[currentSlide]?.caption && (
+              <p className="text-gray-200 text-sm sm:text-base leading-relaxed">
+                {gallery[currentSlide].caption}
+              </p>
+            )}
           </div>
+        </div>
+      )}
+    </div>
+
+    {/* Controls Bar */}
+    <div className="absolute bottom-6 sm:bottom-8 left-1/2 transform -translate-x-1/2 flex items-center gap-4 z-20">
+      <button
+        onClick={() => setIsPlaying(!isPlaying)}
+        className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-5 sm:px-7 py-2.5 sm:py-3 rounded-full transition-all flex items-center gap-2.5 text-sm sm:text-base font-medium shadow-lg"
+      >
+        {isPlaying ? (
+          <>
+            <Pause size={18} />
+            <span>Pause</span>
+          </>
+        ) : (
+          <>
+            <Play size={18} />
+            <span>Play</span>
+          </>
         )}
+      </button>
+      <div className="text-white text-base sm:text-lg font-medium bg-black/40 px-4 py-2 rounded-full backdrop-blur-sm">
+        {currentSlide + 1} / {gallery.length}
+      </div>
+    </div>
+
+    {/* Progress Dots */}
+    <div className="absolute bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+      {gallery.slice(0, Math.min(gallery.length, 10)).map((_, idx) => (
+        <button
+          key={idx}
+          onClick={() => setCurrentSlide(idx)}
+          className={`transition-all duration-300 rounded-full ${
+            idx === currentSlide
+              ? 'w-8 sm:w-10 h-2 bg-white'
+              : 'w-2 h-2 bg-white/40 hover:bg-white/60'
+          }`}
+          aria-label={`Go to image ${idx + 1}`}
+        />
+      ))}
+      {gallery.length > 10 && (
+        <span className="text-white/70 text-xs ml-2 self-center">
+          +{gallery.length - 10}
+        </span>
+      )}
+    </div>
+  </div>
+)}
 
         {/* Lightbox for individual image view (preserves existing functionality) */}
         {selectedImage !== null && !isSlideshowActive && (
