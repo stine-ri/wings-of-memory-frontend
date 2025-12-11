@@ -1,7 +1,7 @@
 // Pages/Dashboard.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import TopNav from '../Components/TopNav';
-import SearchNavbar from '../Components/SearchFunctionalities';
+// import SearchNavbar from '../Components/SearchFunctionalities';
 import { Footer } from '../Components/Footer';
 import { DashboardLayout } from '../Components/DashboardLayout';
 import { OverviewSection } from '../Components/Dashboard/OverviewSection';
@@ -29,8 +29,8 @@ const DashboardContent: React.FC = () => {
   const { memorialData, loading, error, dataIntegrity, refreshMemorial } = useMemorial();
   
   // Add search and filter state that's actually used
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('recent');
+  const [searchQuery] = useState('');
+  const [sortBy] = useState('recent');
   const [filteredMemorials, setFilteredMemorials] = useState<Memorial[]>([]);
 
   // Filter and sort memorials based on search and sort criteria
@@ -228,16 +228,16 @@ const DashboardContent: React.FC = () => {
 
 
   // Handle search functionality
-  const handleSearch = useCallback((query: string) => {
-    setSearchQuery(query);
-    console.log('🔍 Searching memorials:', query);
-  }, []);
+  // const handleSearch = useCallback((query: string) => {
+  //   setSearchQuery(query);
+  //   console.log('🔍 Searching memorials:', query);
+  // }, []);
 
   // Handle filter changes
-  const handleFilterChange = useCallback((filterType: string) => {
-    setSortBy(filterType);
-    console.log('🎛️ Sorting memorials by:', filterType);
-  }, []);
+  // const handleFilterChange = useCallback((filterType: string) => {
+  //   setSortBy(filterType);
+  //   console.log('🎛️ Sorting memorials by:', filterType);
+  // }, []);
 
   // Retry loading
   const handleRetryLoading = useCallback(async () => {
@@ -356,10 +356,10 @@ const DashboardContent: React.FC = () => {
       />
       
       {/* Pass the handlers to SearchNavbar */}
-      <SearchNavbar 
+      {/* <SearchNavbar 
         onSearch={handleSearch} 
         onFilterChange={handleFilterChange} 
-      />
+      /> */}
       
       <DashboardLayout
         activeSection={activeSection}
@@ -588,10 +588,10 @@ export const Dashboard: React.FC = () => {
         />
         
         {/* Show SearchNavbar with empty handlers for consistency */}
-        <SearchNavbar 
+        {/* <SearchNavbar 
           onSearch={() => {}} 
           onFilterChange={() => {}} 
-        />
+        /> */}
 
         <div className="flex justify-center items-center pt-20 p-4">
           <div className="text-center max-w-md w-full">
@@ -661,10 +661,10 @@ export const Dashboard: React.FC = () => {
   }}
         />
         
-        <SearchNavbar 
+        {/* <SearchNavbar 
           onSearch={() => {}} 
           onFilterChange={() => {}} 
-        />
+        /> */}
         
         <div className="flex justify-center items-center pt-20 p-4">
           <div className="text-center max-w-md w-full">
