@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Eye, X, Loader2, Facebook, Twitter , Mail } from 'lucide-react';
+import { Search, Eye, ChevronDown, X, Loader2, Facebook, Twitter, Instagram, Mail } from 'lucide-react';
 
 interface PublicMemorial {
   id: string;
@@ -41,12 +41,28 @@ export default function SearchNavbar({
   const [showResultsDropdown, setShowResultsDropdown] = useState(false);
   const [totalResults, setTotalResults] = useState(0);
   const [searchAttempted, setSearchAttempted] = useState(false);
-
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   const resultsRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const BACKEND_URL = 'https://wings-of-memories-backend.onrender.com/api';
+
+  // Check for mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   // Click outside to close dropdown
   useEffect(() => {
@@ -73,6 +89,7 @@ export default function SearchNavbar({
         offset: '0'
       });
       
+      // Only add search param if query exists
       if (query.trim()) {
         params.append('search', query.trim());
       }
@@ -134,27 +151,40 @@ export default function SearchNavbar({
     }
   };
 
-const handleInputFocus = () => {
-  // Don't show results immediately when focusing
-  // Only show if there's already a search query
-  if (searchQuery.length > 0) {
-    setShowResultsDropdown(true);
-  }
-  // Don't fetch empty results on focus
-};
-
-  const viewMemorialPage = (memorial: PublicMemorial) => {
-    const memorialSlug = memorial.customUrl || memorial.id;
-    const memorialUrl = `/memorial/${memorialSlug}`;
-    
-    // Close UI elements
-    setShowResultsDropdown(false);
-    setSearchQuery('');
-    
-    // Navigate to memorial page - same behavior for both mobile and desktop
-    window.location.href = memorialUrl;
+  const handleInputFocus = () => {
+    // Show dropdown when input is focused (empty search shows all memorials)
+    if (searchResults.length > 0) {
+      setShowResultsDropdown(true);
+    } else if (searchQuery.length === 0) {
+      // Fetch all memorials when clicking into empty search
+      fetchMemorials('');
+      setShowResultsDropdown(true);
+    }
   };
 
+  const viewMemorialPage = (memorial: PublicMemorial) => {
+  const memorialSlug = memorial.customUrl || memorial.id;
+  const memorialUrl = `/memorial/${memorialSlug}`;
+  
+  // Close all UI elements first
+  setShowResultsDropdown(false);
+  setSearchQuery('');
+  setIsExpanded(false);
+  
+  // On mobile, ensure we start at the top of the memorial page
+  if (isMobile) {
+    // Force scroll to top before navigation
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    
+    // Small delay to ensure scroll happens before navigation
+    setTimeout(() => {
+      window.location.href = memorialUrl;
+    }, 50);
+  } else {
+    // Desktop - normal behavior
+    window.location.href = memorialUrl;
+  }
+};
   const clearSearch = () => {
     setSearchQuery('');
     setSearchResults([]);
@@ -167,6 +197,13 @@ const handleInputFocus = () => {
       onResults([]);
     }
     if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
+  const toggleExpand = () => {
+    setIsExpanded(!isExpanded);
+    if (!isExpanded && inputRef.current) {
       inputRef.current.focus();
     }
   };
@@ -187,9 +224,9 @@ const handleInputFocus = () => {
 
   return (
     <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200 shadow-sm sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
+      <div className={`max-w-7xl mx-auto px-3 sm:px-4 transition-all duration-300 ${isExpanded ? 'py-3' : 'py-3 sm:py-4'}`}>
         
-        {/* Header */}
+        {/* Compact Header */}
         <div className="flex items-center justify-between gap-3 sm:gap-4">
           
           {/* Logo/Site Name */}
@@ -258,9 +295,10 @@ const handleInputFocus = () => {
             {/* Search Results Dropdown */}
             {showResults && showResultsDropdown && (
               <div 
-    ref={resultsRef}
-    className="fixed top-0 left-0 right-0 bottom-0 bg-white z-[100] overflow-y-auto"
-  >
+                ref={resultsRef}
+                className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-amber-300 
+                         rounded-xl shadow-2xl z-50 overflow-y-auto max-h-[500px] animate-fade-in"
+              >
                 {isSearching ? (
                   <div className="p-6 sm:p-8 text-center">
                     <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin mx-auto text-amber-500" />
@@ -406,32 +444,209 @@ const handleInputFocus = () => {
               </div>
             )}
           </div>
+
+          {/* Expand Button (Desktop Only) */}
+          {!isMobile && (
+            <button
+              onClick={toggleExpand}
+              className="p-2.5 text-gray-600 hover:text-gray-900 hover:bg-amber-100 rounded-lg transition-colors border-2 border-amber-300 shrink-0"
+              aria-label={isExpanded ? "Collapse search" : "Expand search"}
+            >
+              {isExpanded ? (
+                <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 rotate-180 transition-transform" />
+              ) : (
+                <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 transition-transform" />
+              )}
+            </button>
+          )}
         </div>
 
-        {/* Follow Us Section (Desktop Only) */}
-        <div className="hidden sm:block mt-3 pt-3 border-t border-amber-200">
-          <div className="flex items-center justify-between bg-amber-100/50 p-3 rounded-xl border border-amber-200">
-            <div>
-              <h3 className="text-sm font-bold text-gray-900">Follow Our Memorial Community</h3>
-              <p className="text-xs text-gray-700">Stay connected for updates and support</p>
+        {/* Expanded Section - Always includes Follow Us */}
+        {isExpanded && (
+          <div className="mt-4 pt-4 border-t border-amber-300 animate-slide-down">
+            {/* Search Tips */}
+            <div className="mb-4">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-sm sm:text-base text-gray-700">
+                <span className="font-bold text-gray-900">Search by:</span>
+                <button
+                  onClick={() => setSearchQuery('John')}
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-100 hover:bg-amber-200 rounded-lg text-gray-800 font-medium transition-colors text-sm sm:text-base"
+                >
+                  Name
+                </button>
+                <button
+                  onClick={() => setSearchQuery('New York')}
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-100 hover:bg-amber-200 rounded-lg text-gray-800 font-medium transition-colors text-sm sm:text-base"
+                >
+                  Location
+                </button>
+                <button
+                  onClick={() => setSearchQuery('2023')}
+                  className="px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-100 hover:bg-amber-200 rounded-lg text-gray-800 font-medium transition-colors text-sm sm:text-base"
+                >
+                  Year
+                </button>
+                <button
+                  onClick={clearSearch}
+                  className="ml-auto text-sm sm:text-base text-amber-700 hover:text-amber-800 font-bold"
+                >
+                  Clear all
+                </button>
+              </div>
             </div>
-            <div className="flex items-center gap-1">
-              <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" 
-                 className="p-2 bg-white text-blue-600 hover:text-white hover:bg-blue-600 rounded-xl transition-all shadow-sm hover:shadow-md">
-                <Facebook className="w-4 h-4" />
-              </a>
-              <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" 
-                 className="p-2 bg-white text-blue-400 hover:text-white hover:bg-blue-400 rounded-xl transition-all shadow-sm hover:shadow-md">
-                <Twitter className="w-4 h-4" />
-              </a>
-              <a href="mailto:contact@4revah.com" 
-                 className="p-2 bg-white text-amber-600 hover:text-white hover:bg-amber-500 rounded-xl transition-all shadow-sm hover:shadow-md">
-                <Mail className="w-4 h-4" />
-              </a>
+
+            {/* Follow Us Section - Always visible when expanded */}
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-amber-100/50 p-3 sm:p-4 rounded-xl border border-amber-200 gap-3 sm:gap-0">
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-1">Follow Us</h3>
+                <p className="text-xs sm:text-sm text-gray-700">Stay connected with our memorial community</p>
+              </div>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" 
+                   className="p-2 sm:p-3 bg-white text-blue-600 hover:text-white hover:bg-blue-600 rounded-xl transition-all shadow-sm hover:shadow-md">
+                  <Facebook className="w-4 h-4 sm:w-5 sm:h-5" />
+                </a>
+                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" 
+                   className="p-2 sm:p-3 bg-white text-blue-400 hover:text-white hover:bg-blue-400 rounded-xl transition-all shadow-sm hover:shadow-md">
+                  <Twitter className="w-4 h-4 sm:w-5 sm:h-5" />
+                </a>
+                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" 
+                   className="p-2 sm:p-3 bg-white text-pink-600 hover:text-white hover:bg-pink-600 rounded-xl transition-all shadow-sm hover:shadow-md">
+                  <Instagram className="w-4 h-4 sm:w-5 sm:h-5" />
+                </a>
+                <a href="mailto:contact@4revah.com" 
+                   className="p-2 sm:p-3 bg-white text-amber-600 hover:text-white hover:bg-amber-500 rounded-xl transition-all shadow-sm hover:shadow-md">
+                  <Mail className="w-4 h-4 sm:w-5 sm:h-5" />
+                </a>
+              </div>
+            </div>
+
+            {/* Active Search Info */}
+            {searchAttempted && (
+              <div className="mt-4 pt-4 border-t border-amber-200">
+                <div className="flex items-center justify-between text-sm sm:text-base text-gray-700">
+                  <div className="truncate">
+                    <span className="font-bold text-gray-900">Searching:</span>
+                    <span className="ml-2 text-amber-800 font-bold truncate">
+                      {searchQuery ? `"${searchQuery}"` : "All memorials"}
+                    </span>
+                    {isSearching ? (
+                      <span className="ml-2 sm:ml-3 text-gray-600">
+                        <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 inline animate-spin mr-1 sm:mr-2" /> 
+                        <span className="hidden sm:inline">Searching...</span>
+                      </span>
+                    ) : totalResults > 0 ? (
+                      <span className="ml-2 sm:ml-3 text-gray-600">
+                        • Found {totalResults} memorial{totalResults !== 1 ? 's' : ''}
+                      </span>
+                    ) : (
+                      <span className="ml-2 sm:ml-3 text-gray-600">• No results</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Follow Us Section (Desktop Only - Always visible when not expanded) */}
+        {!isMobile && !isExpanded && (
+          <div className="mt-3 pt-3 border-t border-amber-200">
+            <div className="flex items-center justify-between bg-amber-100/50 p-3 rounded-xl border border-amber-200">
+              <div>
+                <h3 className="text-sm font-bold text-gray-900">Follow Our Memorial Community</h3>
+                <p className="text-xs text-gray-700">Stay connected for updates and support</p>
+              </div>
+              <div className="flex items-center gap-1">
+                <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" 
+                   className="p-2 bg-white text-blue-600 hover:text-white hover:bg-blue-600 rounded-xl transition-all shadow-sm hover:shadow-md">
+                  <Facebook className="w-4 h-4" />
+                </a>
+                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" 
+                   className="p-2 bg-white text-blue-400 hover:text-white hover:bg-blue-400 rounded-xl transition-all shadow-sm hover:shadow-md">
+                  <Twitter className="w-4 h-4" />
+                </a>
+                <a href="mailto:contact@4revah.com" 
+                   className="p-2 bg-white text-amber-600 hover:text-white hover:bg-amber-500 rounded-xl transition-all shadow-sm hover:shadow-md">
+                  <Mail className="w-4 h-4" />
+                </a>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
+
+      {/* Mobile responsive styles to prevent horizontal scrolling */}
+      <style >{`
+        @media (max-width: 640px) {
+          /* Ensure content doesn't overflow horizontally */
+          * {
+            max-width: 100vw;
+            overflow-x: hidden;
+          }
+          
+          /* Specific fixes for mobile */
+          .flex.items-center.justify-between.gap-3 {
+            flex-wrap: nowrap;
+            overflow-x: visible;
+          }
+          
+          .flex-1.max-w-2xl.relative {
+            max-width: 100%;
+            overflow: visible;
+          }
+          
+          /* Ensure input text is visible */
+          input[type="text"] {
+            font-size: 16px !important;
+          }
+          
+          /* Prevent horizontal scroll on body */
+          body {
+            overflow-x: hidden;
+            position: relative;
+          }
+          
+          /* Better line clamping */
+          .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+          }
+        }
+        
+        /* Custom animations */
+        @keyframes fade-in {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        
+        @keyframes slide-down {
+          from {
+            opacity: 0;
+            max-height: 0;
+          }
+          to {
+            opacity: 1;
+            max-height: 1000px;
+          }
+        }
+        
+        .animate-fade-in {
+          animation: fade-in 0.2s ease-out;
+        }
+        
+        .animate-slide-down {
+          animation: slide-down 0.3s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
