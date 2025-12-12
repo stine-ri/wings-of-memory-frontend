@@ -293,18 +293,20 @@ export default function SearchNavbar({
                 <Search className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
               </div>
               <input
-                ref={inputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={handleKeyPress}
-                onFocus={handleInputFocus}
-                placeholder={isSmallScreen ? "Search memorials..." : "Search memorials by name, location, or story..."}
-                className="block w-full pl-10 sm:pl-12 pr-24 sm:pr-28 py-2 sm:py-3 border-2 border-amber-300 
-                         bg-white focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-amber-400 
-                         focus:border-transparent placeholder-gray-500 text-gray-900 
-                         text-sm sm:text-base rounded-lg sm:rounded-xl shadow-sm transition-all duration-200"
-              />
+  ref={inputRef}
+  type="text"
+  value={searchQuery}
+  onChange={(e) => setSearchQuery(e.target.value)}
+  onKeyPress={handleKeyPress}
+  onFocus={handleInputFocus}
+  placeholder={isSmallScreen ? "Search memorials..." : "Search memorials by name, location, or story..."}
+  className="block w-full pl-10 sm:pl-12 pr-24 sm:pr-28 py-2 sm:py-3 border-2 border-amber-300 
+           bg-white focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-amber-400 
+           focus:border-transparent placeholder-gray-400 text-gray-900 
+           text-base sm:text-base font-medium rounded-lg sm:rounded-xl shadow-sm transition-all duration-200
+           [-webkit-text-fill-color:theme(colors.gray.900)] [caret-color:theme(colors.amber.600)]"
+  style={{ fontSize: '16px' }}
+/>
               
               {/* Search Actions */}
               <div className="absolute inset-y-0 right-0 flex items-center pr-1 sm:pr-1.5">
