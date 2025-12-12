@@ -42,6 +42,7 @@ export default function SearchNavbar({
   const [totalResults, setTotalResults] = useState(0);
   const [searchAttempted, setSearchAttempted] = useState(false);
 
+
   const resultsRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -133,14 +134,14 @@ export default function SearchNavbar({
     }
   };
 
-  const handleInputFocus = () => {
-    if (searchResults.length > 0) {
-      setShowResultsDropdown(true);
-    } else if (searchQuery.length === 0) {
-      fetchMemorials('');
-      setShowResultsDropdown(true);
-    }
-  };
+const handleInputFocus = () => {
+  // Don't show results immediately when focusing
+  // Only show if there's already a search query
+  if (searchQuery.length > 0) {
+    setShowResultsDropdown(true);
+  }
+  // Don't fetch empty results on focus
+};
 
   const viewMemorialPage = (memorial: PublicMemorial) => {
     const memorialSlug = memorial.customUrl || memorial.id;
