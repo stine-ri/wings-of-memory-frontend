@@ -2534,13 +2534,10 @@ useEffect(() => {
 {/* REDESIGNED HEADER - Modern & Warm */}
 <div className="min-h-screen bg-gray-50">
   {/* FLOATING BACK BUTTON - Works on all OS */}
-{/* BACK BUTTON - Fixed position, won't overlap */}
-{/* BACK BUTTON - Fixed position with Windows compatibility */}
-<div className="fixed top-3 left-3 sm:top-6 sm:left-6 z-[9999]" style={{ position: 'fixed' }}>
+<div className="fixed top-3 left-3 sm:top-6 sm:left-6 z-50">
   <button
     onClick={handleBackNavigation}
     className="flex items-center justify-center sm:justify-start gap-0 sm:gap-2 bg-white/95 backdrop-blur-md text-gray-800 hover:text-orange-600 active:text-orange-700 transition-all duration-200 group p-2.5 sm:px-4 sm:py-3 rounded-full shadow-xl hover:shadow-2xl active:shadow-lg border border-gray-200 hover:border-orange-300 min-w-[40px] min-h-[40px] sm:min-w-[140px] sm:min-h-[44px] touch-manipulation"
-    style={{ position: 'relative', zIndex: 9999 }}
     aria-label={isLoggedIn() ? 'Back to Dashboard' : 'Back to Home'}
   >
     <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform duration-200 flex-shrink-0" />
@@ -2555,13 +2552,13 @@ useEffect(() => {
   isScrolled 
     ? 'bg-white shadow-md' 
     : 'relative bg-gray-900'
-}`} style={{ zIndex: 40 }}>
+}`}>
   
   {/* Background Image Layer */}
   <div className={`absolute inset-0 z-0 overflow-hidden transition-opacity duration-300 ${
     isScrolled ? 'opacity-0 pointer-events-none' : 'opacity-100'
   }`}>
-    {/* Warm memorial background image with better gradient */}
+    {/* Background image code remains the same */}
     <div 
       className="absolute inset-0 w-full h-full"
       style={{
@@ -2571,16 +2568,15 @@ useEffect(() => {
         backgroundRepeat: 'no-repeat'
       }}
     >
-      {/* Improved overlay with your color scheme */}
       <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/70 to-orange-950/60"></div>
     </div>
   </div>
   
-  {/* Container with dynamic padding - ADDED LEFT PADDING FOR MOBILE */}
+  {/* Container with dynamic padding - REMOVED pl-16 */}
   <div className={`relative z-10 max-w-7xl mx-auto transition-all duration-200 ${
     isScrolled 
-      ? 'py-4 px-4 sm:px-6 pl-16 sm:pl-6' 
-      : 'py-8 sm:py-16 md:py-24 px-4 sm:px-6 pl-16 sm:pl-6'
+      ? 'py-4 px-4 sm:px-6' 
+      : 'py-8 sm:py-16 md:py-24 px-4 sm:px-6'
   }`}>
     
     {/* Main flex container */}
