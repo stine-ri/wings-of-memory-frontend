@@ -544,10 +544,10 @@ export default function SearchNavbar({
               </div>
             )}
           </div>
-
-          {/* Filter & Expand Buttons - Responsive */}
+   {/* Filter & Expand Buttons - Responsive */}
+              {/* Filter & Expand Buttons - Responsive */}
           <div className="flex items-center gap-2">
-            {/* Filter Dropdown */}
+            {/* Filter Dropdown - FIXED MOBILE POSITIONING */}
             <div className="relative">
               <button
                 ref={filterButtonRef}
@@ -560,15 +560,34 @@ export default function SearchNavbar({
                 <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
               </button>
               
-              {/* Filter Menu - Responsive */}
+              {/* Filter Menu - FIXED TO OPEN BELOW ON MOBILE */}
               {showFilters && (
                 <div 
                   ref={filterDropdownRef}
-                  className={`absolute right-0 mt-2 w-48 bg-white border-2 border-amber-300 
+                  className={`absolute right-0 bg-white border-2 border-amber-300 
                             rounded-xl shadow-2xl z-50 py-2 animate-fade-in
-                            ${isSmallScreen ? 'fixed inset-x-0 bottom-0 mx-0 rounded-none border-x-0 border-b-0 max-h-48' : ''}`}
-                  style={isSmallScreen ? { top: 'auto', bottom: '64px' } : {}}
+                            ${isSmallScreen ? 'fixed inset-x-0 top-16 mx-0 rounded-none border-x-0 border-b-0' : 'mt-2 w-48 rounded-xl'}`}
+                  style={isSmallScreen ? { 
+                    top: '64px', // Below the navbar
+                    left: 0,
+                    right: 0,
+                    height: 'auto'
+                  } : {}}
                 >
+                  {/* Close button for mobile */}
+                  {isSmallScreen && (
+                    <div className="sticky top-0 bg-white border-b border-amber-100 px-4 py-3 flex justify-between items-center">
+                      <span className="font-bold text-gray-900 text-lg">Sort By</span>
+                      <button
+                        onClick={() => setShowFilters(false)}
+                        className="p-1 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100"
+                        aria-label="Close filters"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  )}
+                  
                   <div className="px-2">
                     <button
                       onClick={() => handleSortChange('recent')}

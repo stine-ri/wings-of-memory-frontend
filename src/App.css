@@ -1,23 +1,6 @@
 
 @import "tailwindcss";
 
-/* =========================================== */
-/* FONT CONSISTENCY FIX - ENSURES SAME LOOK ON ALL DEVICES */
-/* =========================================== */
-@layer base {
-  html, body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 
-                 'Helvetica Neue', Arial, sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-    text-rendering: optimizeLegibility;
-  }
-  
-  /* Ensure all text elements inherit consistent fonts */
-  h1, h2, h3, h4, h5, h6, p, span, div, a, button, input, textarea {
-    font-family: inherit;
-  }
-}
 
 /* =========================================== */
 /* ANIMATIONS */
