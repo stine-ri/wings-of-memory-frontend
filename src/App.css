@@ -1,6 +1,26 @@
 @import "tailwindcss";
-/* Print Styles for Memorial PDF Generation */
-/* Add these animations to your global CSS file */
+
+/* =========================================== */
+/* FONT CONSISTENCY FIX - ENSURES SAME LOOK ON ALL DEVICES */
+/* =========================================== */
+@layer base {
+  html, body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 
+                 'Helvetica Neue', Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  
+  /* Ensure all text elements inherit consistent fonts */
+  h1, h2, h3, h4, h5, h6, p, span, div, a, button, input, textarea {
+    font-family: inherit;
+  }
+}
+
+/* =========================================== */
+/* ANIMATIONS */
+/* =========================================== */
 @keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -51,9 +71,13 @@
   background-size: 1000px 100%;
 }
 
+/* =========================================== */
+/* GLOBAL STYLES */
+/* =========================================== */
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 100px; /* Adjust based on your header height */
 }
 
 /* Loading gradient for skeleton */
@@ -62,6 +86,17 @@ html {
   background-size: 400% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
 }
+
+/* Ensure transitions are GPU-accelerated */
+.transition-all {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000;
+}
+
+/* =========================================== */
+/* PRINT STYLES */
+/* =========================================== */
 @media print {
   /* Hide all non-content elements */
   header:not(.memorial-header),
@@ -95,6 +130,7 @@ html {
     background: white !important;
     width: 100% !important;
     height: auto !important;
+    font-family: Arial, sans-serif !important; /* Consistent print font */
   }
 
   /* Page break utilities */
@@ -243,9 +279,8 @@ html {
 }
 
 /* =========================================== */
-/* GUARANTEED MODAL FIX - ADD THIS TO GLOBAL CSS */
+/* MODAL FIXES */
 /* =========================================== */
-
 /* Force ALL modals to be root-level and centered */
 body > div.fixed.inset-0,
 body > div[class*="fixed inset-0"] {
@@ -283,16 +318,4 @@ body > div.fixed.inset-0 .absolute.inset-0 {
 body > div.fixed.inset-0 .relative.z-\[10000\] {
   position: relative !important;
   z-index: 2 !important;
-}
-/* Add to your global CSS file */
-html {
-  scroll-behavior: smooth;
-  scroll-padding-top: 100px; /* Adjust based on your header height */
-}
-
-/* Ensure transitions are GPU-accelerated */
-.transition-all {
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  perspective: 1000;
 }
