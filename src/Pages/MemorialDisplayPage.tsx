@@ -135,6 +135,7 @@ const ShareModal: React.FC<{
   onClose: () => void; 
   memorialUrl: string;
   memorialName: string;
+   memorialData?: MemorialData;
 }> = ({ isOpen, onClose, memorialUrl, memorialName }) => {
   const [copied, setCopied] = useState(false);
 
@@ -2983,15 +2984,19 @@ useEffect(() => {
         <MemorialFooter memorialName={memorial.name} />
 
         {/* Floating Action Buttons */}
-        <div className="fixed right-4 bottom-4 z-40 flex flex-col gap-3">
-          <button
-            onClick={() => setShowShareModal(true)}
-            className="group w-14 h-14 bg-white border border-gray-300 text-gray-700 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center"
-            title="Share"
-          >
-            <Share2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
-          </button>
-        </div>
+     {/* Floating Action Buttons with Text */}
+<div className="fixed right-4 bottom-4 z-40 flex flex-col gap-3">
+  <button
+    onClick={() => setShowShareModal(true)}
+    className="group bg-white border border-gray-300 text-gray-700 rounded-full shadow-lg hover:shadow-xl transition-all flex items-center gap-2 pl-5 pr-6 py-3"
+    title="Share Memorial"
+  >
+    <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
+      Share
+    </span>
+    <Share2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
+  </button>
+</div>
 
         {/* Share Modal */}
         <ShareModal

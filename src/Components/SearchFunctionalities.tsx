@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Filter, Eye, ChevronDown, X, Loader2, Facebook, Twitter, Instagram, Mail } from 'lucide-react';
+import { Search, Filter, Eye, ChevronDown, X, Loader2} from 'lucide-react';
 
 interface PublicMemorial {
   id: string;
@@ -45,8 +45,8 @@ export default function SearchNavbar({
   const [showResultsDropdown, setShowResultsDropdown] = useState(false);
   const [totalResults, setTotalResults] = useState(0);
   const [searchAttempted, setSearchAttempted] = useState(false);
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+
+    const [isMobile, setIsMobile] = useState(false);
 
   const resultsRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -177,10 +177,7 @@ export default function SearchNavbar({
   };
 
   const handleInputFocus = () => {
-    // Auto-expand on mobile when focusing search
-    if (isMobile) {
-      setIsExpanded(true);
-    }
+ 
     
     // Show dropdown when input is focused (empty search shows all memorials)
     if (searchResults.length > 0) {
@@ -216,12 +213,6 @@ export default function SearchNavbar({
     }
   };
 
-  const toggleExpand = () => {
-    setIsExpanded(!isExpanded);
-    if (!isExpanded && inputRef.current) {
-      inputRef.current.focus();
-    }
-  };
 
   // Format date for display
   const formatDate = (dateString?: string) => {
@@ -239,7 +230,7 @@ export default function SearchNavbar({
 
   return (
     <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200 shadow-sm sticky top-0 z-40">
-      <div className={`max-w-7xl mx-auto px-3 sm:px-4 transition-all duration-300 ${isExpanded ? 'py-3' : 'py-3 sm:py-4'}`}>
+     <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
         
         {/* Compact Header */}
         <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 sm:gap-4">
@@ -344,25 +335,7 @@ export default function SearchNavbar({
                   </div>
                 ) : searchResults.length > 0 ? (
                   <>
-                    {!isMobile && (
-                      <div className="p-3 sm:p-4 border-b border-amber-100 bg-amber-50 sticky top-0">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm sm:text-lg font-bold text-gray-900 truncate">
-                            {totalResults} memorial{totalResults !== 1 ? 's' : ''}
-                            {searchQuery && (
-                              <span className="text-gray-700"> for "<span className="text-amber-800">{searchQuery}</span>"</span>
-                            )}
-                          </p>
-                          <button
-                            onClick={() => setShowResultsDropdown(false)}
-                            className="p-1.5 sm:p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
-                            aria-label="Close results"
-                          >
-                            <X className="w-5 h-5 sm:w-6 sm:h-6" />
-                          </button>
-                        </div>
-                      </div>
-                    )}
+                   
                     
                     <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
                       {searchResults.slice(0, 6).map((memorial) => (
@@ -544,137 +517,11 @@ export default function SearchNavbar({
               </div>
             )}
 
-            {/* Expand/Collapse Button - Desktop only */}
-            {!isMobile && (
-              <button
-                onClick={toggleExpand}
-                className="p-2.5 text-gray-600 hover:text-gray-900 hover:bg-amber-100 rounded-lg transition-colors border-2 border-amber-300 shrink-0"
-                aria-label={isExpanded ? "Collapse search" : "Expand search"}
-              >
-                {isExpanded ? (
-                  <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 rotate-180 transition-transform" />
-                ) : (
-                  <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 transition-transform" />
-                )}
-              </button>
-            )}
+          
           </div>
         </div>
 
-        {/* Expanded Section */}
-     {isExpanded && (
-  <div className="mt-4 pt-4 border-t border-amber-300 animate-slide-down">
-    {/* Close button for mobile */}
-    {isMobile && (
-      <div className="flex justify-end mb-4">
-        <button
-          onClick={() => setIsExpanded(false)}
-          className="flex items-center gap-2 px-4 py-2 text-amber-700 hover:text-amber-800 hover:bg-amber-100 rounded-lg transition-colors"
-          aria-label="Close expanded section"
-        >
-          <X className="w-5 h-5" />
-          Close
-        </button>
-      </div>
-    )}
-    
-    {/* Search Tips */}
-    <div className="mb-4">
-      <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-sm sm:text-base text-gray-700">
-        <span className="font-bold text-gray-900">Search by:</span>
-        <button
-          onClick={() => setSearchQuery('John')}
-          className="px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-100 hover:bg-amber-200 rounded-lg text-gray-800 font-medium transition-colors text-sm sm:text-base"
-        >
-          Name
-        </button>
-        <button
-          onClick={() => setSearchQuery('New York')}
-          className="px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-100 hover:bg-amber-200 rounded-lg text-gray-800 font-medium transition-colors text-sm sm:text-base"
-        >
-          Location
-        </button>
-        <button
-          onClick={() => setSearchQuery('2023')}
-          className="px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-100 hover:bg-amber-200 rounded-lg text-gray-800 font-medium transition-colors text-sm sm:text-base"
-        >
-          Year
-        </button>
-        <button
-          onClick={clearSearch}
-          className="ml-auto text-sm sm:text-base text-amber-700 hover:text-amber-800 font-bold"
-        >
-          Clear all
-        </button>
-      </div>
-    </div>
 
-    {/* Follow Us Section - Updated with mobile close */}
-    <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between bg-amber-100/50 p-3 sm:p-4 rounded-xl border border-amber-200 gap-3 sm:gap-0">
-      {isMobile && (
-        <button
-          onClick={() => setIsExpanded(false)}
-          className="absolute top-2 right-2 p-2 text-gray-500 hover:text-gray-700 hover:bg-amber-100 rounded-lg transition-colors"
-          aria-label="Close"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      )}
-      <div className={isMobile ? "pr-10" : ""}>
-        <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-1">Follow Us</h3>
-        <p className="text-xs sm:text-sm text-gray-700">Stay connected with our memorial community</p>
-      </div>
-      <div className="flex items-center gap-1 sm:gap-2">
-        <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" 
-           className="p-2 sm:p-3 bg-white text-blue-600 hover:text-white hover:bg-blue-600 rounded-xl transition-all shadow-sm hover:shadow-md"
-           style={{ minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Facebook className="w-4 h-4 sm:w-5 sm:h-5" />
-        </a>
-        <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" 
-           className="p-2 sm:p-3 bg-white text-blue-400 hover:text-white hover:bg-blue-400 rounded-xl transition-all shadow-sm hover:shadow-md"
-           style={{ minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Twitter className="w-4 h-4 sm:w-5 sm:h-5" />
-        </a>
-        <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" 
-           className="p-2 sm:p-3 bg-white text-pink-600 hover:text-white hover:bg-pink-600 rounded-xl transition-all shadow-sm hover:shadow-md"
-           style={{ minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Instagram className="w-4 h-4 sm:w-5 sm:h-5" />
-        </a>
-        <a href="mailto:contact@4revah.com" 
-           className="p-2 sm:p-3 bg-white text-amber-600 hover:text-white hover:bg-amber-500 rounded-xl transition-all shadow-sm hover:shadow-md"
-           style={{ minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <Mail className="w-4 h-4 sm:w-5 sm:h-5" />
-        </a>
-      </div>
-    </div>
-
-    {/* Active Search Info */}
-    {searchAttempted && (
-      <div className="mt-4 pt-4 border-t border-amber-200">
-        <div className="flex items-center justify-between text-sm sm:text-base text-gray-700">
-          <div className="truncate">
-            <span className="font-bold text-gray-900">Searching:</span>
-            <span className="ml-2 text-amber-800 font-bold truncate">
-              {searchQuery ? `"${searchQuery}"` : "All memorials"}
-            </span>
-            {isSearching ? (
-              <span className="ml-2 sm:ml-3 text-gray-600">
-                <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 inline animate-spin mr-1 sm:mr-2" /> 
-                <span className="hidden sm:inline">Searching...</span>
-              </span>
-            ) : totalResults > 0 ? (
-              <span className="ml-2 sm:ml-3 text-gray-600">
-                • Found {totalResults} memorial{totalResults !== 1 ? 's' : ''}
-              </span>
-            ) : (
-              <span className="ml-2 sm:ml-3 text-gray-600">• No results</span>
-            )}
-          </div>
-        </div>
-      </div>
-    )}
-  </div>
-)}
 
      
       </div>

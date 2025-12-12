@@ -211,7 +211,7 @@ export default function TopNav({
   const servicesSubItems = [
     { id: 'how-it-works', label: 'How It Works', href: '/services#how-it-works' },
     { id: 'services', label: 'Our Services', href: '/services#services' },
-    { id: 'pricing', label: 'Simple & Free', href: '/services#pricing' }
+      { id: 'simple-free', label: 'Simple & Free', href: '/services#simple-free' }
   ];
 
   // Memorial Guide submenus - these will OPEN components directly
@@ -456,7 +456,7 @@ export default function TopNav({
     setMobileMenuOpen(false);
   };
 
-  return (
+   return (
     <nav className={`sticky top-0 z-50 transition-all duration-300 ${
       scrolled 
         ? 'bg-white/95 backdrop-blur-xl shadow-xl border-b-2 border-amber-200/60' 
@@ -469,25 +469,25 @@ export default function TopNav({
           {/* Logo Section - Improved for Mobile */}
           <button 
             onClick={handleLogoClick}
-            className="flex items-center gap-1.5 sm:gap-3 group cursor-pointer select-none focus:outline-none flex-shrink-0"
+            className="flex items-center gap-2 sm:gap-3 group cursor-pointer select-none focus:outline-none flex-shrink-0 min-h-[44px]"
           >
             <div className="relative flex items-center">
               <div className="absolute inset-0 bg-linear-to-r from-amber-400 via-orange-500 to-amber-500 blur-xl opacity-20 group-hover:opacity-40 transition-all duration-500 rounded-full scale-150"></div>
               
-              <div className="relative p-1 sm:p-1.5">
+              <div className="relative p-1.5 sm:p-2">
                 <div className="relative">
-                  <Heart className="w-6 h-6 sm:w-9 sm:h-9 lg:w-10 lg:h-10 text-amber-600 fill-amber-600 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 drop-shadow-lg filter" 
+                  <Heart className="w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 text-amber-600 fill-amber-600 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 drop-shadow-lg filter" 
                     style={{ filter: 'drop-shadow(0 4px 12px rgba(217, 119, 6, 0.3))' }} 
                   />
                   <div className="absolute inset-0 rounded-full bg-linear-to-br from-amber-400 to-orange-500 opacity-0 group-hover:opacity-20 blur-sm transition-opacity duration-500"></div>
                 </div>
                 
-                <Heart className="w-2 h-2 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 text-orange-500 fill-orange-500 absolute -top-0.5 -right-0.5 sm:-top-1 sm:-right-1 opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300" />
+                <Heart className="w-3 h-3 sm:w-3.5 sm:h-3.5 lg:w-4 lg:h-4 text-orange-500 fill-orange-500 absolute -top-1 -right-1 sm:-top-1 sm:-right-1 opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300" />
               </div>
             </div>
             
-            <div className="flex flex-col sm:flex-row sm:items-center gap-0.5 sm:gap-0">
-              <h1 className="text-xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight leading-none">
+            <div className="flex flex-col sm:flex-row sm:items-center">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight leading-none">
                 <span className="bg-linear-to-r from-amber-600 via-orange-600 to-amber-700 bg-clip-text text-transparent group-hover:from-amber-700 group-hover:via-orange-700 group-hover:to-amber-800 transition-all duration-500 drop-shadow-sm"
                   style={{ 
                     textShadow: '0 2px 8px rgba(217, 119, 6, 0.15)',
@@ -498,7 +498,7 @@ export default function TopNav({
                 </span>
               </h1>
               
-              <span className="hidden md:block lg:ml-3 md:ml-2 text-[10px] md:text-xs text-gray-600 font-semibold md:border-l-2 border-amber-400/50 md:pl-2 lg:pl-3 leading-tight uppercase tracking-wider">
+              <span className="hidden sm:block lg:ml-3 md:ml-2 text-[10px] md:text-xs text-gray-600 font-semibold md:border-l-2 border-amber-400/50 md:pl-2 lg:pl-3 leading-tight uppercase tracking-wider">
                 Forever in Memory
               </span>
             </div>
@@ -509,9 +509,9 @@ export default function TopNav({
             {/* Home Link */}
             <RouterLink
               to="/"
-              className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all duration-300 font-semibold text-sm lg:text-base"
+              className="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all duration-300 font-semibold text-base lg:text-base min-h-[44px]"
             >
-              <Home className="w-4 h-4" />
+              <Home className="w-5 h-5" />
               <span>Home</span>
             </RouterLink>
 
@@ -533,20 +533,20 @@ export default function TopNav({
               <button
                 onMouseEnter={handleMemorialGuideMenuEnter}
                 onMouseLeave={handleMemorialGuideMenuLeave}
-                className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all duration-300 font-semibold text-sm lg:text-base"
+                className="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all duration-300 font-semibold text-base lg:text-base min-h-[44px]"
               >
                 <span>Memorial Guide</span>
-                <ChevronDown className={`w-3 h-3 lg:w-4 lg:h-4 transition-transform duration-300 ${showMemorialGuideMenu ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-4 h-4 lg:w-4 lg:h-4 transition-transform duration-300 ${showMemorialGuideMenu ? 'rotate-180' : ''}`} />
               </button>
               
               {showMemorialGuideMenu && (
                 <div 
-                  className="absolute left-0 mt-2 w-56 lg:w-64 bg-white rounded-xl shadow-xl border border-amber-100 py-2 z-50 animate-slide-down"
+                  className="absolute left-0 mt-2 w-64 lg:w-72 bg-white rounded-xl shadow-xl border border-amber-100 py-2 z-50 animate-slide-down"
                   onMouseEnter={handleMemorialGuideMenuEnter}
                   onMouseLeave={handleMemorialGuideMenuLeave}
                 >
                   <div className="px-4 py-3 border-b border-gray-100">
-                    <h3 className="font-semibold text-gray-800 text-sm lg:text-base">Memorial Features</h3>
+                    <h3 className="font-semibold text-gray-800 text-base lg:text-base">Memorial Features</h3>
                     <p className="text-xs text-gray-500 mt-1">Click to preview any section</p>
                   </div>
                   {memorialGuideSubItems.map((item) => (
@@ -567,30 +567,30 @@ export default function TopNav({
                 onMouseEnter={handleAboutMenuEnter}
                 onMouseLeave={handleAboutMenuLeave}
                 onClick={() => navigate('/about')}
-                className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all duration-300 font-semibold text-sm lg:text-base"
+                className="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all duration-300 font-semibold text-base lg:text-base min-h-[44px]"
               >
                 <span>About Us</span>
-                <ChevronDown className={`w-3 h-3 lg:w-4 lg:h-4 transition-transform duration-300 ${showAboutMenu ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-4 h-4 lg:w-4 lg:h-4 transition-transform duration-300 ${showAboutMenu ? 'rotate-180' : ''}`} />
               </button>
               
               {showAboutMenu && (
                 <div 
-                  className="absolute left-0 mt-2 w-56 lg:w-64 bg-white rounded-xl shadow-xl border border-amber-100 py-2 z-50 animate-slide-down"
+                  className="absolute left-0 mt-2 w-64 lg:w-72 bg-white rounded-xl shadow-xl border border-amber-100 py-2 z-50 animate-slide-down"
                   onMouseEnter={handleAboutMenuEnter}
                   onMouseLeave={handleAboutMenuLeave}
                 >
                   <div className="px-4 py-3 border-b border-gray-100">
-                    <h3 className="font-semibold text-gray-800 text-sm lg:text-base">About 4revah</h3>
+                    <h3 className="font-semibold text-gray-800 text-base lg:text-base">About 4revah</h3>
                     <p className="text-xs text-gray-500 mt-1">Our mission and values</p>
                   </div>
                   {aboutSubItems.map((item) => (
                     <button
                       key={item.id}
                       onClick={() => handleSectionNavigation(item.href)}
-                      className="w-full flex items-center justify-between px-4 py-3 text-sm text-gray-700 hover:bg-amber-50 transition-colors group text-left"
+                      className="w-full flex items-center justify-between px-4 py-3.5 text-base text-gray-700 hover:bg-amber-50 transition-colors group text-left min-h-[44px]"
                     >
                       <span>{item.label}</span>
-                      <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-amber-600 transition-colors" />
+                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-hover:text-amber-600 transition-colors" />
                     </button>
                   ))}
                 </div>
@@ -603,30 +603,30 @@ export default function TopNav({
                 onMouseEnter={handleServicesMenuEnter}
                 onMouseLeave={handleServicesMenuLeave}
                 onClick={() => navigate('/services')}
-                className="flex items-center gap-2 px-3 py-2 text-gray-700 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all duration-300 font-semibold text-sm lg:text-base"
+                className="flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all duration-300 font-semibold text-base lg:text-base min-h-[44px]"
               >
                 <span>What We Offer</span>
-                <ChevronDown className={`w-3 h-3 lg:w-4 lg:h-4 transition-transform duration-300 ${showServicesMenu ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-4 h-4 lg:w-4 lg:h-4 transition-transform duration-300 ${showServicesMenu ? 'rotate-180' : ''}`} />
               </button>
               
               {showServicesMenu && (
                 <div 
-                  className="absolute left-0 mt-2 w-56 lg:w-64 bg-white rounded-xl shadow-xl border border-amber-100 py-2 z-50 animate-slide-down"
+                  className="absolute left-0 mt-2 w-64 lg:w-72 bg-white rounded-xl shadow-xl border border-amber-100 py-2 z-50 animate-slide-down"
                   onMouseEnter={handleServicesMenuEnter}
                   onMouseLeave={handleServicesMenuLeave}
                 >
                   <div className="px-4 py-3 border-b border-gray-100">
-                    <h3 className="font-semibold text-gray-800 text-sm lg:text-base">Our Services</h3>
+                    <h3 className="font-semibold text-gray-800 text-base lg:text-base">Our Services</h3>
                     <p className="text-xs text-gray-500 mt-1">Features and tools</p>
                   </div>
                   {servicesSubItems.map((item) => (
                     <button
                       key={item.id}
                       onClick={() => handleSectionNavigation(item.href)}
-                      className="w-full flex items-center justify-between px-4 py-3 text-sm text-gray-700 hover:bg-amber-50 transition-colors group text-left"
+                      className="w-full flex items-center justify-between px-4 py-3.5 text-base text-gray-700 hover:bg-amber-50 transition-colors group text-left min-h-[44px]"
                     >
                       <span>{item.label}</span>
-                      <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-amber-600 transition-colors" />
+                      <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 group-hover:text-amber-600 transition-colors" />
                     </button>
                   ))}
                 </div>
@@ -639,12 +639,12 @@ export default function TopNav({
                 <div className="relative">
                   <button
                     onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-amber-50 transition-all"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-amber-50 transition-all min-h-[44px]"
                   >
-                    <div className="w-8 h-8 rounded-full bg-linear-to-r from-amber-500 to-orange-500 flex items-center justify-center text-white font-bold text-sm shadow-md">
+                    <div className="w-10 h-10 rounded-full bg-linear-to-r from-amber-500 to-orange-500 flex items-center justify-center text-white font-bold text-base shadow-md">
                       {getInitials(user?.name)}
                     </div>
-                    <span className="text-sm font-semibold text-gray-700 hidden lg:inline">
+                    <span className="text-base font-semibold text-gray-700 hidden lg:inline">
                       {user?.name || 'User'}
                     </span>
                   </button>
@@ -655,24 +655,24 @@ export default function TopNav({
                         className="fixed inset-0 z-40" 
                         onClick={() => setShowUserMenu(false)}
                       />
-                      <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-amber-100 py-2 z-50">
+                      <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-xl border border-amber-100 py-2 z-50">
                         <div className="px-4 py-3 border-b border-gray-100">
-                          <p className="text-sm font-semibold text-gray-800">{user?.name || 'User'}</p>
-                          <p className="text-xs text-gray-500 mt-1">{user?.email || ''}</p>
+                          <p className="text-base font-semibold text-gray-800">{user?.name || 'User'}</p>
+                          <p className="text-sm text-gray-500 mt-1">{user?.email || ''}</p>
                         </div>
                         <RouterLink 
                           to="/dashboard" 
-                          className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 transition-colors"
+                          className="flex items-center gap-2 px-4 py-3.5 text-base text-gray-700 hover:bg-amber-50 transition-colors min-h-[44px]"
                           onClick={() => setShowUserMenu(false)}
                         >
-                          <User className="w-4 h-4" />
+                          <User className="w-5 h-5" />
                           Dashboard
                         </RouterLink>
                         <button
                           onClick={handleLogout}
-                          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                          className="w-full flex items-center gap-2 px-4 py-3.5 text-base text-red-600 hover:bg-red-50 transition-colors min-h-[44px]"
                         >
-                          <LogOut className="w-4 h-4" />
+                          <LogOut className="w-5 h-5" />
                           Logout
                         </button>
                       </div>
@@ -684,36 +684,35 @@ export default function TopNav({
                   <button
                     onMouseEnter={handleAuthDropdownEnter}
                     onMouseLeave={handleAuthDropdownLeave}
-                    className="flex items-center gap-2 px-4 py-2 bg-linear-to-r from-amber-500 to-orange-500 text-white rounded-full hover:from-amber-600 hover:to-orange-600 transition-all transform hover:scale-105 shadow-md text-sm"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-linear-to-r from-amber-500 to-orange-500 text-white rounded-full hover:from-amber-600 hover:to-orange-600 transition-all transform hover:scale-105 shadow-md text-base min-h-[44px]"
                   >
-                    <Plus className="w-4 h-4" />
-                    <span className="hidden sm:inline">Create Memorial</span>
-                    <span className="sm:hidden">Create</span>
+                    <Plus className="w-5 h-5" />
+                    <span>Create Memorial</span>
                   </button>
                   
                   {showAuthDropdown && (
                     <div 
-                      className="absolute right-0 mt-2 w-48 bg-white rounded-xl shadow-xl border border-amber-100 py-2 z-50"
+                      className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-amber-100 py-2 z-50"
                       onMouseEnter={handleAuthDropdownEnter}
                       onMouseLeave={handleAuthDropdownLeave}
                     >
                       <div className="px-4 py-2 border-b border-gray-100">
-                        <p className="text-xs text-gray-500">Sign in to create a memorial</p>
+                        <p className="text-sm text-gray-500">Sign in to create a memorial</p>
                       </div>
                       <RouterLink 
                         to="/login"
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-amber-50 transition-colors"
+                        className="flex items-center gap-2 px-4 py-3.5 text-base text-gray-700 hover:bg-amber-50 transition-colors min-h-[44px]"
                         onClick={() => setShowAuthDropdown(false)}
                       >
-                        <LogIn className="w-4 h-4" />
+                        <LogIn className="w-5 h-5" />
                         <span>Login</span>
                       </RouterLink>
                       <RouterLink 
                         to="/register"
-                        className="flex items-center gap-2 px-4 py-2.5 text-sm text-amber-600 hover:bg-amber-50 transition-colors"
+                        className="flex items-center gap-2 px-4 py-3.5 text-base text-amber-600 hover:bg-amber-50 transition-colors min-h-[44px]"
                         onClick={() => setShowAuthDropdown(false)}
                       >
-                        <UserPlus className="w-4 h-4" />
+                        <UserPlus className="w-5 h-5" />
                         <span>Register</span>
                       </RouterLink>
                     </div>
@@ -726,34 +725,34 @@ export default function TopNav({
           {/* Enhanced Mobile Menu Button */}
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="md:hidden relative w-10 h-10 flex items-center justify-center text-gray-700 hover:text-amber-600 transition-all duration-300 rounded-xl hover:bg-linear-to-br hover:from-amber-50 hover:to-orange-50 active:scale-95 shadow-sm hover:shadow-md"
+            className="md:hidden relative w-12 h-12 flex items-center justify-center text-gray-700 hover:text-amber-600 transition-all duration-300 rounded-xl hover:bg-linear-to-br hover:from-amber-50 hover:to-orange-50 active:scale-95 shadow-sm hover:shadow-md"
             aria-label="Toggle menu"
           >
             {mobileMenuOpen ? (
-              <X className="w-5 h-5 transition-all duration-300 rotate-90" />
+              <X className="w-6 h-6 transition-all duration-300 rotate-90" />
             ) : (
-              <Menu className="w-5 h-5 transition-all duration-300" />
+              <Menu className="w-6 h-6 transition-all duration-300" />
             )}
           </button>
         </div>
 
         {/* Enhanced Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden pb-5 border-t-2 border-amber-200/60 mt-1 bg-linear-to-b from-amber-50/50 via-orange-50/30 to-transparent rounded-b-2xl backdrop-blur-sm">
-            <div className="flex flex-col gap-1.5 pt-4 px-2">
+          <div className="md:hidden pb-6 border-t-2 border-amber-200/60 mt-2 bg-linear-to-b from-amber-50/50 via-orange-50/30 to-transparent rounded-b-2xl backdrop-blur-sm max-h-[calc(100vh-60px)] overflow-y-auto">
+            <div className="flex flex-col gap-1.5 pt-4 px-3">
               {/* Home Link in Mobile */}
               <RouterLink
                 to="/"
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full flex items-center gap-2 px-4 py-3 text-gray-700 hover:bg-amber-50 rounded-xl transition-all duration-300 group mb-2"
+                className="w-full flex items-center gap-3 px-4 py-3.5 text-gray-700 hover:bg-amber-50 rounded-xl transition-all duration-300 group mb-2 min-h-[44px]"
               >
-                <Home className="w-5 h-5" />
+                <Home className="w-6 h-6" />
                 <span className="font-semibold text-lg">Home</span>
               </RouterLink>
 
               {/* Memorial Selector with better spacing */}
               {user && memorials.length > 0 && onSelectMemorial && onCreateNew && (
-                <div className="px-2 mb-2">
+                <div className="px-2 mb-3">
                   <MemorialSelector
                     memorials={memorials}
                     currentMemorialId={currentMemorialId}
@@ -766,32 +765,32 @@ export default function TopNav({
 
               {/* User Info Card - More compact */}
               {user && (
-                <div className="px-3 py-2 mb-2 bg-linear-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200/50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-linear-to-r from-amber-500 to-orange-500 flex items-center justify-center text-white font-bold text-xs shadow-md">
+                <div className="px-4 py-3 mb-3 bg-linear-to-r from-amber-50 to-orange-50 rounded-xl border border-amber-200/50">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-linear-to-r from-amber-500 to-orange-500 flex items-center justify-center text-white font-bold text-base shadow-md">
                       {getInitials(user?.name)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-800 truncate">{user?.name || 'User'}</p>
-                      <p className="text-xs text-gray-600 truncate">{user?.email || ''}</p>
+                      <p className="text-base font-semibold text-gray-800 truncate">{user?.name || 'User'}</p>
+                      <p className="text-sm text-gray-600 truncate">{user?.email || ''}</p>
                     </div>
                   </div>
                 </div>
               )}
 
               {/* Memorial Guide in Mobile - Improved layout */}
-              <div className="mb-2">
+              <div className="mb-3">
                 <button
                   onClick={() => setShowMemorialGuideMenu(!showMemorialGuideMenu)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-gray-700 hover:bg-amber-50 rounded-xl transition-all duration-300 group"
+                  className="w-full flex items-center justify-between px-4 py-3.5 text-gray-700 hover:bg-amber-50 rounded-xl transition-all duration-300 group min-h-[44px]"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-base">Memorial Guide</span>
+                    <span className="font-semibold text-lg">Memorial Guide</span>
                   </div>
-                  <ChevronDown className={`w-4 h-4 text-gray-400 group-hover:text-amber-600 transition-colors ${showMemorialGuideMenu ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-5 h-5 text-gray-400 group-hover:text-amber-600 transition-colors ${showMemorialGuideMenu ? 'rotate-180' : ''}`} />
                 </button>
                 {showMemorialGuideMenu && (
-                  <div className="mt-1 space-y-1 pl-2 border-l-2 border-amber-200 ml-2">
+                  <div className="mt-1 space-y-1 pl-2 border-l-2 border-amber-200 ml-4">
                     {memorialGuideSubItems.map((item) => (
                       <MemorialGuideItem
                         key={item.id}
@@ -805,60 +804,62 @@ export default function TopNav({
               </div>
 
               {/* About Us in Mobile - More compact */}
-              <div className="mb-2">
-                <RouterLink 
-                  to="/about"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-gray-700 hover:bg-amber-50 rounded-xl transition-all duration-300 group"
+              <div className="mb-3">
+                <button
+                  onClick={() => setShowAboutMenu(!showAboutMenu)}
+                  className="w-full flex items-center justify-between px-4 py-3.5 text-gray-700 hover:bg-amber-50 rounded-xl transition-all duration-300 group min-h-[44px]"
                 >
-                  <span className="font-semibold text-base">About Us</span>
-                  <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-amber-600 transition-colors" />
-                </RouterLink>
-                <div className="mt-1 space-y-1 pl-2 border-l-2 border-amber-200 ml-2">
-                  {aboutSubItems.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => handleSectionNavigation(item.href)}
-                      className="w-full flex items-center justify-between px-3 py-2 text-gray-700 hover:bg-amber-50 rounded-lg transition-all duration-300 group text-left"
-                    >
-                      <span className="text-sm">{item.label}</span>
-                      <ChevronRight className="w-3 h-3 text-gray-400 group-hover:text-amber-600 transition-colors" />
-                    </button>
-                  ))}
-                </div>
+                  <span className="font-semibold text-lg">About Us</span>
+                  <ChevronDown className={`w-5 h-5 text-gray-400 group-hover:text-amber-600 transition-colors ${showAboutMenu ? 'rotate-180' : ''}`} />
+                </button>
+                {showAboutMenu && (
+                  <div className="mt-1 space-y-1 pl-2 border-l-2 border-amber-200 ml-4">
+                    {aboutSubItems.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => handleSectionNavigation(item.href)}
+                        className="w-full flex items-center justify-between px-4 py-3 text-gray-700 hover:bg-amber-50 rounded-lg transition-all duration-300 group text-left min-h-[44px]"
+                      >
+                        <span className="text-base">{item.label}</span>
+                        <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-amber-600 transition-colors" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* What We Offer in Mobile - More compact */}
-              <div className="mb-2">
-                <RouterLink 
-                  to="/services"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="w-full flex items-center justify-between px-4 py-3 text-gray-700 hover:bg-amber-50 rounded-xl transition-all duration-300 group"
+              <div className="mb-3">
+                <button
+                  onClick={() => setShowServicesMenu(!showServicesMenu)}
+                  className="w-full flex items-center justify-between px-4 py-3.5 text-gray-700 hover:bg-amber-50 rounded-xl transition-all duration-300 group min-h-[44px]"
                 >
-                  <span className="font-semibold text-base">What We Offer</span>
-                  <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-amber-600 transition-colors" />
-                </RouterLink>
-                <div className="mt-1 space-y-1 pl-2 border-l-2 border-amber-200 ml-2">
-                  {servicesSubItems.map((item) => (
-                    <button
-                      key={item.id}
-                      onClick={() => handleSectionNavigation(item.href)}
-                      className="w-full flex items-center justify-between px-3 py-2 text-gray-700 hover:bg-amber-50 rounded-lg transition-all duration-300 group text-left"
-                    >
-                      <span className="text-sm">{item.label}</span>
-                      <ChevronRight className="w-3 h-3 text-gray-400 group-hover:text-amber-600 transition-colors" />
-                    </button>
-                  ))}
-                </div>
+                  <span className="font-semibold text-lg">What We Offer</span>
+                  <ChevronDown className={`w-5 h-5 text-gray-400 group-hover:text-amber-600 transition-colors ${showServicesMenu ? 'rotate-180' : ''}`} />
+                </button>
+                {showServicesMenu && (
+                  <div className="mt-1 space-y-1 pl-2 border-l-2 border-amber-200 ml-4">
+                    {servicesSubItems.map((item) => (
+                      <button
+                        key={item.id}
+                        onClick={() => handleSectionNavigation(item.href)}
+                        className="w-full flex items-center justify-between px-4 py-3 text-gray-700 hover:bg-amber-50 rounded-lg transition-all duration-300 group text-left min-h-[44px]"
+                      >
+                        <span className="text-base">{item.label}</span>
+                        <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-amber-600 transition-colors" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Divider */}
-              <div className="relative my-2">
+              <div className="relative my-3">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-amber-300/40"></div>
                 </div>
                 <div className="relative flex justify-center">
-                  <span className="bg-linear-to-r from-amber-50 via-white to-orange-50 px-3 text-xs text-gray-500 font-medium">
+                  <span className="bg-linear-to-r from-amber-50 via-white to-orange-50 px-4 text-sm text-gray-500 font-medium">
                     {user ? 'Account' : 'Create Memorial'}
                   </span>
                 </div>
@@ -870,36 +871,35 @@ export default function TopNav({
                   <RouterLink
                     to="/dashboard"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-amber-50 transition-colors rounded-lg text-sm"
+                    className="w-full flex items-center gap-3 px-4 py-3.5 text-gray-700 hover:bg-amber-50 transition-colors rounded-lg text-base min-h-[44px]"
                   >
-                    <User className="w-4 h-4" />
+                    <User className="w-6 h-6" />
                     <span>Dashboard</span>
                   </RouterLink>
                   <button
                     onClick={handleLogout}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 text-red-600 hover:bg-red-50 transition-colors rounded-lg text-sm"
+                    className="w-full flex items-center gap-3 px-4 py-3.5 text-red-600 hover:bg-red-50 transition-colors rounded-lg text-base min-h-[44px]"
                   >
-                    <LogOut className="w-4 h-4" />
+                    <LogOut className="w-6 h-6" />
                     <span>Logout</span>
                   </button>
                 </>
               ) : (
                 <>
-                  {/* Simplified Auth on Mobile - No dropdown */}
                   <RouterLink 
                     to="/login"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-gray-700 hover:bg-amber-50 transition-colors rounded-lg text-sm"
+                    className="w-full flex items-center justify-center gap-3 px-4 py-3.5 text-gray-700 hover:bg-amber-50 transition-colors rounded-lg text-base min-h-[44px]"
                   >
-                    <LogIn className="w-4 h-4" />
+                    <LogIn className="w-6 h-6" />
                     <span>Login</span>
                   </RouterLink>
                   <RouterLink 
                     to="/register"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-linear-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all text-sm"
+                    className="w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-linear-to-r from-amber-500 to-orange-500 text-white rounded-lg hover:from-amber-600 hover:to-orange-600 transition-all text-base min-h-[44px]"
                   >
-                    <UserPlus className="w-4 h-4" />
+                    <UserPlus className="w-6 h-6" />
                     <span>Create Memorial</span>
                   </RouterLink>
                 </>
