@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Eye, ChevronDown, X, Loader2, Facebook, Twitter, Instagram, Mail } from 'lucide-react';
+import { Search, Filter, Eye, ChevronDown, X, Loader2, Facebook, Twitter, Instagram, Mail } from 'lucide-react';
 
 interface PublicMemorial {
   id: string;
@@ -26,16 +26,20 @@ interface SearchResults {
 
 interface SearchNavbarProps {
   onSearch?: (query: string) => void;
+  onFilterChange?: (sortBy: string) => void;
   onResults?: (results: PublicMemorial[]) => void;
   showResults?: boolean;
 }
 
 export default function SearchNavbar({ 
   onSearch, 
+  onFilterChange, 
   onResults,
   showResults = true
 }: SearchNavbarProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedSort, setSelectedSort] = useState('recent');
   const [searchResults, setSearchResults] = useState<PublicMemorial[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResultsDropdown, setShowResultsDropdown] = useState(false);
@@ -46,37 +50,41 @@ export default function SearchNavbar({
 
   const resultsRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
 
   const BACKEND_URL = 'https://wings-of-memories-backend.onrender.com/api';
 
-  // Check for mobile screen size
+  // Mobile detection
   useEffect(() => {
     const checkMobile = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
+      setIsMobile(window.innerWidth < 768);
     };
-
+    
     checkMobile();
     window.addEventListener('resize', checkMobile);
-    
-    return () => {
-      window.removeEventListener('resize', checkMobile);
-    };
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Click outside to close dropdown
+  // Click outside to close dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Close results dropdown if clicking outside
       if (resultsRef.current && !resultsRef.current.contains(event.target as Node)) {
         setShowResultsDropdown(false);
+      }
+      
+      // Close filter dropdown if clicking outside
+      if (showFilters && 
+          filterDropdownRef.current && !filterDropdownRef.current.contains(event.target as Node)) {
+        setShowFilters(false);
       }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [showFilters]);
 
-  const fetchMemorials = async (query: string = '') => {
+  const fetchMemorials = async (query: string = '', sortBy: string = 'recent') => {
     if (!showResults) return;
 
     setIsSearching(true);
@@ -84,7 +92,7 @@ export default function SearchNavbar({
     
     try {
       const params = new URLSearchParams({
-        sortBy: 'recent',
+        sortBy,
         limit: '6',
         offset: '0'
       });
@@ -128,21 +136,26 @@ export default function SearchNavbar({
 
     const timeoutId = setTimeout(() => {
       if (searchQuery.trim().length >= 2 || searchQuery.trim().length === 0) {
-        fetchMemorials(searchQuery);
+        fetchMemorials(searchQuery, selectedSort);
       }
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchQuery, showResults]);
+  }, [searchQuery, selectedSort, showResults]);
 
   const handleSearch = () => {
     if (onSearch) {
       onSearch(searchQuery);
     }
     
-    fetchMemorials(searchQuery);
+    fetchMemorials(searchQuery, selectedSort);
     setShowResultsDropdown(true);
     setSearchAttempted(true);
+    
+    // Hide keyboard on mobile after search
+    if (inputRef.current) {
+      inputRef.current.blur();
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -151,40 +164,42 @@ export default function SearchNavbar({
     }
   };
 
+  const handleSortChange = (sortBy: string) => {
+    setSelectedSort(sortBy);
+    if (onFilterChange) {
+      onFilterChange(sortBy);
+    }
+    setShowFilters(false);
+    
+    if (searchQuery.trim().length >= 2 || searchQuery.trim().length === 0) {
+      fetchMemorials(searchQuery, sortBy);
+    }
+  };
+
   const handleInputFocus = () => {
+    // Auto-expand on mobile when focusing search
+    if (isMobile) {
+      setIsExpanded(true);
+    }
+    
     // Show dropdown when input is focused (empty search shows all memorials)
     if (searchResults.length > 0) {
       setShowResultsDropdown(true);
     } else if (searchQuery.length === 0) {
       // Fetch all memorials when clicking into empty search
-      fetchMemorials('');
+      fetchMemorials('', selectedSort);
       setShowResultsDropdown(true);
     }
   };
 
   const viewMemorialPage = (memorial: PublicMemorial) => {
-  const memorialSlug = memorial.customUrl || memorial.id;
-  const memorialUrl = `/memorial/${memorialSlug}`;
-  
-  // Close all UI elements first
-  setShowResultsDropdown(false);
-  setSearchQuery('');
-  setIsExpanded(false);
-  
-  // On mobile, ensure we start at the top of the memorial page
-  if (isMobile) {
-    // Force scroll to top before navigation
-    window.scrollTo({ top: 0, behavior: 'instant' });
-    
-    // Small delay to ensure scroll happens before navigation
-    setTimeout(() => {
-      window.location.href = memorialUrl;
-    }, 50);
-  } else {
-    // Desktop - normal behavior
+    const memorialSlug = memorial.customUrl || memorial.id;
+    const memorialUrl = `/memorial/${memorialSlug}`;
     window.location.href = memorialUrl;
-  }
-};
+    setShowResultsDropdown(false);
+    setSearchQuery('');
+  };
+
   const clearSearch = () => {
     setSearchQuery('');
     setSearchResults([]);
@@ -223,14 +238,14 @@ export default function SearchNavbar({
   };
 
   return (
-    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200 shadow-sm sticky top-0 z-50">
+    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200 shadow-sm sticky top-0 z-40">
       <div className={`max-w-7xl mx-auto px-3 sm:px-4 transition-all duration-300 ${isExpanded ? 'py-3' : 'py-3 sm:py-4'}`}>
         
         {/* Compact Header */}
-        <div className="flex items-center justify-between gap-3 sm:gap-4">
+        <div className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-3 sm:gap-4">
           
-          {/* Logo/Site Name */}
-          <div className="shrink-0">
+          {/* Logo/Site Name - Mobile Optimized */}
+          <div className="shrink-0 order-1 sm:order-none">
             <div className="flex items-center gap-2 sm:gap-3">
               <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
                 <span className="text-white text-sm sm:text-lg font-bold">4R</span>
@@ -245,8 +260,8 @@ export default function SearchNavbar({
             </div>
           </div>
 
-          {/* Search Bar */}
-          <div className="flex-1 max-w-2xl relative">
+          {/* Search Bar - Full width on mobile */}
+          <div className="w-full sm:w-auto sm:flex-1 max-w-2xl relative order-3 sm:order-none mt-3 sm:mt-0">
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
                 <Search className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
@@ -259,10 +274,16 @@ export default function SearchNavbar({
                 onKeyPress={handleKeyPress}
                 onFocus={handleInputFocus}
                 placeholder="Search memorials by name, location, or story..."
-                className="block w-full pl-10 sm:pl-12 pr-20 sm:pr-28 py-2.5 sm:py-3 border-2 border-amber-300 
+                className="block w-full pl-10 sm:pl-12 pr-20 sm:pr-28 py-3 border-2 border-amber-300 
                          bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 
                          focus:border-transparent placeholder-gray-400 text-gray-900 
-                         text-sm sm:text-base font-medium rounded-xl shadow-sm transition-all duration-200"
+                         text-sm sm:text-base font-medium rounded-xl shadow-sm transition-all duration-200
+                         mobile-search-input"
+                style={{
+                  fontSize: isMobile ? '16px' : 'inherit',
+                  WebkitAppearance: 'none',
+                  height: isMobile ? '48px' : 'auto',
+                }}
               />
               
               {/* Search Actions */}
@@ -270,8 +291,9 @@ export default function SearchNavbar({
                 {searchQuery && (
                   <button
                     onClick={clearSearch}
-                    className="p-1.5 sm:p-2 mr-1 sm:mr-2 text-gray-500 hover:text-gray-700 transition-colors"
+                    className="p-2 sm:p-2 mr-1 sm:mr-2 text-gray-500 hover:text-gray-700 transition-colors"
                     aria-label="Clear search"
+                    style={{ minHeight: '44px', minWidth: '44px' }}
                   >
                     <X className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
@@ -279,12 +301,13 @@ export default function SearchNavbar({
                 <button
                   onClick={handleSearch}
                   disabled={isSearching}
-                  className="flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 bg-amber-500 hover:bg-amber-600 
+                  className="flex items-center gap-1 sm:gap-2 px-4 sm:px-5 py-2.5 sm:py-2 bg-amber-500 hover:bg-amber-600 
                            disabled:bg-amber-300 text-white text-sm sm:text-base font-semibold rounded-lg 
-                           transition-colors disabled:cursor-not-allowed shadow hover:shadow-lg min-w-[70px] sm:min-w-[80px] justify-center"
+                           transition-colors disabled:cursor-not-allowed shadow hover:shadow-lg min-w-[80px] sm:min-w-[100px] justify-center"
+                  style={{ minHeight: '44px' }}
                 >
                   {isSearching ? (
-                    <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
+                    <Loader2 className="w-4 h-4 sm:w-4 sm:h-4 animate-spin" />
                   ) : (
                     'Search'
                   )}
@@ -292,13 +315,28 @@ export default function SearchNavbar({
               </div>
             </div>
 
-            {/* Search Results Dropdown */}
+            {/* Search Results Dropdown - Mobile Optimized */}
             {showResults && showResultsDropdown && (
               <div 
                 ref={resultsRef}
-                className="absolute top-full left-0 right-0 mt-2 bg-white border-2 border-amber-300 
-                         rounded-xl shadow-2xl z-50 overflow-y-auto max-h-[500px] animate-fade-in"
+                className={`absolute top-full left-0 right-0 mt-2 bg-white border-2 border-amber-300 
+                         rounded-xl shadow-2xl z-50 overflow-y-auto ${
+                           isMobile ? 'max-h-[70vh]' : 'max-h-[500px]'
+                         } animate-fade-in`}
               >
+                {/* Mobile close button */}
+                {isMobile && (
+                  <div className="sticky top-0 bg-white z-10 p-3 border-b border-amber-200 flex justify-center">
+                    <button
+                      onClick={() => setShowResultsDropdown(false)}
+                      className="flex items-center justify-center w-10 h-10 text-gray-500 hover:text-gray-700 rounded-full hover:bg-gray-100"
+                      aria-label="Close results"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+                )}
+                
                 {isSearching ? (
                   <div className="p-6 sm:p-8 text-center">
                     <Loader2 className="w-6 h-6 sm:w-8 sm:h-8 animate-spin mx-auto text-amber-500" />
@@ -306,23 +344,25 @@ export default function SearchNavbar({
                   </div>
                 ) : searchResults.length > 0 ? (
                   <>
-                    <div className="p-3 sm:p-4 border-b border-amber-100 bg-amber-50 sticky top-0">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm sm:text-lg font-bold text-gray-900 truncate">
-                          {totalResults} memorial{totalResults !== 1 ? 's' : ''}
-                          {searchQuery && (
-                            <span className="text-gray-700"> for "<span className="text-amber-800">{searchQuery}</span>"</span>
-                          )}
-                        </p>
-                        <button
-                          onClick={() => setShowResultsDropdown(false)}
-                          className="p-1.5 sm:p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
-                          aria-label="Close results"
-                        >
-                          <X className="w-5 h-5 sm:w-6 sm:h-6" />
-                        </button>
+                    {!isMobile && (
+                      <div className="p-3 sm:p-4 border-b border-amber-100 bg-amber-50 sticky top-0">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm sm:text-lg font-bold text-gray-900 truncate">
+                            {totalResults} memorial{totalResults !== 1 ? 's' : ''}
+                            {searchQuery && (
+                              <span className="text-gray-700"> for "<span className="text-amber-800">{searchQuery}</span>"</span>
+                            )}
+                          </p>
+                          <button
+                            onClick={() => setShowResultsDropdown(false)}
+                            className="p-1.5 sm:p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
+                            aria-label="Close results"
+                          >
+                            <X className="w-5 h-5 sm:w-6 sm:h-6" />
+                          </button>
+                        </div>
                       </div>
-                    </div>
+                    )}
                     
                     <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
                       {searchResults.slice(0, 6).map((memorial) => (
@@ -391,6 +431,7 @@ export default function SearchNavbar({
                                 viewMemorialPage(memorial);
                               }}
                               className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2.5 bg-amber-500 text-white text-sm sm:text-base font-bold rounded-lg hover:bg-amber-600 transition-colors shadow-md hover:shadow-lg shrink-0"
+                              style={{ minHeight: '44px', minWidth: '44px' }}
                             >
                               <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
                               <span className="hidden sm:inline">View</span>
@@ -404,7 +445,7 @@ export default function SearchNavbar({
                       <div className="p-3 sm:p-4 border-t border-amber-100 bg-gray-50 sticky bottom-0">
                         <button
                           onClick={() => {
-                            window.location.href = `/search?q=${encodeURIComponent(searchQuery)}`;
+                            window.location.href = `/search?q=${encodeURIComponent(searchQuery)}&sort=${selectedSort}`;
                           }}
                           className="w-full text-center text-sm sm:text-lg text-amber-700 hover:text-amber-800 font-bold py-2 sm:py-3 hover:underline"
                         >
@@ -445,23 +486,82 @@ export default function SearchNavbar({
             )}
           </div>
 
-          {/* Expand Button (Desktop Only) */}
-          {!isMobile && (
-            <button
-              onClick={toggleExpand}
-              className="p-2.5 text-gray-600 hover:text-gray-900 hover:bg-amber-100 rounded-lg transition-colors border-2 border-amber-300 shrink-0"
-              aria-label={isExpanded ? "Collapse search" : "Expand search"}
-            >
-              {isExpanded ? (
-                <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 rotate-180 transition-transform" />
-              ) : (
-                <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 transition-transform" />
-              )}
-            </button>
-          )}
+          {/* Filter & Expand Buttons - Mobile optimized */}
+          <div className="flex items-center gap-2 order-2 sm:order-none">
+            {/* Filter Dropdown - Desktop only */}
+            {!isMobile && (
+              <div className="relative">
+                <button
+                  onClick={() => setShowFilters(!showFilters)}
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm sm:text-base text-gray-700 hover:text-gray-900 
+                           hover:bg-amber-100 rounded-lg transition-all border-2 border-amber-300 bg-white min-w-[80px] sm:min-w-[100px] justify-center"
+                >
+                  <Filter className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-600" />
+                  <span className="font-medium">Sort</span>
+                  <ChevronDown className={`w-3.5 h-3.5 sm:w-4 sm:h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
+                </button>
+                
+                {/* Filter Menu */}
+                {showFilters && (
+                  <div 
+                    ref={filterDropdownRef}
+                    className="absolute right-0 mt-2 bg-white border-2 border-amber-300 rounded-xl shadow-2xl z-50 py-2 w-48 animate-fade-in"
+                  >
+                    <div className="px-2">
+                      <button
+                        onClick={() => handleSortChange('recent')}
+                        className={`w-full text-left px-4 py-3 rounded-lg transition-colors text-sm sm:text-base ${
+                          selectedSort === 'recent'
+                            ? 'bg-amber-100 text-amber-900 font-semibold'
+                            : 'hover:bg-amber-50 text-gray-800'
+                        }`}
+                      >
+                        Most Recent
+                      </button>
+                      <button
+                        onClick={() => handleSortChange('oldest')}
+                        className={`w-full text-left px-4 py-3 rounded-lg transition-colors text-sm sm:text-base ${
+                          selectedSort === 'oldest'
+                            ? 'bg-amber-100 text-amber-900 font-semibold'
+                            : 'hover:bg-amber-50 text-gray-800'
+                        }`}
+                      >
+                        Oldest First
+                      </button>
+                      <button
+                        onClick={() => handleSortChange('name')}
+                        className={`w-full text-left px-4 py-3 rounded-lg transition-colors text-sm sm:text-base ${
+                          selectedSort === 'name'
+                            ? 'bg-amber-100 text-amber-900 font-semibold'
+                            : 'hover:bg-amber-50 text-gray-800'
+                      }`}
+                      >
+                        By Name (A-Z)
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Expand/Collapse Button - Desktop only */}
+            {!isMobile && (
+              <button
+                onClick={toggleExpand}
+                className="p-2.5 text-gray-600 hover:text-gray-900 hover:bg-amber-100 rounded-lg transition-colors border-2 border-amber-300 shrink-0"
+                aria-label={isExpanded ? "Collapse search" : "Expand search"}
+              >
+                {isExpanded ? (
+                  <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 rotate-180 transition-transform" />
+                ) : (
+                  <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 transition-transform" />
+                )}
+              </button>
+            )}
+          </div>
         </div>
 
-        {/* Expanded Section - Always includes Follow Us */}
+        {/* Expanded Section */}
         {isExpanded && (
           <div className="mt-4 pt-4 border-t border-amber-300 animate-slide-down">
             {/* Search Tips */}
@@ -495,7 +595,7 @@ export default function SearchNavbar({
               </div>
             </div>
 
-            {/* Follow Us Section - Always visible when expanded */}
+            {/* Follow Us Section */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-amber-100/50 p-3 sm:p-4 rounded-xl border border-amber-200 gap-3 sm:gap-0">
               <div>
                 <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-1">Follow Us</h3>
@@ -503,19 +603,23 @@ export default function SearchNavbar({
               </div>
               <div className="flex items-center gap-1 sm:gap-2">
                 <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" 
-                   className="p-2 sm:p-3 bg-white text-blue-600 hover:text-white hover:bg-blue-600 rounded-xl transition-all shadow-sm hover:shadow-md">
+                   className="p-2 sm:p-3 bg-white text-blue-600 hover:text-white hover:bg-blue-600 rounded-xl transition-all shadow-sm hover:shadow-md"
+                   style={{ minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Facebook className="w-4 h-4 sm:w-5 sm:h-5" />
                 </a>
                 <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" 
-                   className="p-2 sm:p-3 bg-white text-blue-400 hover:text-white hover:bg-blue-400 rounded-xl transition-all shadow-sm hover:shadow-md">
+                   className="p-2 sm:p-3 bg-white text-blue-400 hover:text-white hover:bg-blue-400 rounded-xl transition-all shadow-sm hover:shadow-md"
+                   style={{ minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Twitter className="w-4 h-4 sm:w-5 sm:h-5" />
                 </a>
                 <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" 
-                   className="p-2 sm:p-3 bg-white text-pink-600 hover:text-white hover:bg-pink-600 rounded-xl transition-all shadow-sm hover:shadow-md">
+                   className="p-2 sm:p-3 bg-white text-pink-600 hover:text-white hover:bg-pink-600 rounded-xl transition-all shadow-sm hover:shadow-md"
+                   style={{ minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Instagram className="w-4 h-4 sm:w-5 sm:h-5" />
                 </a>
                 <a href="mailto:contact@4revah.com" 
-                   className="p-2 sm:p-3 bg-white text-amber-600 hover:text-white hover:bg-amber-500 rounded-xl transition-all shadow-sm hover:shadow-md">
+                   className="p-2 sm:p-3 bg-white text-amber-600 hover:text-white hover:bg-amber-500 rounded-xl transition-all shadow-sm hover:shadow-md"
+                   style={{ minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Mail className="w-4 h-4 sm:w-5 sm:h-5" />
                 </a>
               </div>
@@ -549,104 +653,8 @@ export default function SearchNavbar({
           </div>
         )}
 
-        {/* Follow Us Section (Desktop Only - Always visible when not expanded) */}
-        {!isMobile && !isExpanded && (
-          <div className="mt-3 pt-3 border-t border-amber-200">
-            <div className="flex items-center justify-between bg-amber-100/50 p-3 rounded-xl border border-amber-200">
-              <div>
-                <h3 className="text-sm font-bold text-gray-900">Follow Our Memorial Community</h3>
-                <p className="text-xs text-gray-700">Stay connected for updates and support</p>
-              </div>
-              <div className="flex items-center gap-1">
-                <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" 
-                   className="p-2 bg-white text-blue-600 hover:text-white hover:bg-blue-600 rounded-xl transition-all shadow-sm hover:shadow-md">
-                  <Facebook className="w-4 h-4" />
-                </a>
-                <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" 
-                   className="p-2 bg-white text-blue-400 hover:text-white hover:bg-blue-400 rounded-xl transition-all shadow-sm hover:shadow-md">
-                  <Twitter className="w-4 h-4" />
-                </a>
-                <a href="mailto:contact@4revah.com" 
-                   className="p-2 bg-white text-amber-600 hover:text-white hover:bg-amber-500 rounded-xl transition-all shadow-sm hover:shadow-md">
-                  <Mail className="w-4 h-4" />
-                </a>
-              </div>
-            </div>
-          </div>
-        )}
+     
       </div>
-
-      {/* Mobile responsive styles to prevent horizontal scrolling */}
-      <style >{`
-        @media (max-width: 640px) {
-          /* Ensure content doesn't overflow horizontally */
-          * {
-            max-width: 100vw;
-            overflow-x: hidden;
-          }
-          
-          /* Specific fixes for mobile */
-          .flex.items-center.justify-between.gap-3 {
-            flex-wrap: nowrap;
-            overflow-x: visible;
-          }
-          
-          .flex-1.max-w-2xl.relative {
-            max-width: 100%;
-            overflow: visible;
-          }
-          
-          /* Ensure input text is visible */
-          input[type="text"] {
-            font-size: 16px !important;
-          }
-          
-          /* Prevent horizontal scroll on body */
-          body {
-            overflow-x: hidden;
-            position: relative;
-          }
-          
-          /* Better line clamping */
-          .line-clamp-2 {
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-          }
-        }
-        
-        /* Custom animations */
-        @keyframes fade-in {
-          from {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-        
-        @keyframes slide-down {
-          from {
-            opacity: 0;
-            max-height: 0;
-          }
-          to {
-            opacity: 1;
-            max-height: 1000px;
-          }
-        }
-        
-        .animate-fade-in {
-          animation: fade-in 0.2s ease-out;
-        }
-        
-        .animate-slide-down {
-          animation: slide-down 0.3s ease-out;
-        }
-      `}</style>
     </div>
   );
 }
