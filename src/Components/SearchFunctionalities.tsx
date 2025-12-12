@@ -137,36 +137,39 @@ export default function SearchNavbar({
   };
 
   // Debounced search effect
-  useEffect(() => {
-    if (!showResults) return;
+// Debounced search effect
+useEffect(() => {
+  if (!showResults) return;
 
-    const timeoutId = setTimeout(() => {
-      if (searchQuery.trim().length >= 2 || searchQuery.trim().length === 0) {
-        fetchMemorials(searchQuery, selectedSort);
-      }
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery, selectedSort, showResults]);
-
-  const handleSearch = () => {
-    if (!searchQuery.trim()) {
-      return;
+  const timeoutId = setTimeout(() => {
+    if (searchQuery.trim().length >= 2 || searchQuery.trim().length === 0) {
+      fetchMemorials(searchQuery, selectedSort);
+      // REMOVE this line to prevent auto-showing dropdown
+      // setShowResultsDropdown(true);
     }
+  }, 500);
 
-    if (onSearch) {
-      onSearch(searchQuery);
-    }
-    
-    fetchMemorials(searchQuery, selectedSort);
-    setShowResultsDropdown(true);
-    setSearchAttempted(true);
-    
-    // Hide keyboard on mobile after search
-    if (isSmallScreen && inputRef.current) {
-      inputRef.current.blur();
-    }
-  };
+  return () => clearTimeout(timeoutId);
+}, [searchQuery, selectedSort, showResults]);
+
+const handleSearch = () => {
+  if (!searchQuery.trim()) {
+    return;
+  }
+
+  if (onSearch) {
+    onSearch(searchQuery);
+  }
+  
+  fetchMemorials(searchQuery, selectedSort);
+  setShowResultsDropdown(true); // Only show dropdown when user clicks "Search" or presses Enter
+  setSearchAttempted(true);
+  
+  // Hide keyboard on mobile after search
+  if (isSmallScreen && inputRef.current) {
+    inputRef.current.blur();
+  }
+};
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -186,11 +189,26 @@ export default function SearchNavbar({
     }
   };
 
-  const handleInputFocus = () => {
-    if (searchResults.length > 0 || searchQuery.length >= 2) {
-      setShowResultsDropdown(true);
-    }
-  };
+ const handleInputFocus = () => {
+  // On mobile, ensure input is visible when keyboard opens
+  if (isSmallScreen && inputRef.current) {
+    // Delay to ensure keyboard is fully open
+    setTimeout(() => {
+      if (inputRef.current) {
+        // Scroll the input into view on mobile
+        inputRef.current.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
+      }
+    }, 100);
+  }
+  
+  // REMOVE or COMMENT OUT the line below to prevent showing dropdown on focus
+  // if (searchResults.length > 0 || searchQuery.length >= 2) {
+  //   setShowResultsDropdown(true);
+  // }
+};
 
   const viewMemorialPage = (memorial: PublicMemorial) => {
     const memorialSlug = memorial.customUrl || memorial.id;
