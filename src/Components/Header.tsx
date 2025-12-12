@@ -38,21 +38,21 @@ export const Header: React.FC<HeaderProps> = ({ data }) => {
         <div className="relative w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24">
           <div className="flex flex-col items-center text-center">
             
-            {/* Decorative top elements - REDUCED MARGIN HERE */}
+            {/* Decorative top elements - HALVED MARGIN */}
             <div className="mb-4 md:mb-6"> {/* Changed from mb-8 md:mb-12 */}
-              <div className="flex items-center justify-center gap-3 mb-3"> {/* Reduced gap and margin */}
-                <div className="w-16 h-px bg-gradient-to-r from-transparent via-amber-500 to-transparent"></div>
-                <div className="flex items-center gap-2"> {/* Reduced gap */}
-                  <Flower2 className="w-5 h-5 text-amber-600 animate-pulse" /> {/* Smaller icons */}
-                  <span className="text-xs sm:text-sm uppercase tracking-widest text-amber-700/70 font-medium">Celebrating Life's Journey</span>
-                  <Flower2 className="w-5 h-5 text-amber-600 animate-pulse" /> {/* Smaller icons */}
+              <div className="flex items-center justify-center gap-4 mb-6">
+                <div className="w-20 h-px bg-gradient-to-r from-transparent via-amber-500 to-transparent"></div>
+                <div className="flex items-center gap-3">
+                  <Flower2 className="w-6 h-6 text-amber-600 animate-pulse" />
+                  <span className="text-sm uppercase tracking-widest text-amber-700/70 font-medium">Celebrating Life's Journey</span>
+                  <Flower2 className="w-6 h-6 text-amber-600 animate-pulse" />
                 </div>
-                <div className="w-16 h-px bg-gradient-to-r from-transparent via-amber-500 to-transparent"></div>
+                <div className="w-20 h-px bg-gradient-to-r from-transparent via-amber-500 to-transparent"></div>
               </div>
             </div>
             
-            {/* Profile image with elegant frame */}
-            <div className="relative group mb-6 sm:mb-8"> {/* Reduced margin here too */}
+            {/* Profile image with elegant frame - ALL OTHER CODE REMAINS UNCHANGED */}
+            <div className="relative group mb-8 sm:mb-12">
               <div className="absolute inset-0 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full blur-3xl opacity-25 group-hover:opacity-35 transition-opacity duration-700"></div>
               <div className="relative">
                 <div className="w-32 h-32 sm:w-40 sm:h-40 md:w-56 md:h-56 rounded-full p-1 bg-gradient-to-br from-amber-100 via-orange-50 to-yellow-100 shadow-2xl">
@@ -80,17 +80,17 @@ export const Header: React.FC<HeaderProps> = ({ data }) => {
             </div>
             
             {/* Main title */}
-            <h1 className="text-4xl sm:text-5xl md:text-7xl font-serif mb-4 text-gray-800 tracking-tight"> {/* Reduced margin */}
-              Eternal<span className="text-amber-600 mx-2 sm:mx-3">Remembrance</span> {/* Reduced horizontal margin */}
+            <h1 className="text-4xl sm:text-5xl md:text-7xl font-serif mb-6 text-gray-800 tracking-tight">
+              Eternal<span className="text-amber-600 mx-3">Remembrance</span>
             </h1>
             
             {/* Subtitle */}
-            <p className="text-xl sm:text-2xl md:text-3xl text-gray-700 font-light mb-6 max-w-3xl leading-relaxed"> {/* Reduced margin */}
+            <p className="text-xl sm:text-2xl md:text-3xl text-gray-700 font-light mb-8 max-w-3xl leading-relaxed">
               Where Memories Become Everlasting Tributes
             </p>
             
             {/* Description */}
-            <div className="max-w-2xl mx-auto mb-8"> {/* Reduced margin */}
+            <div className="max-w-2xl mx-auto mb-12">
               <p className="text-gray-600 leading-relaxed text-lg">
                 Create beautiful memorials that honor the unique stories of loved ones. 
                 Share cherished memories, photographs, and life moments in a warm, 
@@ -99,29 +99,29 @@ export const Header: React.FC<HeaderProps> = ({ data }) => {
             </div>
             
             {/* Memorial features */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8 max-w-3xl"> {/* Reduced gap and margin */}
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-5 shadow-lg border border-amber-100 hover:shadow-xl transition-shadow duration-300"> {/* Reduced padding */}
-                <Heart className="w-7 h-7 text-amber-600 mx-auto mb-2" fill="#f59e0b" /> {/* Smaller icon */}
-                <h3 className="font-semibold text-gray-700 mb-1">Share Love</h3> {/* Reduced margin */}
-                <p className="text-xs text-gray-600">Collect heartfelt stories from family & friends</p> {/* Smaller text */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12 max-w-3xl">
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-amber-100 hover:shadow-xl transition-shadow duration-300">
+                <Heart className="w-8 h-8 text-amber-600 mx-auto mb-3" fill="#f59e0b" />
+                <h3 className="font-semibold text-gray-700 mb-2">Share Love</h3>
+                <p className="text-sm text-gray-600">Collect heartfelt stories from family & friends</p>
               </div>
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-5 shadow-lg border border-amber-100 hover:shadow-xl transition-shadow duration-300">
-                <Flower2 className="w-7 h-7 text-amber-600 mx-auto mb-2" />
-                <h3 className="font-semibold text-gray-700 mb-1">Preserve Legacy</h3>
-                <p className="text-xs text-gray-600">Create lasting tributes for generations</p>
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-amber-100 hover:shadow-xl transition-shadow duration-300">
+                <Flower2 className="w-8 h-8 text-amber-600 mx-auto mb-3" />
+                <h3 className="font-semibold text-gray-700 mb-2">Preserve Legacy</h3>
+                <p className="text-sm text-gray-600">Create lasting tributes for generations</p>
               </div>
-              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-5 shadow-lg border border-amber-100 hover:shadow-xl transition-shadow duration-300">
-                <Star className="w-7 h-7 text-amber-600 mx-auto mb-2" fill="#f59e0b" />
-                <h3 className="font-semibold text-gray-700 mb-1">Celebrate Life</h3>
-                <p className="text-xs text-gray-600">Honor each unique life journey</p>
+              <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-amber-100 hover:shadow-xl transition-shadow duration-300">
+                <Star className="w-8 h-8 text-amber-600 mx-auto mb-3" fill="#f59e0b" />
+                <h3 className="font-semibold text-gray-700 mb-2">Celebrate Life</h3>
+                <p className="text-sm text-gray-600">Honor each unique life journey</p>
               </div>
             </div>
             
             {/* Final message */}
-            <div className="inline-block px-6 py-3 bg-gradient-to-r from-amber-50 to-orange-50 backdrop-blur-sm rounded-2xl shadow-lg border border-amber-200/50 hover:shadow-xl transition-all duration-300"> {/* Reduced padding */}
-              <div className="flex items-center gap-2"> {/* Reduced gap */}
-                <Heart className="w-4 h-4 text-amber-600" fill="#f59e0b" /> {/* Smaller icon */}
-                <p className="text-gray-700 font-medium text-base"> {/* Smaller text */}
+            <div className="inline-block px-8 py-4 bg-gradient-to-r from-amber-50 to-orange-50 backdrop-blur-sm rounded-2xl shadow-lg border border-amber-200/50 mt-8 hover:shadow-xl transition-all duration-300">
+              <div className="flex items-center gap-3">
+                <Heart className="w-5 h-5 text-amber-600" fill="#f59e0b" />
+                <p className="text-gray-700 font-medium text-lg">
                   Forever cherished in our hearts 🕊️
                 </p>
               </div>
