@@ -2531,9 +2531,24 @@ useEffect(() => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* REDESIGNED HEADER - Modern & Warm */}
-      <div className="min-h-screen bg-gray-50">
-  {/* HEADER WITH WARM BACKGROUND IMAGE */}
+{/* REDESIGNED HEADER - Modern & Warm */}
+<div className="min-h-screen bg-gray-50">
+  {/* FLOATING BACK BUTTON - Works on all OS */}
+{/* BACK BUTTON - Fixed position, won't overlap */}
+<div className="fixed top-3 left-3 sm:top-6 sm:left-6 z-[100]">
+  <button
+    onClick={handleBackNavigation}
+    className="flex items-center justify-center sm:justify-start gap-0 sm:gap-2 bg-white/95 backdrop-blur-md text-gray-800 hover:text-orange-600 active:text-orange-700 transition-all duration-200 group p-2.5 sm:px-4 sm:py-3 rounded-full shadow-xl hover:shadow-2xl active:shadow-lg border border-gray-200 hover:border-orange-300 min-w-[40px] min-h-[40px] sm:min-w-[140px] sm:min-h-[44px] touch-manipulation"
+    aria-label={isLoggedIn() ? 'Back to Dashboard' : 'Back to Home'}
+  >
+    <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform duration-200 flex-shrink-0" />
+    <span className="hidden sm:inline text-sm font-medium whitespace-nowrap">
+      {isLoggedIn() ? 'Back to Dashboard' : 'Back to Home'}
+    </span>
+  </button>
+</div>
+
+{/* HEADER WITH WARM BACKGROUND IMAGE */}
 <header className={`sticky top-0 z-50 transition-all duration-200 ${
   isScrolled 
     ? 'bg-white shadow-md' 
@@ -2559,23 +2574,12 @@ useEffect(() => {
     </div>
   </div>
   
-  {/* Container with dynamic padding */}
-  <div className={`relative z-10 max-w-7xl mx-auto px-4 sm:px-6 transition-all duration-200 ${
-    isScrolled ? 'py-4' : 'py-8 sm:py-16 md:py-24'
+  {/* Container with dynamic padding - ADDED LEFT PADDING FOR MOBILE */}
+  <div className={`relative z-10 max-w-7xl mx-auto transition-all duration-200 ${
+    isScrolled 
+      ? 'py-4 px-4 sm:px-6 pl-16 sm:pl-6' 
+      : 'py-8 sm:py-16 md:py-24 px-4 sm:px-6 pl-16 sm:pl-6'
   }`}>
-    
-    {/* BACK BUTTON - Moved INSIDE header for cross-platform consistency */}
-    <div className="absolute top-4 left-4 sm:top-6 sm:left-6 z-20">
-      <button
-        onClick={handleBackNavigation}
-        className="flex items-center gap-2 bg-white/95 backdrop-blur-md text-gray-800 hover:text-orange-600 transition-colors group px-4 py-2.5 rounded-lg shadow-lg hover:shadow-xl border border-gray-200"
-      >
-        <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-        <span className="text-sm font-medium">
-          {isLoggedIn() ? 'Back to Dashboard' : 'Back to Home'}
-        </span>
-      </button>
-    </div>
     
     {/* Main flex container */}
     <div className={`flex items-center transition-all duration-500 ${
@@ -2585,7 +2589,7 @@ useEffect(() => {
     }`}>
       
       {/* Profile Image with smooth transitions */}
-      <div className="relative flex-shrink-0">
+      <div className="relative shrink-0">
         {memorial.profileImage ? (
           <img
             src={memorial.profileImage}
@@ -2692,66 +2696,64 @@ useEffect(() => {
     </div>
   </div>
 </header>
-
-        {/* CLEAN NAVIGATION */}
-        <nav className="sticky top-[72px] z-30 bg-white border-b border-gray-200 transition-all duration-200">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="flex justify-center">
-              <div className="flex gap-0.5 sm:gap-1 py-2.5 sm:py-3 overflow-x-auto scrollbar-hide scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-                {navigationItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeSection === item.id;
+  {/* CLEAN NAVIGATION */}
+  <nav className="sticky top-[72px] z-30 bg-white border-b border-gray-200 transition-all duration-200">
+    <div className="max-w-7xl mx-auto px-4">
+      <div className="flex justify-center">
+        <div className="flex gap-0.5 sm:gap-1 py-2.5 sm:py-3 overflow-x-auto scrollbar-hide scroll-smooth" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          {navigationItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeSection === item.id;
+            
+            return (
+              <button
+                key={item.id}
+                onClick={() => {
+                  // Lock the header in collapsed state and record the time
+                  setHeaderLocked(true);
+                  setIsScrolled(true);
+                  setHeaderLockedTime(Date.now());
+                  setActiveSection(item.id);
                   
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => {
-                        // Lock the header in collapsed state and record the time
-                        setHeaderLocked(true);
-                        setIsScrolled(true);
-                        setHeaderLockedTime(Date.now());
-                        setActiveSection(item.id);
-                        
-                        const element = document.getElementById(item.id);
-                        if (element) {
-                          // Fixed offset since nav is now always at same position
-                          const navHeight = 72; // Height of collapsed header
-                          const navBarHeight = 60; // Height of nav bar itself
-                          const totalOffset = navHeight + navBarHeight + 20; // 20px padding
-                          
-                          const elementPosition = element.getBoundingClientRect().top;
-                          const offsetPosition = elementPosition + window.pageYOffset - totalOffset;
-                          
-                          window.scrollTo({
-                            top: offsetPosition,
-                            behavior: 'smooth'
-                          });
-                        }
-                        
-                        // Header stays locked until user scrolls to very top AND 1 second has passed
-                      }}
-                      className={`relative flex items-center gap-2 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 text-sm md:text-base font-medium whitespace-nowrap transition-all duration-300 ${
-                        isActive
-                          ? 'text-orange-600'
-                          : 'text-gray-600 hover:text-orange-600'
-                      }`}
-                    >
-                      <Icon className={`w-4 h-4 md:w-5 md:h-5 transition-all duration-300 ${
-                        isActive ? 'scale-110' : ''
-                      }`} />
-                      <span>{item.label}</span>
-                      
-                      <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-orange-600 transition-all duration-300 ${
-                        isActive ? 'opacity-100' : 'opacity-0'
-                      }`}></div>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </nav>
-
+                  const element = document.getElementById(item.id);
+                  if (element) {
+                    // Fixed offset since nav is now always at same position
+                    const navHeight = 72; // Height of collapsed header
+                    const navBarHeight = 60; // Height of nav bar itself
+                    const totalOffset = navHeight + navBarHeight + 20; // 20px padding
+                    
+                    const elementPosition = element.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.pageYOffset - totalOffset;
+                    
+                    window.scrollTo({
+                      top: offsetPosition,
+                      behavior: 'smooth'
+                    });
+                  }
+                  
+                  // Header stays locked until user scrolls to very top AND 1 second has passed
+                }}
+                className={`relative flex items-center gap-2 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 text-sm md:text-base font-medium whitespace-nowrap transition-all duration-300 ${
+                  isActive
+                    ? 'text-orange-600'
+                    : 'text-gray-600 hover:text-orange-600'
+                }`}
+              >
+                <Icon className={`w-4 h-4 md:w-5 md:h-5 transition-all duration-300 ${
+                  isActive ? 'scale-110' : ''
+                }`} />
+                <span>{item.label}</span>
+                
+                <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-orange-600 transition-all duration-300 ${
+                  isActive ? 'opacity-100' : 'opacity-0'
+                }`}></div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  </nav>
         {/* Main Content */}
         <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="space-y-8">
