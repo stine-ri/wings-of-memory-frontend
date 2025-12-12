@@ -1080,25 +1080,36 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
           <div className="space-y-6 sm:space-y-10 lg:space-y-14">
             
             {/* Parents Generation */}
-            {generations.parents.length > 0 && (
-              <div className="relative">
-                <div className="text-center mb-4 sm:mb-6">
-                  <div className="inline-flex items-center gap-1 sm:gap-2 px-3 py-1 sm:px-4 sm:py-2 rounded-full">
-                    <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-blue-500"></div>
-                    <h3 className="text-xs sm:text-base font-bold text-blue-800">Parents</h3>
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 max-w-md sm:max-w-xl mx-auto">
-                  {generations.parents.map((parent) => (
-                    <MemberCard 
-                      key={parent.id} 
-                      member={parent} 
-                      generation="parent"
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
+           {/* Parents Generation - ALWAYS HORIZONTAL */}
+{generations.parents.length > 0 && (
+  <div className="relative">
+    <div className="text-center mb-4 sm:mb-6">
+      <div className="inline-flex items-center gap-1 sm:gap-2 px-3 py-1 sm:px-4 sm:py-2 rounded-full">
+        <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-blue-500"></div>
+        <h3 className="text-xs sm:text-base font-bold text-blue-800">Parents</h3>
+      </div>
+    </div>
+    
+    {/* PARENTS - HORIZONTAL LAYOUT */}
+    <div className="flex flex-row flex-nowrap items-center justify-center gap-4 sm:gap-6 lg:gap-8 px-2 sm:px-0">
+      {generations.parents.map((parent) => (
+        <div key={parent.id} className="flex-shrink-0 w-[140px] sm:w-[160px] md:w-[180px]">
+          <MemberCard 
+            member={parent} 
+            generation="parent"
+          />
+        </div>
+      ))}
+    </div>
+    
+    {/* Parent connection line to main person */}
+    {generations.parents.length > 0 && mainPerson && (
+      <div className="hidden sm:flex justify-center mt-4">
+        <div className="h-8 w-0.5 bg-gray-300"></div>
+      </div>
+    )}
+  </div>
+)}
 
             {/* Main & Spouse Generation */}
             <div className="relative">
@@ -2757,195 +2768,216 @@ useEffect(() => {
             
             return (
               <button
-                key={item.id}
-               onClick={() => {
-  // Immediately collapse header without delay
-  setHeaderLocked(true);
-  setIsScrolled(true);
-  setActiveSection(item.id);
-  
-  const element = document.getElementById(item.id);
-  if (element) {
-    const navHeight = 72;
-    const navBarHeight = 60;
-    const totalOffset = navHeight + navBarHeight + 20;
+  key={item.id}
+  onClick={() => {
+    // Set active section
+    setActiveSection(item.id);
     
-    const elementPosition = element.getBoundingClientRect().top;
-    const offsetPosition = elementPosition + window.pageYOffset - totalOffset;
+    // Lock header to prevent flickering
+    setHeaderLocked(true);
     
-    window.scrollTo({
-      top: offsetPosition,
-      behavior: 'smooth'
-    });
-  }
+    // Get the target element
+    const element = document.getElementById(item.id);
+    if (element) {
+      // Collapse header first
+      setIsScrolled(true);
+      
+      // Wait for header to collapse (next frame)
+      requestAnimationFrame(() => {
+        // Calculate heights AFTER header has collapsed
+        const collapsedHeaderHeight = 72; // Header height when collapsed
+        const navBarHeight = 60;
+        const totalOffset = collapsedHeaderHeight + navBarHeight + 10;
+        
+        // Get element position relative to viewport
+        const elementRect = element.getBoundingClientRect();
+        const elementTop = elementRect.top + window.pageYOffset;
+        
+        // Calculate scroll position
+        const offsetPosition = elementTop - totalOffset;
+        
+        // Smooth scroll to the calculated position
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: 'smooth'
+        });
+        
+        // Unlock header after scroll completes
+        setTimeout(() => {
+          setHeaderLocked(false);
+        }, 800);
+      });
+    }
+  }}
+  className={`relative flex items-center gap-2 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 text-sm md:text-base font-medium whitespace-nowrap transition-all duration-300 ${
+    isActive
+      ? 'text-orange-600'
+      : 'text-gray-600 hover:text-orange-600'
+  }`}
+>
+  <Icon className={`w-4 h-4 md:w-5 md:h-5 transition-all duration-300 ${
+    isActive ? 'scale-110' : ''
+  }`} />
+  <span>{item.label}</span>
   
-  // Unlock after scroll completes (shorter delay)
-  setTimeout(() => {
-    setHeaderLocked(false);
-  }, 500); // Reduced from 1000ms to 500ms
-}}
-                className={`relative flex items-center gap-2 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 text-sm md:text-base font-medium whitespace-nowrap transition-all duration-300 ${
-                  isActive
-                    ? 'text-orange-600'
-                    : 'text-gray-600 hover:text-orange-600'
-                }`}
-              >
-                <Icon className={`w-4 h-4 md:w-5 md:h-5 transition-all duration-300 ${
-                  isActive ? 'scale-110' : ''
-                }`} />
-                <span>{item.label}</span>
-                
-                <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-orange-600 transition-all duration-300 ${
-                  isActive ? 'opacity-100' : 'opacity-0'
-                }`}></div>
-              </button>
+  <div className={`absolute bottom-0 left-0 right-0 h-0.5 bg-orange-600 transition-all duration-300 ${
+    isActive ? 'opacity-100' : 'opacity-0'
+  }`}></div>
+</button>
             );
           })}
         </div>
       </div>
     </div>
   </nav>
+  
         {/* Main Content */}
-        <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="space-y-8">
-            {/* Obituary Section */}
-            <section id="obituary" className="animate-fadeIn scroll-mt-2">
-              <div className="py-16 sm:py-20 px-3 sm:px-4">
-                <div className="max-w-6xl mx-auto">
-                  {/* Header matching Favorites style */}
-                  <div className="mb-8 sm:mb-12">
-                    {/* Life Story Title with Half Underline */}
-                    <div className="mb-6 sm:mb-8">
-                      <h2 className="text-4xl sm:text-5xl font-serif text-gray-800 inline-block relative">
-                        Life Story
-                        <div className="absolute -bottom-2 left-0 w-1/2 h-1 bg-amber-500 rounded-full"></div>
-                      </h2>
-                      <p className="text-sm text-gray-600 mt-2">A celebration of life</p>
-                    </div>
-                  </div>
-                  
-                  <div className="prose prose-lg max-w-none">
-                    {memorial.obituary ? (
-                      <div className="text-gray-700 leading-relaxed space-y-6">
-                        {memorial.obituary.split('\n\n').map((paragraph, idx) => (
-                          <p 
-                            key={idx} 
-                            className={`text-lg leading-8 ${
-                              idx === 0 
-                                ? 'first-letter:text-7xl first-letter:font-serif first-letter:font-bold first-letter:text-amber-600 first-letter:float-left first-letter:leading-none first-letter:mr-3 first-letter:mt-1' 
-                                : ''
-                            }`}
-                          >
-                            {paragraph}
-                          </p>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-gray-500 italic text-center py-8">No life story available</p>
-                    )}
-                  </div>
-                </div>
+      {/* Main Content - Adjusted for collapsed header */}
+<main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+  <div className="space-y-8">
+    
+    {/* Obituary Section - Positioned BELOW header when collapsed */}
+    <section 
+      id="obituary" 
+      className={`animate-fadeIn transition-all duration-300 ${
+        isScrolled ? 'mt-4' : 'mt-8'
+      }`}
+    >
+      <div className="py-8 sm:py-12 px-3 sm:px-4">
+        <div className="max-w-6xl mx-auto">
+          {/* Header matching Favorites style */}
+          <div className="mb-6 sm:mb-8">
+            {/* Life Story Title with Half Underline */}
+            <div className="mb-4 sm:mb-6">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif text-gray-800 inline-block relative">
+                Life Story
+                <div className="absolute -bottom-2 left-0 w-1/2 h-1 bg-amber-500 rounded-full"></div>
+              </h2>
+              <p className="text-sm text-gray-600 mt-2">A celebration of life</p>
+            </div>
+          </div>
+          
+          <div className="prose prose-lg max-w-none">
+            {memorial.obituary ? (
+              <div className="text-gray-700 leading-relaxed space-y-6">
+                {memorial.obituary.split('\n\n').map((paragraph, idx) => (
+                  <p 
+                    key={idx} 
+                    className={`text-lg leading-8 ${
+                      idx === 0 
+                        ? 'first-letter:text-6xl first-letter:font-serif first-letter:font-bold first-letter:text-amber-600 first-letter:float-left first-letter:leading-none first-letter:mr-3 first-letter:mt-1' 
+                        : ''
+                    }`}
+                  >
+                    {paragraph}
+                  </p>
+                ))}
               </div>
-            </section>
-
-            {/* Timeline Section */}
-            {memorial.timeline.length > 0 && (
-              <TimelineSection timeline={memorial.timeline} />
-            )}
-
-            {/* Favorites Section */}
-            {memorial.favorites.length > 0 && (
-              <FavoritesSection favorites={memorial.favorites} />
-            )}
-
-            {/* Gallery Section */}
-            {memorial.gallery.length > 0 && (
-              <GallerySection gallery={memorial.gallery} />
-            )}
-
-            {/* Tributes Section */}
-            {/* Tributes Section - Horizontal Auto-Sliding Carousel */}
-            <section id="tributes" className="animate-fadeIn scroll-mt-24 py-16 sm:py-20 px-3 sm:px-4">
-              <div className="max-w-7xl mx-auto">
-                {/* Header matching other sections */}
-               <div className="mb-8 sm:mb-12">
-  <div className="mb-6 sm:mb-8">
-    <h2 className="text-4xl sm:text-5xl font-serif text-gray-800 inline-block relative">
-      Memory Wall
-      <div className="absolute -bottom-2 left-0 w-1/2 h-1 bg-amber-500 rounded-full"></div>
-    </h2>
-    <p className="text-sm text-gray-600 mt-2">
-      {memorial.tributes.length} {memorial.tributes.length === 1 ? 'memory' : 'memories'} shared
-    </p>
-  </div>
-</div>
-
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-                  <div>
-                    <button
-                      onClick={() => {
-                        setEditingTribute(null);
-                        setShowTributeForm(true);
-                      }}
-                      className="bg-orange-400 text-white px-4 py-2.5 rounded-lg hover:bg-orange-500 transition-colors flex items-center gap-2 text-sm font-medium"
-                    >
-                      Contribute →
-                    </button>
-                  </div>
-                </div>
-
-                {showTributeForm && (
-                  <TributeForm
-                    memorialName={memorial.name}
-                    onSuccess={() => {
-                      fetchMemorial();
-                      setShowTributeForm(false);
-                      setEditingTribute(null);
-                    }}
-                    onCancel={() => {
-                      setShowTributeForm(false);
-                      setEditingTribute(null);
-                    }}
-                    editingTribute={editingTribute}
-                    isEdit={!!editingTribute}
-                    identifier={identifier || ''}
-                  />
-                )}
-
-                {memorial.tributes.length > 0 ? (
-                  <TributesCarousel
-                    tributes={memorial.tributes}
-                    onEdit={handleEditTribute}
-                    onDelete={handleDeleteTribute}
-                    currentSessionId={currentSessionId}
-                    likedMemories={likedMemories}
-                    onLike={toggleLike}
-                  />
-                ) : (
-                  <div className="text-center py-16 bg-gray-50/50 rounded-xl">
-                    <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No memories yet</h3>
-                    <p className="text-gray-600 mb-6">Be the first to share a memory of {memorial.name}</p>
-                    <button
-                      onClick={() => setShowTributeForm(true)}
-                      className="px-6 py-2.5 bg-orange-400 hover:bg-orange-500 text-white rounded-lg transition-all font-medium"
-                    >
-                      Share Your Memory
-                    </button>
-                  </div>
-                )}
-              </div>
-            </section>
-
-            {/* Family Tree Section */}
-            <FamilyTreeSection familyTree={memorial.familyTree} />
-
-            {/* Service Section */}
-            {serviceInfo && (serviceInfo.venue || serviceInfo.date) && (
-              <ServiceSection serviceInfo={serviceInfo} />
+            ) : (
+              <p className="text-gray-500 italic text-center py-8">No life story available</p>
             )}
           </div>
-        </main>
+        </div>
+      </div>
+    </section>
+
+    {/* Timeline Section */}
+    {memorial.timeline.length > 0 && (
+      <TimelineSection timeline={memorial.timeline} />
+    )}
+
+    {/* Favorites Section */}
+    {memorial.favorites.length > 0 && (
+      <FavoritesSection favorites={memorial.favorites} />
+    )}
+
+    {/* Gallery Section */}
+    {memorial.gallery.length > 0 && (
+      <GallerySection gallery={memorial.gallery} />
+    )}
+
+    {/* Tributes Section */}
+    <section id="tributes" className="animate-fadeIn py-12 sm:py-16 px-3 sm:px-4">
+      <div className="max-w-7xl mx-auto">
+        {/* Header matching other sections */}
+        <div className="mb-6 sm:mb-8">
+          <div className="mb-4 sm:mb-6">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-serif text-gray-800 inline-block relative">
+              Memory Wall
+              <div className="absolute -bottom-2 left-0 w-1/2 h-1 bg-amber-500 rounded-full"></div>
+            </h2>
+            <p className="text-sm text-gray-600 mt-2">
+              {memorial.tributes.length} {memorial.tributes.length === 1 ? 'memory' : 'memories'} shared
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div>
+            <button
+              onClick={() => {
+                setEditingTribute(null);
+                setShowTributeForm(true);
+              }}
+              className="bg-orange-400 text-white px-4 py-2.5 rounded-lg hover:bg-orange-500 transition-colors flex items-center gap-2 text-sm font-medium"
+            >
+              Contribute →
+            </button>
+          </div>
+        </div>
+
+        {showTributeForm && (
+          <TributeForm
+            memorialName={memorial.name}
+            onSuccess={() => {
+              fetchMemorial();
+              setShowTributeForm(false);
+              setEditingTribute(null);
+            }}
+            onCancel={() => {
+              setShowTributeForm(false);
+              setEditingTribute(null);
+            }}
+            editingTribute={editingTribute}
+            isEdit={!!editingTribute}
+            identifier={identifier || ''}
+          />
+        )}
+
+        {memorial.tributes.length > 0 ? (
+          <TributesCarousel
+            tributes={memorial.tributes}
+            onEdit={handleEditTribute}
+            onDelete={handleDeleteTribute}
+            currentSessionId={currentSessionId}
+            likedMemories={likedMemories}
+            onLike={toggleLike}
+          />
+        ) : (
+          <div className="text-center py-12 bg-gray-50/50 rounded-xl">
+            <MessageCircle className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">No memories yet</h3>
+            <p className="text-gray-600 mb-6">Be the first to share a memory of {memorial.name}</p>
+            <button
+              onClick={() => setShowTributeForm(true)}
+              className="px-6 py-2.5 bg-orange-400 hover:bg-orange-500 text-white rounded-lg transition-all font-medium"
+            >
+              Share Your Memory
+            </button>
+          </div>
+        )}
+      </div>
+    </section>
+
+    {/* Family Tree Section */}
+    <FamilyTreeSection familyTree={memorial.familyTree} />
+
+    {/* Service Section */}
+    {serviceInfo && (serviceInfo.venue || serviceInfo.date) && (
+      <ServiceSection serviceInfo={serviceInfo} />
+    )}
+  </div>
+</main>
 
         {/* Footer */}
         <MemorialFooter memorialName={memorial.name} />

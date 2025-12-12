@@ -108,20 +108,20 @@ const MemorialSelector: React.FC<MemorialSelectorProps> = ({
                     </div>
                   </button>
                   
-                  {onDeleteMemorial && memorials.length > 1 && (
-                    <button
-                      onClick={(e) => handleDelete(memorial.id, e)}
-                      disabled={deletingId === memorial.id}
-                      className="p-1.5 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50 ml-2"
-                      title="Delete memorial"
-                    >
-                      {deletingId === memorial.id ? (
-                        <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4" />
-                      )}
-                    </button>
-                  )}
+                  {onDeleteMemorial && (
+  <button
+    onClick={(e) => handleDelete(memorial.id, e)}
+    disabled={deletingId === memorial.id}
+    className="p-1.5 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50 ml-2"
+    title="Delete memorial"
+  >
+    {deletingId === memorial.id ? (
+      <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+    ) : (
+      <Trash2 className="w-4 h-4" />
+    )}
+  </button>
+)}
                 </div>
               ))}
             </div>
