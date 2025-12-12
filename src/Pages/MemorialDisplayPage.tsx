@@ -2214,26 +2214,59 @@ const BackButtonPortal = () => {
 
   return ReactDOM.createPortal(
     <div 
-      className="fixed top-4 left-4 sm:top-6 sm:left-6"
       style={{ 
-        zIndex: 2147483647,
         position: 'fixed',
-        isolation: 'isolate' // Creates new stacking context
+        top: '16px',
+        left: '16px',
+        zIndex: 999999,
+        isolation: 'isolate',
+        pointerEvents: 'auto'
       }}
+      className="sm:top-6 sm:left-6"
     >
       <button
         onClick={handleBackNavigation}
-        className="flex items-center justify-center sm:justify-start gap-0 sm:gap-2 bg-white/95 backdrop-blur-md text-gray-800 hover:text-orange-600 active:text-orange-700 transition-all duration-200 group p-2.5 sm:px-4 sm:py-3 rounded-full shadow-xl hover:shadow-2xl active:shadow-lg border border-gray-200 hover:border-orange-300 min-w-[40px] min-h-[40px] sm:min-w-[140px] sm:min-h-[44px] touch-manipulation"
         style={{
-          WebkitBackfaceVisibility: 'hidden',
-          backfaceVisibility: 'hidden',
-          transform: 'translateZ(0)', // Force GPU acceleration
-          willChange: 'transform'
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '0',
+          backgroundColor: 'rgba(255, 255, 255, 0.98)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          color: '#1f2937',
+          border: '1px solid #e5e7eb',
+          borderRadius: '9999px',
+          padding: '10px',
+          minWidth: '40px',
+          minHeight: '40px',
+          boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          transform: 'translateZ(0)',
+          willChange: 'transform',
+          WebkitFontSmoothing: 'antialiased'
         }}
+        className="sm:px-4 sm:py-3 sm:min-w-[140px] sm:min-h-[44px] sm:gap-2 sm:justify-start group hover:text-orange-600 hover:border-orange-300 hover:shadow-2xl active:shadow-lg touch-manipulation"
         aria-label={isLoggedIn() ? 'Back to Dashboard' : 'Back to Home'}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color = '#ea580c';
+          e.currentTarget.style.borderColor = '#fed7aa';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color = '#1f2937';
+          e.currentTarget.style.borderColor = '#e5e7eb';
+        }}
       >
-        <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform duration-200 flex-shrink-0" />
-        <span className="hidden sm:inline text-sm font-medium whitespace-nowrap">
+        <ChevronLeft 
+          className="w-5 h-5 flex-shrink-0 transition-transform duration-200 group-hover:-translate-x-1" 
+          style={{ pointerEvents: 'none' }}
+        />
+        <span 
+          className="hidden sm:inline text-sm font-medium whitespace-nowrap"
+          style={{ pointerEvents: 'none' }}
+        >
           {isLoggedIn() ? 'Back to Dashboard' : 'Back to Home'}
         </span>
       </button>
@@ -2241,6 +2274,7 @@ const BackButtonPortal = () => {
     document.body
   );
 };
+
   const fetchMemorial = useCallback(async () => {
     try {
       setLoading(true);
