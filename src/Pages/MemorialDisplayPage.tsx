@@ -2212,8 +2212,7 @@ const BackButtonPortal = () => {
   };
 
   return ReactDOM.createPortal(
-    <div className="fixed top-4 left-4 sm:top-6 sm:left-6 z-[2147483647]" 
-         style={{ zIndex: 2147483647, position: 'fixed' }}>
+    <div className="fixed top-4 left-4 sm:top-6 sm:left-6 z-[9999]">
       <button
         onClick={handleBackNavigation}
         className="flex items-center justify-center sm:justify-start gap-0 sm:gap-2 bg-white/95 backdrop-blur-md text-gray-800 hover:text-orange-600 active:text-orange-700 transition-all duration-200 group p-2.5 sm:px-4 sm:py-3 rounded-full shadow-xl hover:shadow-2xl active:shadow-lg border border-gray-200 hover:border-orange-300 min-w-[40px] min-h-[40px] sm:min-w-[140px] sm:min-h-[44px] touch-manipulation"
@@ -2225,7 +2224,7 @@ const BackButtonPortal = () => {
         </span>
       </button>
     </div>,
-    document.body // THIS IS THE KEY - renders directly to body
+    document.body
   );
 };
 
