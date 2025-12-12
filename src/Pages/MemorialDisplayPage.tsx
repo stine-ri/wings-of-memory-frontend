@@ -2205,6 +2205,7 @@ const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     }
   };
 // Create a BackButtonPortal component INSIDE your MemorialDisplayPage
+// Replace your current BackButtonPortal with this improved version:
 const BackButtonPortal = () => {
   const isLoggedIn = () => {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -2212,10 +2213,23 @@ const BackButtonPortal = () => {
   };
 
   return ReactDOM.createPortal(
-    <div className="fixed top-4 left-4 sm:top-6 sm:left-6 z-[9999]">
+    <div 
+      className="fixed top-4 left-4 sm:top-6 sm:left-6"
+      style={{ 
+        zIndex: 2147483647,
+        position: 'fixed',
+        isolation: 'isolate' // Creates new stacking context
+      }}
+    >
       <button
         onClick={handleBackNavigation}
         className="flex items-center justify-center sm:justify-start gap-0 sm:gap-2 bg-white/95 backdrop-blur-md text-gray-800 hover:text-orange-600 active:text-orange-700 transition-all duration-200 group p-2.5 sm:px-4 sm:py-3 rounded-full shadow-xl hover:shadow-2xl active:shadow-lg border border-gray-200 hover:border-orange-300 min-w-[40px] min-h-[40px] sm:min-w-[140px] sm:min-h-[44px] touch-manipulation"
+        style={{
+          WebkitBackfaceVisibility: 'hidden',
+          backfaceVisibility: 'hidden',
+          transform: 'translateZ(0)', // Force GPU acceleration
+          willChange: 'transform'
+        }}
         aria-label={isLoggedIn() ? 'Back to Dashboard' : 'Back to Home'}
       >
         <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform duration-200 flex-shrink-0" />
@@ -2227,7 +2241,6 @@ const BackButtonPortal = () => {
     document.body
   );
 };
-
   const fetchMemorial = useCallback(async () => {
     try {
       setLoading(true);
