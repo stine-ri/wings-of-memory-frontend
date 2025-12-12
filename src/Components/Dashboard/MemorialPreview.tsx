@@ -66,7 +66,8 @@ export const MemorialPreview: React.FC = () => {
     date: '',
     time: '',
     virtualLink: '',
-    virtualPlatform: 'zoom'
+    virtualPlatform: 'zoom',
+    additionalLinks: [] 
   }}
   memorialName={memorialData.name || 'Loved One'}
 />
