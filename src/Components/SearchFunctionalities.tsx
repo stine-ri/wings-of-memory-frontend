@@ -94,11 +94,15 @@ export default function SearchNavbar({
     
     try {
       const params = new URLSearchParams({
-        ...(query && { search: query.trim() }),
         sortBy,
         limit: isSmallScreen ? '4' : '8',
         offset: '0'
       });
+      
+      // Only add search param if query exists
+      if (query.trim()) {
+        params.append('search', query.trim());
+      }
 
       console.log('🔍 Searching with params:', params.toString());
 
@@ -111,7 +115,7 @@ export default function SearchNavbar({
       const data: SearchResults = await response.json();
       
       console.log('✅ Search successful:', {
-        query,
+        query: query || '(all memorials)',
         found: data.memorials.length,
         total: data.pagination.total
       });
@@ -137,39 +141,32 @@ export default function SearchNavbar({
   };
 
   // Debounced search effect
-// Debounced search effect
-useEffect(() => {
-  if (!showResults) return;
+  useEffect(() => {
+    if (!showResults) return;
 
-  const timeoutId = setTimeout(() => {
-    if (searchQuery.trim().length >= 2 || searchQuery.trim().length === 0) {
-      fetchMemorials(searchQuery, selectedSort);
-      // REMOVE this line to prevent auto-showing dropdown
-      // setShowResultsDropdown(true);
+    const timeoutId = setTimeout(() => {
+      if (searchQuery.trim().length >= 2 || searchQuery.trim().length === 0) {
+        fetchMemorials(searchQuery, selectedSort);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, selectedSort, showResults]);
+
+  const handleSearch = () => {
+    if (onSearch) {
+      onSearch(searchQuery);
     }
-  }, 500);
-
-  return () => clearTimeout(timeoutId);
-}, [searchQuery, selectedSort, showResults]);
-
-const handleSearch = () => {
-  if (!searchQuery.trim()) {
-    return;
-  }
-
-  if (onSearch) {
-    onSearch(searchQuery);
-  }
-  
-  fetchMemorials(searchQuery, selectedSort);
-  setShowResultsDropdown(true); // Only show dropdown when user clicks "Search" or presses Enter
-  setSearchAttempted(true);
-  
-  // Hide keyboard on mobile after search
-  if (isSmallScreen && inputRef.current) {
-    inputRef.current.blur();
-  }
-};
+    
+    fetchMemorials(searchQuery, selectedSort);
+    setShowResultsDropdown(true);
+    setSearchAttempted(true);
+    
+    // Hide keyboard on mobile after search
+    if (isSmallScreen && inputRef.current) {
+      inputRef.current.blur();
+    }
+  };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -189,26 +186,30 @@ const handleSearch = () => {
     }
   };
 
- const handleInputFocus = () => {
-  // On mobile, ensure input is visible when keyboard opens
-  if (isSmallScreen && inputRef.current) {
-    // Delay to ensure keyboard is fully open
-    setTimeout(() => {
-      if (inputRef.current) {
-        // Scroll the input into view on mobile
-        inputRef.current.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center'
-        });
-      }
-    }, 100);
-  }
-  
-  // REMOVE or COMMENT OUT the line below to prevent showing dropdown on focus
-  // if (searchResults.length > 0 || searchQuery.length >= 2) {
-  //   setShowResultsDropdown(true);
-  // }
-};
+  const handleInputFocus = () => {
+    // On mobile, ensure input is visible when keyboard opens
+    if (isSmallScreen && inputRef.current) {
+      // Delay to ensure keyboard is fully open
+      setTimeout(() => {
+        if (inputRef.current) {
+          // Scroll the input into view on mobile
+          inputRef.current.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          });
+        }
+      }, 100);
+    }
+    
+    // Show dropdown when input is focused (empty search shows all memorials)
+    if (searchResults.length > 0) {
+      setShowResultsDropdown(true);
+    } else if (searchQuery.length === 0) {
+      // Fetch all memorials when clicking into empty search
+      fetchMemorials('', selectedSort);
+      setShowResultsDropdown(true);
+    }
+  };
 
   const viewMemorialPage = (memorial: PublicMemorial) => {
     const memorialSlug = memorial.customUrl || memorial.id;
@@ -318,7 +319,7 @@ const handleSearch = () => {
                 )}
                 <button
                   onClick={handleSearch}
-                  disabled={isSearching || !searchQuery.trim()}
+                  disabled={isSearching}
                   className="flex items-center gap-1 sm:gap-2 px-3 sm:px-5 py-1.5 sm:py-2 bg-amber-500 hover:bg-amber-600 
                            disabled:bg-amber-300 text-white text-sm sm:text-base font-semibold rounded-lg 
                            transition-colors disabled:cursor-not-allowed shadow hover:shadow-md sm:shadow-md sm:hover:shadow-lg"
@@ -531,14 +532,14 @@ const handleSearch = () => {
                       </div>
                     )}
                   </>
-                ) : searchQuery && searchAttempted ? (
+                ) : searchAttempted ? (
                   <div className="p-4 sm:p-8 text-center">
                     <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto mb-3 sm:mb-4 bg-amber-100 rounded-full flex items-center justify-center">
                       <Search className="w-6 h-6 sm:w-8 sm:h-8 text-amber-600" />
                     </div>
                     <p className="text-base sm:text-xl text-gray-900 font-bold mb-2">No memorials found</p>
                     <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">
-                      Try different keywords or check your spelling
+                      {searchQuery ? "Try different keywords or check your spelling" : "No memorials available"}
                     </p>
                     <div className="text-sm sm:text-base text-gray-600 bg-amber-50 p-3 sm:p-5 rounded-lg sm:rounded-xl">
                       <p className="font-bold text-gray-900 mb-2 sm:mb-3">Search tips:</p>
@@ -562,8 +563,8 @@ const handleSearch = () => {
               </div>
             )}
           </div>
-   {/* Filter & Expand Buttons - Responsive */}
-              {/* Filter & Expand Buttons - Responsive */}
+
+          {/* Filter & Expand Buttons - Responsive */}
           <div className="flex items-center gap-2">
             {/* Filter Dropdown - FIXED MOBILE POSITIONING */}
             <div className="relative">
@@ -720,12 +721,14 @@ const handleSearch = () => {
             </div>
 
             {/* Active Search Info */}
-            {searchQuery && searchAttempted && (
+            {searchAttempted && (
               <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-amber-200">
                 <div className="flex items-center justify-between text-sm sm:text-base text-gray-700">
                   <div className="truncate">
                     <span className="font-bold text-gray-900">Searching:</span>
-                    <span className="ml-2 text-amber-800 font-bold truncate">"{searchQuery}"</span>
+                    <span className="ml-2 text-amber-800 font-bold truncate">
+                      {searchQuery ? `"${searchQuery}"` : "All memorials"}
+                    </span>
                     {isSearching ? (
                       <span className="ml-3 text-gray-600">
                         <Loader className="w-4 h-4 inline animate-spin mr-2" /> Searching...
