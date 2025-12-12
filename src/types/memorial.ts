@@ -52,13 +52,18 @@ export interface GalleryImage {
   uploadedAt: string;
 }
 
+
 export interface ServiceInfo {
   venue: string;
   address: string;
   date: string;
   time: string;
   virtualLink?: string;
-  virtualPlatform?: 'zoom' | 'meet' | 'teams';
+  virtualPlatform?: 'zoom' | 'meet' | 'teams' | 'youtube' | 'facebook' | 'instagram' | 'tiktok' | 'twitch' | 'other';
+  additionalLinks?: Array<{
+    platform: string;
+    url: string;
+  }>;
 }
 
 export interface Memory {

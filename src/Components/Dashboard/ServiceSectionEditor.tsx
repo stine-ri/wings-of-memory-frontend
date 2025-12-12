@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Download, QrCode, Save, Plus, X, Trash2 } from 'lucide-react';
+import { QrCode, Save, Plus, X } from 'lucide-react'; // Removed Download
 import { useMemorial } from '../../hooks/useMemorial';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -9,18 +9,11 @@ interface ServiceInfo {
   date: string;
   time: string;
   virtualLink?: string;
-  virtualPlatform?: 'zoom' | 'meet' | 'teams';
-}
-
-interface RSVP {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone: string;
-  attending: 'in_person' | 'virtual';
-  guests: number;
-  createdAt: string;
+  virtualPlatform?: 'zoom' | 'meet' | 'teams' | 'youtube' | 'facebook' | 'instagram' | 'tiktok' | 'twitch' | 'other';
+  additionalLinks?: Array<{
+    platform: string;
+    url: string;
+  }>;
 }
 
 export const ServiceSection: React.FC = () => {
@@ -37,86 +30,30 @@ export const ServiceSection: React.FC = () => {
     date: '',
     time: '',
     virtualLink: '',
-    virtualPlatform: 'zoom'
+    virtualPlatform: 'zoom',
+    additionalLinks: []
   });
-  const [rsvps, setRsvps] = useState<RSVP[]>([]);
+  
   const [showQRCode, setShowQRCode] = useState(false);
-  const [showRSVPForm, setShowRSVPForm] = useState(false);
-  const [loadingRsvps, setLoadingRsvps] = useState(true);
-  const [submittingRSVP, setSubmittingRSVP] = useState(false);
   const [localHasChanges, setLocalHasChanges] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-
-  const [newRSVP, setNewRSVP] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    attending: 'in_person' as 'in_person' | 'virtual',
-    guests: 1
-  });
-
-  // Load RSVPs from backend
-  useEffect(() => {
-    const loadRSVPs = async () => {
-      if (!memorialData?.id) {
-        setLoadingRsvps(false);
-        return;
-      }
-
-      try {
-        setLoadingRsvps(true);
-        const token = localStorage.getItem('token');
-        
-        if (!token) {
-          console.log('No token available, skipping RSVP load');
-          setLoadingRsvps(false);
-          return;
-        }
-
-        const response = await fetch(
-          `https://wings-of-memories-backend.onrender.com/api/rsvps/${memorialData.id}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          }
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          setRsvps(data.rsvps || []);
-          console.log('✅ Loaded RSVPs:', data.rsvps?.length || 0);
-        } else if (response.status === 404) {
-          // Memorial has no RSVPs yet
-          setRsvps([]);
-        } else {
-          console.error('Failed to load RSVPs:', response.status);
-          setRsvps([]);
-        }
-      } catch (error) {
-        console.error('Error loading RSVPs:', error);
-        setRsvps([]);
-      } finally {
-        setLoadingRsvps(false);
-      }
-    };
-
-    loadRSVPs();
-  }, [memorialData?.id]);
+  const [newLink, setNewLink] = useState({ platform: '', url: '' });
 
   // Initialize service info from memorial data
   useEffect(() => {
     if (memorialData?.service) {
       console.log('📥 Initializing service from memorial data:', memorialData.service);
+      // Safely cast the service data to our interface
+      const serviceData = memorialData.service as ServiceInfo;
       setService({
-        venue: memorialData.service.venue || '',
-        address: memorialData.service.address || '',
-        date: memorialData.service.date || '',
-        time: memorialData.service.time || '',
-        virtualLink: memorialData.service.virtualLink || '',
-        virtualPlatform: memorialData.service.virtualPlatform || 'zoom'
+        venue: serviceData.venue || '',
+        address: serviceData.address || '',
+        date: serviceData.date || '',
+        time: serviceData.time || '',
+        virtualLink: serviceData.virtualLink || '',
+        virtualPlatform: serviceData.virtualPlatform || 'zoom',
+        additionalLinks: serviceData.additionalLinks || []
       });
       // Reset local changes when loading from backend
       setLocalHasChanges(false);
@@ -128,23 +65,25 @@ export const ServiceSection: React.FC = () => {
         date: '',
         time: '',
         virtualLink: '',
-        virtualPlatform: 'zoom'
+        virtualPlatform: 'zoom',
+        additionalLinks: []
       });
       setLocalHasChanges(false);
     }
-  }, [memorialData?.id]); // Only reset when memorial ID changes
+  }, [memorialData, memorialData?.id]); // Added memorialData dependency
 
   // Track local changes
   useEffect(() => {
     if (!memorialData) return;
 
-    const originalService = memorialData.service || {
+    const originalService = memorialData.service ? (memorialData.service as ServiceInfo) : {
       venue: '',
       address: '',
       date: '',
       time: '',
       virtualLink: '',
-      virtualPlatform: 'zoom'
+      virtualPlatform: 'zoom',
+      additionalLinks: []
     };
 
     const hasChanges = 
@@ -153,7 +92,8 @@ export const ServiceSection: React.FC = () => {
       service.date !== originalService.date ||
       service.time !== originalService.time ||
       (service.virtualLink || '') !== (originalService.virtualLink || '') ||
-      service.virtualPlatform !== (originalService.virtualPlatform || 'zoom');
+      service.virtualPlatform !== (originalService.virtualPlatform || 'zoom') ||
+      JSON.stringify(service.additionalLinks || []) !== JSON.stringify(originalService.additionalLinks || []);
 
     setLocalHasChanges(hasChanges);
   }, [service, memorialData]);
@@ -177,8 +117,19 @@ export const ServiceSection: React.FC = () => {
       setSaveError(null);
       setSaveSuccess(false);
       
-      // Update the context with new service data - this will trigger context save
-      updateService(service);
+      // Create a properly typed service object for the update
+      const serviceToSave = {
+        venue: service.venue,
+        address: service.address,
+        date: service.date,
+        time: service.time,
+        virtualLink: service.virtualLink,
+        virtualPlatform: service.virtualPlatform,
+        additionalLinks: service.additionalLinks
+      };
+      
+      // Update the context with new service data
+      updateService(serviceToSave);
       
       // Wait a moment for context to update
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -206,102 +157,6 @@ export const ServiceSection: React.FC = () => {
     }
   };
 
-  const handleAddRSVP = async () => {
-    if (!newRSVP.firstName.trim() || !newRSVP.lastName.trim() || !newRSVP.email.trim()) {
-      alert('Please fill in all required fields (First Name, Last Name, and Email)');
-      return;
-    }
-
-    setSubmittingRSVP(true);
-    try {
-      const token = localStorage.getItem('token');
-      
-      if (!token || !memorialData?.id) {
-        throw new Error('Authentication required');
-      }
-
-      // Create RSVP via backend
-      const response = await fetch('https://wings-of-memories-backend.onrender.com/api/rsvps', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          memorialId: memorialData.id,
-          firstName: newRSVP.firstName,
-          lastName: newRSVP.lastName,
-          email: newRSVP.email,
-          phone: newRSVP.phone,
-          attending: newRSVP.attending,
-          guests: newRSVP.guests
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to create RSVP');
-      }
-
-      const data = await response.json();
-      
-      // Add to local state
-      setRsvps(prev => [data.rsvp, ...prev]);
-      
-      // Reset form
-      setNewRSVP({
-        firstName: '',
-        lastName: '',
-        email: '',
-        phone: '',
-        attending: 'in_person',
-        guests: 1
-      });
-      setShowRSVPForm(false);
-      
-      console.log('✅ RSVP added successfully');
-    } catch (error) {
-      console.error('Error adding RSVP:', error);
-      alert('Failed to add RSVP. Please try again.');
-    } finally {
-      setSubmittingRSVP(false);
-    }
-  };
-
-  const handleDeleteRSVP = async (rsvpId: string) => {
-    if (!confirm('Are you sure you want to delete this RSVP?')) {
-      return;
-    }
-
-    try {
-      const token = localStorage.getItem('token');
-      
-      if (!token) {
-        throw new Error('Authentication required');
-      }
-
-      const response = await fetch(
-        `https://wings-of-memories-backend.onrender.com/api/rsvps/${rsvpId}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to delete RSVP');
-      }
-
-      // Remove from local state
-      setRsvps(prev => prev.filter(r => r.id !== rsvpId));
-      
-      console.log('✅ RSVP deleted successfully');
-    } catch (error) {
-      console.error('Error deleting RSVP:', error);
-      alert('Failed to delete RSVP. Please try again.');
-    }
-  };
-
   const handleGenerateQRCode = () => {
     if (!service.venue || !service.address || !service.date || !service.time) {
       alert('Please fill in venue, address, date, and time before generating QR code');
@@ -310,31 +165,35 @@ export const ServiceSection: React.FC = () => {
     setShowQRCode(true);
   };
 
-  const handleExportRSVPs = () => {
-    if (rsvps.length === 0) {
-      alert('No RSVPs to export');
+  const handleAddLink = () => {
+    if (!newLink.platform.trim() || !newLink.url.trim()) {
+      alert('Please enter both platform and URL');
       return;
     }
-    
-    const csvContent = [
-      ['Name', 'Email', 'Phone', 'Attending', 'Guests', 'Date'],
-      ...rsvps.map(rsvp => [
-        `${rsvp.firstName} ${rsvp.lastName}`,
-        rsvp.email,
-        rsvp.phone,
-        rsvp.attending === 'in_person' ? 'In Person' : 'Virtual',
-        rsvp.guests.toString(),
-        new Date(rsvp.createdAt).toLocaleDateString()
-      ])
-    ].map(row => row.join(',')).join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `memorial-rsvps-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+    if (!isValidUrl(newLink.url)) {
+      alert('Please enter a valid URL starting with http:// or https://');
+      return;
+    }
+
+    const updatedLinks = [...(service.additionalLinks || []), { ...newLink }];
+    handleServiceChange({ additionalLinks: updatedLinks });
+    setNewLink({ platform: '', url: '' });
+  };
+
+  const handleRemoveLink = (index: number) => {
+    const updatedLinks = [...(service.additionalLinks || [])];
+    updatedLinks.splice(index, 1);
+    handleServiceChange({ additionalLinks: updatedLinks });
+  };
+
+  const isValidUrl = (url: string) => {
+    try {
+      new URL(url);
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const downloadQRCode = () => {
@@ -371,7 +230,8 @@ export const ServiceSection: React.FC = () => {
       date: service.date,
       time: service.time,
       virtualLink: service.virtualLink,
-      virtualPlatform: service.virtualPlatform
+      virtualPlatform: service.virtualPlatform,
+      additionalLinks: service.additionalLinks
     };
 
     return JSON.stringify({
@@ -408,14 +268,20 @@ export const ServiceSection: React.FC = () => {
       return 'bg-blue-500 text-white cursor-wait';
     }
     
-    return 'bg-gradient-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-lg hover:shadow-xl cursor-pointer';
+    return 'bg-linear-to-r from-amber-500 to-orange-500 text-white hover:from-amber-600 hover:to-orange-600 shadow-lg hover:shadow-xl cursor-pointer';
   };
 
-  const stats = {
-    total: rsvps.length,
-    inPerson: rsvps.filter(r => r.attending === 'in_person').length,
-    virtual: rsvps.filter(r => r.attending === 'virtual').length,
-    totalGuests: rsvps.reduce((sum, rsvp) => sum + rsvp.guests, 0)
+  const getPlatformIcon = (platform: string) => {
+    const lowerPlatform = platform.toLowerCase();
+    if (lowerPlatform.includes('youtube')) return '▶️';
+    if (lowerPlatform.includes('facebook')) return '📘';
+    if (lowerPlatform.includes('instagram')) return '📷';
+    if (lowerPlatform.includes('tiktok')) return '🎵';
+    if (lowerPlatform.includes('twitch')) return '🎮';
+    if (lowerPlatform.includes('zoom')) return '📹';
+    if (lowerPlatform.includes('meet')) return '📅';
+    if (lowerPlatform.includes('teams')) return '💼';
+    return '🔗';
   };
 
   if (!memorialData) {
@@ -434,17 +300,9 @@ export const ServiceSection: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div className="text-center sm:text-left">
           <h2 className="text-xl sm:text-2xl font-semibold text-gray-800">Service Details</h2>
-          <p className="text-gray-600 mt-1 text-sm sm:text-base">Manage memorial service information and RSVPs</p>
+          <p className="text-gray-600 mt-1 text-sm sm:text-base">Manage memorial service information</p>
         </div>
         <div className="flex flex-wrap justify-center sm:justify-end gap-2">
-          <button
-            onClick={() => setShowRSVPForm(true)}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-amber-500 text-white rounded-full hover:bg-amber-600 transition-all text-sm"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="hidden sm:inline">Add RSVP</span>
-            <span className="sm:hidden">RSVP</span>
-          </button>
           <button
             onClick={handleGenerateQRCode}
             disabled={!hasRequiredFields}
@@ -452,14 +310,6 @@ export const ServiceSection: React.FC = () => {
           >
             <QrCode className="w-4 h-4" />
             <span className="hidden sm:inline">QR Code</span>
-          </button>
-          <button
-            onClick={handleExportRSVPs}
-            disabled={rsvps.length === 0}
-            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-green-500 text-white rounded-full hover:bg-green-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-          >
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline">Export</span>
           </button>
         </div>
       </div>
@@ -575,7 +425,130 @@ export const ServiceSection: React.FC = () => {
                     />
                     <span>Teams</span>
                   </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="platform"
+                      checked={service.virtualPlatform === 'youtube'}
+                      onChange={() => handleServiceChange({ virtualPlatform: 'youtube' })}
+                      className="text-amber-500"
+                    />
+                    <span>YouTube</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="platform"
+                      checked={service.virtualPlatform === 'facebook'}
+                      onChange={() => handleServiceChange({ virtualPlatform: 'facebook' })}
+                      className="text-amber-500"
+                    />
+                    <span>Facebook</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="platform"
+                      checked={service.virtualPlatform === 'tiktok'}
+                      onChange={() => handleServiceChange({ virtualPlatform: 'tiktok' })}
+                      className="text-amber-500"
+                    />
+                    <span>TikTok</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="platform"
+                      checked={service.virtualPlatform === 'instagram'}
+                      onChange={() => handleServiceChange({ virtualPlatform: 'instagram' })}
+                      className="text-amber-500"
+                    />
+                    <span>Instagram</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="platform"
+                      checked={service.virtualPlatform === 'twitch'}
+                      onChange={() => handleServiceChange({ virtualPlatform: 'twitch' })}
+                      className="text-amber-500"
+                    />
+                    <span>Twitch</span>
+                  </label>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="radio"
+                      name="platform"
+                      checked={service.virtualPlatform === 'other'}
+                      onChange={() => handleServiceChange({ virtualPlatform: 'other' })}
+                      className="text-amber-500"
+                    />
+                    <span>Other</span>
+                  </label>
                 </div>
+              </div>
+
+              {/* Additional Links Section */}
+              <div className="mt-6 pt-6 border-t border-gray-200">
+                <h4 className="text-sm font-semibold text-gray-700 mb-3">Additional Virtual Platforms</h4>
+                
+                {/* Existing Links */}
+                <div className="space-y-2 mb-4">
+                  {(service.additionalLinks || []).map((link, index) => (
+                    <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
+                      <span className="text-lg">{getPlatformIcon(link.platform)}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-gray-800 truncate">{link.platform}</p>
+                        <p className="text-xs text-gray-600 truncate">{link.url}</p>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveLink(index)}
+                        className="p-1 text-red-400 hover:text-red-600 transition-colors"
+                        title="Remove link"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add New Link Form */}
+                <div className="space-y-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">Platform</label>
+                      <input
+                        type="text"
+                        value={newLink.platform}
+                        onChange={(e) => setNewLink(prev => ({ ...prev, platform: e.target.value }))}
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm"
+                        placeholder="e.g., YouTube Live, Instagram Live"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-gray-700 mb-1">URL</label>
+                      <input
+                        type="url"
+                        value={newLink.url}
+                        onChange={(e) => setNewLink(prev => ({ ...prev, url: e.target.value }))}
+                        className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-1 focus:ring-amber-400 text-sm"
+                        placeholder="https://..."
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleAddLink}
+                    disabled={!newLink.platform.trim() || !newLink.url.trim()}
+                    className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Platform Link
+                  </button>
+                </div>
+
+                <p className="text-xs text-gray-500 mt-2">
+                  Add links to other platforms like YouTube Live, Instagram Live, TikTok Live, etc.
+                </p>
               </div>
             </div>
 
@@ -598,239 +571,151 @@ export const ServiceSection: React.FC = () => {
             )}
           </div>
 
-      <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 border-2 border-amber-200">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Memorial Completion Status</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="text-center bg-white rounded-lg p-3 shadow-sm">
-            <div className="text-xl sm:text-2xl font-bold text-amber-600">
-              {memorialData?.service?.venue && memorialData?.service?.address && memorialData?.service?.date && memorialData?.service?.time ? '✅' : '⭕'}
-            </div>
-            <div className="text-xs sm:text-sm text-amber-700 font-medium">Service</div>
-          </div>
-          <div className="text-center bg-white rounded-lg p-3 shadow-sm">
-            <div className="text-xl sm:text-2xl font-bold text-amber-600">{stats.total > 0 ? '✅' : '⭕'}</div>
-            <div className="text-xs sm:text-sm text-amber-700 font-medium">RSVPs</div>
-          </div>
-          <div className="text-center bg-white rounded-lg p-3 shadow-sm">
-            <div className="text-xl sm:text-2xl font-bold text-amber-600">{hasRequiredFields ? '✅' : '⭕'}</div>
-            <div className="text-xs sm:text-sm text-amber-700 font-medium">Complete</div>
-          </div>
-          <div className="text-center bg-white rounded-lg p-3 shadow-sm">
-            <div className="text-xl sm:text-2xl font-bold text-amber-600">{!localHasChanges ? '✅' : '⏳'}</div>
-            <div className="text-xs sm:text-sm text-amber-700 font-medium">Saved</div>
-          </div>
-        </div>
-        {!hasRequiredFields && (
-          <div className="mt-3 p-3 bg-amber-100 border border-amber-300 rounded-lg">
-            <p className="text-amber-800 text-xs sm:text-sm text-center">
-              💡 Complete all required fields to get a checkmark
-            </p>
-          </div>
-        )}
-      </div>
-
-        {/* RSVP List */}
-        <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-800">RSVP Responses ({rsvps.length})</h3>
-          </div>
-          
-          {loadingRsvps ? (
-            <div className="text-center py-8 text-gray-500">
-              <div className="animate-spin w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full mx-auto mb-3"></div>
-              <p className="text-sm">Loading RSVPs...</p>
-            </div>
-          ) : (
-            <div className="space-y-3 max-h-96 overflow-y-auto">
-              {rsvps.map(rsvp => (
-                <div key={rsvp.id} className="p-3 border border-gray-200 rounded-lg hover:border-amber-300 transition-colors">
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-gray-800 text-sm sm:text-base truncate">
-                        {rsvp.firstName} {rsvp.lastName}
-                      </h4>
-                      <p className="text-xs sm:text-sm text-gray-600 truncate">{rsvp.email}</p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0 ml-2">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        rsvp.attending === 'in_person' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-blue-100 text-blue-800'
-                      }`}>
-                        {rsvp.attending === 'in_person' ? 'In Person' : 'Virtual'}
-                      </span>
-                      <button
-                        onClick={() => handleDeleteRSVP(rsvp.id)}
-                        className="p-1 text-red-400 hover:text-red-600 transition-colors"
-                        title="Delete RSVP"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="flex justify-between text-xs text-gray-600">
-                    <span className="truncate mr-2">{rsvp.phone || 'No phone'}</span>
-                    <span>{rsvp.guests} guest{rsvp.guests !== 1 ? 's' : ''}</span>
-                  </div>
-                  <div className="text-xs text-gray-500 mt-2">
-                    {new Date(rsvp.createdAt).toLocaleDateString()}
-                  </div>
+          {/* Completion Status */}
+          <div className="bg-linear-to-br from-amber-50 to-orange-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 border-2 border-amber-200">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Memorial Completion Status</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="text-center bg-white rounded-lg p-3 shadow-sm">
+                <div className="text-xl sm:text-2xl font-bold text-amber-600">
+                  {hasRequiredFields ? '✅' : '⭕'}
                 </div>
-              ))}
+                <div className="text-xs sm:text-sm text-amber-700 font-medium">Service Info</div>
+              </div>
+              <div className="text-center bg-white rounded-lg p-3 shadow-sm">
+                <div className="text-xl sm:text-2xl font-bold text-amber-600">
+                  {(service.virtualLink || (service.additionalLinks || []).length > 0) ? '✅' : '⭕'}
+                </div>
+                <div className="text-xs sm:text-sm text-amber-700 font-medium">Virtual Links</div>
+              </div>
+              <div className="text-center bg-white rounded-lg p-3 shadow-sm">
+                <div className="text-xl sm:text-2xl font-bold text-amber-600">{hasRequiredFields ? '✅' : '⭕'}</div>
+                <div className="text-xs sm:text-sm text-amber-700 font-medium">Complete</div>
+              </div>
+              <div className="text-center bg-white rounded-lg p-3 shadow-sm">
+                <div className="text-xl sm:text-2xl font-bold text-amber-600">{!localHasChanges ? '✅' : '⏳'}</div>
+                <div className="text-xs sm:text-sm text-amber-700 font-medium">Saved</div>
+              </div>
             </div>
-          )}
-
-          {!loadingRsvps && rsvps.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              <Users className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-              <p className="text-sm">No RSVPs yet</p>
-              <p className="text-xs mt-1">Click "Add RSVP" to create your first RSVP</p>
-            </div>
-          )}
-        </div>
-
-        {/* RSVP Quick Stats */}
-        <div className="mt-4">
-          <h4 className="text-sm font-semibold text-gray-700 mb-2">RSVP Statistics</h4>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 text-center">
-              <div className="text-xl sm:text-2xl font-bold text-gray-800">{stats.total}</div>
-              <div className="text-xs sm:text-sm text-gray-600">Total RSVPs</div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 text-center">
-              <div className="text-xl sm:text-2xl font-bold text-gray-800">{stats.inPerson}</div>
-              <div className="text-xs sm:text-sm text-gray-600">In Person</div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 text-center">
-              <div className="text-xl sm:text-2xl font-bold text-gray-800">{stats.virtual}</div>
-              <div className="text-xs sm:text-sm text-gray-600">Virtual</div>
-            </div>
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 text-center">
-              <div className="text-xl sm:text-2xl font-bold text-gray-800">{stats.totalGuests}</div>
-              <div className="text-xs sm:text-sm text-gray-600">Total Guests</div>
-            </div>
+            {!hasRequiredFields && (
+              <div className="mt-3 p-3 bg-amber-100 border border-amber-300 rounded-lg">
+                <p className="text-amber-800 text-xs sm:text-sm text-center">
+                  💡 Complete all required fields to get a checkmark
+                </p>
+              </div>
+            )}
           </div>
         </div>
-      </div>
 
-      {/* Add RSVP Modal */}
-      {showRSVPForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-semibold text-gray-800">Add RSVP</h3>
-              <button
-                onClick={() => setShowRSVPForm(false)}
-                className="p-2 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
+        {/* Preview and QR Section */}
+        <div className="space-y-6">
+          {/* Service Preview */}
+          <div className="bg-white rounded-xl sm:rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Service Preview</h3>
+            
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">First Name *</label>
-                  <input
-                    type="text"
-                    value={newRSVP.firstName}
-                    onChange={(e) => setNewRSVP(prev => ({ ...prev, firstName: e.target.value }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
-                    placeholder="First name"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Last Name *</label>
-                  <input
-                    type="text"
-                    value={newRSVP.lastName}
-                    onChange={(e) => setNewRSVP(prev => ({ ...prev, lastName: e.target.value }))}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
-                    placeholder="Last name"
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Email *</label>
-                <input
-                  type="email"
-                  value={newRSVP.email}
-                  onChange={(e) => setNewRSVP(prev => ({ ...prev, email: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  placeholder="email@example.com"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                <input
-                  type="tel"
-                  value={newRSVP.phone}
-                  onChange={(e) => setNewRSVP(prev => ({ ...prev, phone: e.target.value }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  placeholder="Phone number"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Attending</label>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="attending"
-                      checked={newRSVP.attending === 'in_person'}
-                      onChange={() => setNewRSVP(prev => ({ ...prev, attending: 'in_person' }))}
-                      className="text-amber-500"
-                    />
-                    <span className="text-sm text-gray-700">In Person</span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="attending"
-                      checked={newRSVP.attending === 'virtual'}
-                      onChange={() => setNewRSVP(prev => ({ ...prev, attending: 'virtual' }))}
-                      className="text-amber-500"
-                    />
-                    <span className="text-sm text-gray-700">Virtual</span>
-                  </label>
+                <h4 className="text-sm font-medium text-gray-700 mb-1">Event Details</h4>
+                <div className="space-y-2 text-sm">
+                  {service.venue ? (
+                    <p className="text-gray-800"><strong>Venue:</strong> {service.venue}</p>
+                  ) : (
+                    <p className="text-gray-500 italic">Venue not set</p>
+                  )}
+                  
+                  {service.address ? (
+                    <p className="text-gray-800"><strong>Address:</strong> {service.address}</p>
+                  ) : (
+                    <p className="text-gray-500 italic">Address not set</p>
+                  )}
+                  
+                  {service.date && service.time ? (
+                    <p className="text-gray-800"><strong>When:</strong> {service.date} at {service.time}</p>
+                  ) : (
+                    <p className="text-gray-500 italic">Date and time not set</p>
+                  )}
                 </div>
               </div>
 
+              {/* Virtual Access */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Number of Guests</label>
-                <select
-                  value={newRSVP.guests}
-                  onChange={(e) => setNewRSVP(prev => ({ ...prev, guests: parseInt(e.target.value) }))}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+                <h4 className="text-sm font-medium text-gray-700 mb-2">Virtual Access</h4>
+                <div className="space-y-3">
+                  {service.virtualLink ? (
+                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="text-sm font-medium text-blue-800 mb-1">
+                        {service.virtualPlatform ? service.virtualPlatform.charAt(0).toUpperCase() + service.virtualPlatform.slice(1) : 'Virtual'} Link
+                      </p>
+                      <p className="text-xs text-blue-600 truncate">{service.virtualLink}</p>
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 italic text-sm">No primary virtual link set</p>
+                  )}
+
+                  {(service.additionalLinks || []).length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-gray-700">Other Platforms:</p>
+                      <div className="space-y-2">
+                        {service.additionalLinks?.map((link, index) => (
+                          <div key={index} className="flex items-center gap-2 p-2 bg-gray-50 rounded border">
+                            <span className="text-sm">{getPlatformIcon(link.platform)}</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-medium text-gray-800 truncate">{link.platform}</p>
+                              <p className="text-xs text-gray-600 truncate">{link.url}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* QR Code Section */}
+              <div className="pt-4 border-t border-gray-200">
+                <h4 className="text-sm font-medium text-gray-700 mb-3">Shareable QR Code</h4>
+                <button
+                  onClick={handleGenerateQRCode}
+                  disabled={!hasRequiredFields}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-linear-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
-                    <option key={num} value={num}>{num} guest{num !== 1 ? 's' : ''}</option>
-                  ))}
-                </select>
+                  <QrCode className="w-5 h-5" />
+                  {hasRequiredFields ? 'Generate & View QR Code' : 'Complete Service Details to Generate QR'}
+                </button>
+                <p className="text-xs text-gray-500 mt-2">
+                  Generate a QR code that guests can scan to get all service details and virtual links.
+                </p>
               </div>
             </div>
+          </div>
 
-            <div className="flex gap-3 mt-6">
-              <button
-                onClick={handleAddRSVP}
-                disabled={submittingRSVP || !newRSVP.firstName.trim() || !newRSVP.lastName.trim() || !newRSVP.email.trim()}
-                className="flex-1 px-6 py-3 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {submittingRSVP ? 'Adding...' : 'Add RSVP'}
-              </button>
-              <button
-                onClick={() => setShowRSVPForm(false)}
-                className="flex-1 px-6 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors"
-              >
-                Cancel
-              </button>
+          {/* Tips Section */}
+          <div className="bg-linear-to-br from-blue-50 to-cyan-50 rounded-xl sm:rounded-2xl p-4 sm:p-6 border-2 border-blue-200">
+            <h3 className="text-lg font-semibold text-gray-800 mb-3">Tips for Virtual Platforms</h3>
+            <div className="space-y-3 text-sm text-gray-700">
+              <div className="flex items-start gap-2">
+                <span className="text-blue-500">▶️</span>
+                <p><strong>YouTube:</strong> Create a scheduled live stream for better reach</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-pink-500">📷</span>
+                <p><strong>Instagram:</strong> Use Instagram Live for mobile-friendly streaming</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-black">🎵</span>
+                <p><strong>TikTok:</strong> Great for shorter memorial moments and clips</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-purple-500">🎮</span>
+                <p><strong>Twitch:</strong> Good for longer memorial services with chat interaction</p>
+              </div>
+              <div className="flex items-start gap-2">
+                <span className="text-red-500">📘</span>
+                <p><strong>Facebook:</strong> Helps reach family and friends easily</p>
+              </div>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* QR Code Modal */}
       {showQRCode && (
@@ -863,13 +748,16 @@ export const ServiceSection: React.FC = () => {
                 <p><strong>Date:</strong> {service.date || 'Not set'}</p>
                 <p><strong>Time:</strong> {service.time || 'Not set'}</p>
                 {service.virtualLink && (
-                  <p><strong>Virtual:</strong> Available</p>
+                  <p><strong>Virtual:</strong> {service.virtualPlatform || 'Link'} available</p>
+                )}
+                {(service.additionalLinks || []).length > 0 && (
+                  <p><strong>Additional Platforms:</strong> {(service.additionalLinks || []).length}</p>
                 )}
               </div>
             </div>
             
             <p className="text-sm text-gray-500 mb-4">
-              Scan this code to view memorial service details and RSVP
+              Scan this code to view memorial service details and all virtual links
             </p>
             
             <div className="flex gap-3">
@@ -889,7 +777,6 @@ export const ServiceSection: React.FC = () => {
           </div>
         </div>
       )}
-    </div>
     </div>
   );
 };
