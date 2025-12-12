@@ -260,6 +260,7 @@ export const FamilyTreeSection: React.FC = () => {
           <div className="animate-pulse text-center py-8">Loading family tree...</div>
         </div>
       </div>
+      
     );
   }
 
@@ -332,6 +333,22 @@ export const FamilyTreeSection: React.FC = () => {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 text-center">
           <div className="text-2xl font-bold text-gray-800">{stats.needsPhotos}</div>
           <div className="text-sm text-gray-600">Need Photos</div>
+        </div>
+      </div>
+{/* Important Reminder */}
+      <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+        <div className="flex items-start gap-3">
+          <div className="flex-shrink-0 w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
+            <span className="text-amber-600 text-sm">💡</span>
+          </div>
+          <div>
+            <p className="text-amber-800 font-medium">Important: Include the Memorialized Person</p>
+            <p className="text-amber-700 text-sm mt-1">
+              Remember to add <strong>{memorialData?.name || "the deceased person"}</strong> to the family tree 
+              with the relationship set to <strong>"Memorialized"</strong> (this means they are the deceased person 
+              being honored on this memorial page). This helps visitors understand family connections.
+            </p>
+          </div>
         </div>
       </div>
 
