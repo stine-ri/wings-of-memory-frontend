@@ -247,7 +247,7 @@ export default function SearchNavbar({
   };
 
   return (
-    <div className="bg-linear-to-r from-amber-50 to-orange-50 border-b border-amber-200 shadow-sm sticky top-0 z-40">
+    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200 shadow-sm sticky top-0 z-40">
       <div className={`max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 transition-all duration-300 ${
         isExpanded ? 'py-3 md:py-5' : 'py-2 md:py-4'
       }`}>
@@ -257,7 +257,7 @@ export default function SearchNavbar({
           {/* Logo/Site Name */}
           <div className="shrink-0">
             <div className="flex items-center gap-2 sm:gap-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-linear-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg">
                 <span className="text-white text-sm sm:text-lg font-bold">4R</span>
               </div>
               <div className="hidden sm:block">
@@ -314,13 +314,13 @@ export default function SearchNavbar({
               </div>
             </div>
 
-            {/* Search Results Dropdown - Responsive */}
+            {/* Search Results Dropdown - Responsive - FIXED LAYOUT */}
             {showResults && showResultsDropdown && (
               <div 
                 ref={resultsRef}
                 className={`absolute top-full left-0 right-0 mt-2 bg-white border-2 border-amber-300 
-                         rounded-xl shadow-2xl z-50 max-h-96 overflow-y-auto animate-fade-in
-                         ${isSmallScreen ? 'fixed inset-x-0 top-16 mx-0 rounded-none border-x-0 max-h-[calc(100vh-64px)]' : ''}`}
+                         rounded-xl shadow-2xl z-50 overflow-y-auto animate-fade-in
+                         ${isSmallScreen ? 'fixed inset-x-0 top-16 mx-0 rounded-none border-x-0 max-h-[calc(100vh-64px)]' : 'max-h-[500px]'}`}
               >
                 {isSearching ? (
                   <div className="p-6 sm:p-8 text-center">
@@ -329,9 +329,9 @@ export default function SearchNavbar({
                   </div>
                 ) : searchResults.length > 0 ? (
                   <>
-                    <div className="p-3 sm:p-4 border-b border-amber-100 bg-amber-50">
+                    <div className="p-3 sm:p-4 border-b border-amber-100 bg-amber-50 sticky top-0">
                       <div className="flex items-center justify-between">
-                        <p className="text-sm sm:text-lg font-bold text-gray-900 truncate">
+                        <p className="text-sm sm:text-base md:text-lg font-bold text-gray-900 truncate">
                           {totalResults} memorial{totalResults !== 1 ? 's' : ''}
                           {searchQuery && !isSmallScreen && (
                             <span className="text-gray-700"> for "<span className="text-amber-800">{searchQuery}</span>"</span>
@@ -339,7 +339,7 @@ export default function SearchNavbar({
                         </p>
                         <button
                           onClick={() => setShowResultsDropdown(false)}
-                          className="p-1 sm:p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                          className="p-1 sm:p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
                           aria-label="Close results"
                         >
                           <X className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -352,84 +352,156 @@ export default function SearchNavbar({
                       )}
                     </div>
                     
-                    <div className="p-2 sm:p-4 space-y-2 sm:space-y-4">
+                    <div className="p-2 sm:p-4 space-y-3">
                       {searchResults.slice(0, isSmallScreen ? 4 : 8).map((memorial) => (
                         <div
                           key={memorial.id}
-                          className="group p-3 sm:p-4 hover:bg-amber-50 rounded-lg sm:rounded-xl transition-all cursor-pointer border-2 border-gray-200 hover:border-amber-300 hover:shadow-md"
+                          className="group p-3 hover:bg-amber-50 rounded-lg transition-all cursor-pointer border border-gray-200 hover:border-amber-300 hover:shadow-sm"
                           onClick={() => viewMemorialPage(memorial)}
                         >
-                          <div className="flex items-start gap-2 sm:gap-4">
-                            {/* Memorial Image */}
-                            <div className="shrink-0">
-                              {memorial.profileImage ? (
-                                <img
-                                  src={memorial.profileImage}
-                                  alt={memorial.name}
-                                  className="w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl object-cover border-2 border-amber-200"
-                                  onError={(e) => {
-                                    e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 24 24" fill="%23f59e0b"><path d="M12 12q-1.65 0-2.825-1.175T8 8q0-1.65 1.175-2.825T12 4q1.65 0 2.825 1.175T16 8q0 1.65-1.175 2.825T12 12Zm-8 8v-2.8q0-.85.438-1.563T5.6 14.55q1.55-.775 3.15-1.163T12 13q1.65 0 3.25.388t3.15 1.162q.725.375 1.163 1.088T20 17.2V20H4Z"/></svg>';
-                                  }}
-                                />
-                              ) : (
-                                <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-xl bg-linear-to-br from-amber-100 to-orange-100 flex items-center justify-center border-2 border-amber-200">
-                                  <span className="text-xl sm:text-3xl">💐</span>
+                          {/* Mobile Layout - Stacked */}
+                          {isSmallScreen ? (
+                            <div className="flex flex-col gap-3">
+                              {/* Top row: Image and Name */}
+                              <div className="flex items-start gap-3">
+                                {/* Memorial Image */}
+                                <div className="shrink-0">
+                                  {memorial.profileImage ? (
+                                    <img
+                                      src={memorial.profileImage}
+                                      alt={memorial.name}
+                                      className="w-12 h-12 rounded-lg object-cover border border-amber-200"
+                                      onError={(e) => {
+                                        e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="%23f59e0b"><path d="M12 12q-1.65 0-2.825-1.175T8 8q0-1.65 1.175-2.825T12 4q1.65 0 2.825 1.175T16 8q0 1.65-1.175 2.825T12 12Zm-8 8v-2.8q0-.85.438-1.563T5.6 14.55q1.55-.775 3.15-1.163T12 13q1.65 0 3.25.388t3.15 1.162q.725.375 1.163 1.088T20 17.2V20H4Z"/></svg>';
+                                      }}
+                                    />
+                                  ) : (
+                                    <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center border border-amber-200">
+                                      <span className="text-xl">💐</span>
+                                    </div>
+                                  )}
                                 </div>
-                              )}
-                            </div>
-                            
-                            {/* Memorial Details */}
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-bold text-gray-900 text-sm sm:text-lg mb-1 sm:mb-2 group-hover:text-amber-800 transition-colors truncate">
-                                {memorial.name}
-                              </h3>
+                                
+                                {/* Name and View Button in same row */}
+                                <div className="flex-1 flex items-center justify-between min-w-0">
+                                  <h3 className="font-bold text-gray-900 text-base truncate pr-2">
+                                    {memorial.name || 'Unknown Memorial'}
+                                  </h3>
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      viewMemorialPage(memorial);
+                                    }}
+                                    className="flex items-center gap-1 px-3 py-1.5 bg-amber-500 text-white text-xs font-bold rounded-lg hover:bg-amber-600 transition-colors shadow shrink-0"
+                                  >
+                                    <Eye className="w-3 h-3" />
+                                    View
+                                  </button>
+                                </div>
+                              </div>
                               
-                              <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-2 sm:mb-3">
+                              {/* Dates and Location - Horizontal scroll on mobile */}
+                              <div className="flex overflow-x-auto gap-2 pb-2 -mx-1 px-1 scrollbar-hide">
                                 {memorial.birthDate && (
-                                  <span className="text-xs sm:text-sm text-gray-700 bg-gray-100 px-2 py-1 rounded-lg font-medium">
+                                  <span className="text-xs text-gray-700 bg-gray-100 px-2 py-1 rounded-md font-medium whitespace-nowrap shrink-0">
                                     Born: {formatDate(memorial.birthDate)}
                                   </span>
                                 )}
                                 
                                 {memorial.deathDate && (
-                                  <span className="text-xs sm:text-sm text-gray-700 bg-gray-100 px-2 py-1 rounded-lg font-medium">
+                                  <span className="text-xs text-gray-700 bg-gray-100 px-2 py-1 rounded-md font-medium whitespace-nowrap shrink-0">
                                     Passed: {formatDate(memorial.deathDate)}
                                   </span>
                                 )}
                                 
                                 {memorial.location && (
-                                  <span className="text-xs sm:text-sm text-gray-700 flex items-center gap-1.5 px-2 py-1 bg-gray-100 rounded-lg truncate max-w-[120px] sm:max-w-none">
-                                    <span className="text-amber-600 text-xs">📍</span> 
-                                    <span className="truncate">{memorial.location}</span>
+                                  <span className="text-xs text-gray-700 flex items-center gap-1 px-2 py-1 bg-gray-100 rounded-md whitespace-nowrap shrink-0">
+                                    <span className="text-amber-600">📍</span> 
+                                    <span className="truncate max-w-[100px]">{memorial.location}</span>
                                   </span>
                                 )}
                               </div>
                               
+                              {/* Obituary Preview */}
                               {memorial.obituary && (
-                                <p className="text-xs sm:text-base text-gray-800 line-clamp-2 leading-relaxed">
-                                  {memorial.obituary}
+                                <p className="text-xs text-gray-800 line-clamp-2 leading-relaxed">
+                                  {memorial.obituary.length > 100 ? memorial.obituary.substring(0, 100) + '...' : memorial.obituary}
                                 </p>
                               )}
                             </div>
-                            
-                            {/* View Button */}
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                viewMemorialPage(memorial);
-                              }}
-                              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2.5 bg-amber-500 text-white text-xs sm:text-base font-bold rounded-lg hover:bg-amber-600 transition-colors shadow-md hover:shadow-lg"
-                            >
-                              <Eye className="w-3 h-3 sm:w-5 sm:h-5" />
-                              {isSmallScreen ? '' : 'View'}
-                            </button>
-                          </div>
+                          ) : (
+                            /* Desktop Layout - Original */
+                            <div className="flex items-start gap-4">
+                              {/* Memorial Image */}
+                              <div className="shrink-0">
+                                {memorial.profileImage ? (
+                                  <img
+                                    src={memorial.profileImage}
+                                    alt={memorial.name}
+                                    className="w-14 h-14 rounded-xl object-cover border-2 border-amber-200"
+                                    onError={(e) => {
+                                      e.currentTarget.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 24 24" fill="%23f59e0b"><path d="M12 12q-1.65 0-2.825-1.175T8 8q0-1.65 1.175-2.825T12 4q1.65 0 2.825 1.175T16 8q0 1.65-1.175 2.825T12 12Zm-8 8v-2.8q0-.85.438-1.563T5.6 14.55q1.55-.775 3.15-1.163T12 13q1.65 0 3.25.388t3.15 1.162q.725.375 1.163 1.088T20 17.2V20H4Z"/></svg>';
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 flex items-center justify-center border-2 border-amber-200">
+                                    <span className="text-3xl">💐</span>
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {/* Memorial Details */}
+                              <div className="flex-1 min-w-0">
+                                <h3 className="font-bold text-gray-900 text-lg mb-2 group-hover:text-amber-800 transition-colors">
+                                  {memorial.name}
+                                </h3>
+                                
+                                <div className="flex flex-wrap items-center gap-2 mb-3">
+                                  {memorial.birthDate && (
+                                    <span className="text-sm text-gray-700 bg-gray-100 px-3 py-1 rounded-lg font-medium">
+                                      Born: {formatDate(memorial.birthDate)}
+                                    </span>
+                                  )}
+                                  
+                                  {memorial.deathDate && (
+                                    <span className="text-sm text-gray-700 bg-gray-100 px-3 py-1 rounded-lg font-medium">
+                                      Passed: {formatDate(memorial.deathDate)}
+                                    </span>
+                                  )}
+                                  
+                                  {memorial.location && (
+                                    <span className="text-sm text-gray-700 flex items-center gap-1.5 px-3 py-1 bg-gray-100 rounded-lg">
+                                      <span className="text-amber-600">📍</span> {memorial.location}
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                {memorial.obituary && (
+                                  <p className="text-base text-gray-800 line-clamp-2 leading-relaxed">
+                                    {memorial.obituary}
+                                  </p>
+                                )}
+                              </div>
+                              
+                              {/* View Button */}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  viewMemorialPage(memorial);
+                                }}
+                                className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 text-white text-base font-bold rounded-lg hover:bg-amber-600 transition-colors shadow-md hover:shadow-lg shrink-0"
+                              >
+                                <Eye className="w-5 h-5" />
+                                View
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
 
                     {totalResults > (isSmallScreen ? 4 : 8) && (
-                      <div className="p-3 sm:p-4 border-t border-amber-100 bg-gray-50">
+                      <div className="p-3 sm:p-4 border-t border-amber-100 bg-gray-50 sticky bottom-0">
                         <button
                           onClick={() => {
                             window.location.href = `/search?q=${encodeURIComponent(searchQuery)}&sort=${selectedSort}`;
@@ -481,10 +553,10 @@ export default function SearchNavbar({
                 ref={filterButtonRef}
                 onClick={() => setShowFilters(!showFilters)}
                 className="flex items-center gap-1 sm:gap-2 px-3 py-2 sm:px-4 sm:py-3 text-sm sm:text-base text-gray-700 hover:text-gray-900 
-                         hover:bg-amber-100 rounded-lg transition-all border-2 border-amber-300 bg-white"
+                         hover:bg-amber-100 rounded-lg transition-all border-2 border-amber-300 bg-white min-w-[70px]"
               >
                 <Filter className="w-3 h-3 sm:w-4 sm:h-4 text-amber-600" />
-                <span className="font-medium">{getSortLabel(selectedSort)}</span>
+                <span className="font-medium truncate">{getSortLabel(selectedSort)}</span>
                 <ChevronDown className={`w-3 h-3 sm:w-4 sm:h-4 transition-transform ${showFilters ? 'rotate-180' : ''}`} />
               </button>
               
@@ -537,7 +609,7 @@ export default function SearchNavbar({
             {(!isSmallScreen || !isExpanded) && (
               <button
                 onClick={toggleExpand}
-                className="p-2 sm:p-3 text-gray-600 hover:text-gray-900 hover:bg-amber-100 rounded-lg transition-colors border-2 border-amber-300"
+                className="p-2 sm:p-3 text-gray-600 hover:text-gray-900 hover:bg-amber-100 rounded-lg transition-colors border-2 border-amber-300 shrink-0"
                 aria-label={isExpanded ? "Collapse search" : "Expand search"}
               >
                 {isExpanded ? (
@@ -614,9 +686,9 @@ export default function SearchNavbar({
             {searchQuery && searchAttempted && (
               <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-amber-200">
                 <div className="flex items-center justify-between text-sm sm:text-base text-gray-700">
-                  <div>
+                  <div className="truncate">
                     <span className="font-bold text-gray-900">Searching:</span>
-                    <span className="ml-2 text-amber-800 font-bold">"{searchQuery}"</span>
+                    <span className="ml-2 text-amber-800 font-bold truncate">"{searchQuery}"</span>
                     {isSearching ? (
                       <span className="ml-3 text-gray-600">
                         <Loader className="w-4 h-4 inline animate-spin mr-2" /> Searching...
