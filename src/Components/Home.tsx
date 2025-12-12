@@ -550,7 +550,7 @@ const Home: React.FC = () => {
             onOpenSection={handleOpenSection}
             onSectionHover={preloadSection}
           />
-          <SearchNavbar onSearch={() => {}} onFilterChange={() => {}} />
+<SearchNavbar onSearch={() => {}} />
         </div>
 
         {/* Header */}
