@@ -2212,15 +2212,56 @@ const BackButtonPortal = () => {
     return !!token;
   };
 
+  const [isWindows, setIsWindows] = useState(false);
+
+  useEffect(() => {
+    // Detect Windows platform
+    const userAgent = window.navigator.userAgent;
+    const isWindowsOS = userAgent.includes('Windows');
+    setIsWindows(isWindowsOS);
+    
+    // Also check for Edge/IE
+    const isEdge = userAgent.includes('Edg');
+    const isIE = userAgent.includes('Trident');
+    
+    console.log('User Agent:', userAgent);
+    console.log('Is Windows:', isWindowsOS, 'Is Edge:', isEdge, 'Is IE:', isIE);
+  }, []);
+
+  // Calculate position based on platform
+  const getPositionStyles = () => {
+    if (isWindows) {
+      return {
+        top: '60px',  // Much lower for Windows
+        left: '20px',
+        smTop: '64px',
+        smLeft: '32px'
+      };
+    }
+    return {
+      top: '32px',  // Normal for Ubuntu/Linux/Mac
+      left: '20px',
+      smTop: '40px',
+      smLeft: '32px'
+    };
+  };
+
+  const position = getPositionStyles();
+
   return ReactDOM.createPortal(
     <div 
-      className="back-button-fixed sm:top-8 sm:left-8"
       style={{ 
         position: 'fixed',
+        top: position.top,
+        left: position.left,
         zIndex: 999999,
         isolation: 'isolate',
-        pointerEvents: 'auto'
+        pointerEvents: 'auto',
+        // Debug border - remove after fixing
+        border: '2px solid red',
+        backgroundColor: 'rgba(255, 0, 0, 0.1)'
       }}
+      className={`sm:top-[${position.smTop}] sm:left-[${position.smLeft}]`}
     >
       <button
         onClick={handleBackNavigation}
@@ -2273,7 +2314,7 @@ const BackButtonPortal = () => {
   );
 };
 
-  const fetchMemorial = useCallback(async () => {
+const fetchMemorial = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(
