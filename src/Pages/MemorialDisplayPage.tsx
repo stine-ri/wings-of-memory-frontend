@@ -2205,7 +2205,7 @@ const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     }
   };
 // Create a BackButtonPortal component INSIDE your MemorialDisplayPage
-// Replace your current BackButtonPortal with this improved version:
+
 const BackButtonPortal = () => {
   const isLoggedIn = () => {
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
@@ -2608,41 +2608,6 @@ useEffect(() => {
     <div className="min-h-screen bg-white">
 {/* REDESIGNED HEADER - Modern & Warm */}
 <div className="min-h-screen bg-gray-50">
-  {/* FLOATING BACK BUTTON - Works on all OS */}
-{/* CHATBOT-STYLE FLOATING BUBBLE - OS AGNOSTIC */}
-<div className="fixed top-4 left-4 sm:top-6 sm:left-6 z-[9999]">
-  <button
-    onClick={handleBackNavigation}
-    className="flex items-center justify-center sm:justify-start gap-0 sm:gap-2 bg-gradient-to-br from-white to-gray-50 backdrop-blur-xl text-gray-800 hover:text-orange-600 active:text-orange-700 transition-all duration-300 group p-3 sm:px-4 sm:py-3 rounded-full shadow-2xl hover:shadow-3xl active:shadow-xl border border-white/30 hover:border-orange-300/50 min-w-[48px] min-h-[48px] sm:min-w-[150px] sm:min-h-[48px] touch-manipulation hover:scale-[1.05] active:scale-[0.98]"
-    style={{
-      WebkitBackdropFilter: 'blur(20px)',
-      backdropFilter: 'blur(20px)',
-    }}
-    aria-label={isLoggedIn() ? 'Back to Dashboard' : 'Back to Home'}
-  >
-    {/* Floating animation */}
-    <div className="absolute inset-0 rounded-full bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-    
-    {/* Arrow with bounce animation */}
-    <div className="relative flex-shrink-0">
-      <ChevronLeft className="w-5 h-5 sm:w-5 sm:h-5 transition-all duration-300 group-hover:-translate-x-1 group-hover:scale-110" />
-      <div className="absolute -inset-2 rounded-full bg-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-    </div>
-    
-    {/* Text - appears on hover on mobile, always on desktop */}
-    <span className="hidden sm:inline text-sm font-medium whitespace-nowrap ml-1">
-      {isLoggedIn() ? 'Back to Dashboard' : 'Back to Home'}
-    </span>
-    
-    {/* Mobile tooltip */}
-    <div className="absolute left-full top-1/2 -translate-y-1/2 ml-3 px-3 py-2 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none shadow-lg">
-      {isLoggedIn() ? 'Back to Dashboard' : 'Back to Home'}
-      <div className="absolute right-full top-1/2 -translate-y-1/2 w-0 h-0 border-y-2 border-l-0 border-r-2 border-r-gray-900 border-transparent"></div>
-    </div>
-  </button>
-</div>
-
-
 
 {/* HEADER WITH WARM BACKGROUND IMAGE */}
 <header className={`sticky top-0 z-40 transition-all duration-200 ${
