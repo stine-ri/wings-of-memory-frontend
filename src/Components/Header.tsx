@@ -34,12 +34,12 @@ export const Header: React.FC<HeaderProps> = ({ data }) => {
           <div className="absolute bottom-1/4 right-1/3 w-8 h-8 rounded-full bg-amber-400/15 animate-float" style={{animationDelay: '1.5s'}}></div>
         </div>
 
-        {/* Content container WITH max width */}
-        <div className="relative w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 md:py-24">
+        {/* Content container WITH max width - ORIGINAL PADDING */}
+        <div className="relative w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-10 md:py-12">
           <div className="flex flex-col items-center text-center">
             
-            {/* Decorative top elements - HALVED MARGIN */}
-            <div className="mb-4 md:mb-6"> {/* Changed from mb-8 md:mb-12 */}
+            {/* Decorative top elements - KEEP COMPACT DISTANCE */}
+            <div className="mb-2 md:mb-0">
               <div className="flex items-center justify-center gap-4 mb-6">
                 <div className="w-20 h-px bg-gradient-to-r from-transparent via-amber-500 to-transparent"></div>
                 <div className="flex items-center gap-3">
@@ -51,7 +51,7 @@ export const Header: React.FC<HeaderProps> = ({ data }) => {
               </div>
             </div>
             
-            {/* Profile image with elegant frame - ALL OTHER CODE REMAINS UNCHANGED */}
+            {/* Profile image with elegant frame - ORIGINAL SIZE */}
             <div className="relative group mb-8 sm:mb-12">
               <div className="absolute inset-0 bg-gradient-to-br from-amber-500 to-orange-500 rounded-full blur-3xl opacity-25 group-hover:opacity-35 transition-opacity duration-700"></div>
               <div className="relative">
@@ -65,7 +65,7 @@ export const Header: React.FC<HeaderProps> = ({ data }) => {
                   </div>
                 </div>
                 
-                {/* Decorative corner elements */}
+                {/* Decorative corner elements - ORIGINAL SIZE */}
                 <div className="absolute -top-2 -left-2">
                   <div className="bg-white/90 backdrop-blur-sm p-2 rounded-lg shadow-md">
                     <Star className="w-4 h-4 text-amber-600" fill="#f59e0b" />
@@ -79,17 +79,17 @@ export const Header: React.FC<HeaderProps> = ({ data }) => {
               </div>
             </div>
             
-            {/* Main title */}
+            {/* Main title - ORIGINAL SIZE */}
             <h1 className="text-4xl sm:text-5xl md:text-7xl font-serif mb-6 text-gray-800 tracking-tight">
               Eternal<span className="text-amber-600 mx-3">Remembrance</span>
             </h1>
             
-            {/* Subtitle */}
+            {/* Subtitle - ORIGINAL SIZE */}
             <p className="text-xl sm:text-2xl md:text-3xl text-gray-700 font-light mb-8 max-w-3xl leading-relaxed">
               Where Memories Become Everlasting Tributes
             </p>
             
-            {/* Description */}
+            {/* Description - ORIGINAL (INCLUDED) */}
             <div className="max-w-2xl mx-auto mb-12">
               <p className="text-gray-600 leading-relaxed text-lg">
                 Create beautiful memorials that honor the unique stories of loved ones. 
@@ -98,7 +98,7 @@ export const Header: React.FC<HeaderProps> = ({ data }) => {
               </p>
             </div>
             
-            {/* Memorial features */}
+            {/* Memorial features - ORIGINAL (INCLUDED) */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12 max-w-3xl">
               <div className="bg-white/80 backdrop-blur-sm rounded-xl p-6 shadow-lg border border-amber-100 hover:shadow-xl transition-shadow duration-300">
                 <Heart className="w-8 h-8 text-amber-600 mx-auto mb-3" fill="#f59e0b" />
@@ -117,7 +117,7 @@ export const Header: React.FC<HeaderProps> = ({ data }) => {
               </div>
             </div>
             
-            {/* Final message */}
+            {/* Final message - ORIGINAL SIZE */}
             <div className="inline-block px-8 py-4 bg-gradient-to-r from-amber-50 to-orange-50 backdrop-blur-sm rounded-2xl shadow-lg border border-amber-200/50 mt-8 hover:shadow-xl transition-all duration-300">
               <div className="flex items-center gap-3">
                 <Heart className="w-5 h-5 text-amber-600" fill="#f59e0b" />
@@ -132,7 +132,7 @@ export const Header: React.FC<HeaderProps> = ({ data }) => {
     );
   }
 
-  // Memorial page mode (with data provided)
+  // Memorial page mode (with data provided) - ORIGINAL SIZES
   return (
     <header className="relative w-full overflow-hidden">
       <div className="absolute inset-0 w-full bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50"></div>
