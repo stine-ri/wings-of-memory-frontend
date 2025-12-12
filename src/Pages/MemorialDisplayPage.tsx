@@ -2534,7 +2534,7 @@ useEffect(() => {
       {/* REDESIGNED HEADER - Modern & Warm */}
       <div className="min-h-screen bg-gray-50">
   {/* BACK BUTTON - Fixed positioning */}
-  <div className="fixed top-4 left-4 sm:top-6 sm:left-6 z-60">
+  <div className="fixed top-4 left-4 sm:top-6 sm:left-6 z-[60]">
     <button
       onClick={handleBackNavigation}
       className="flex items-center gap-2 bg-white/95 backdrop-blur-md text-gray-800 hover:text-orange-600 transition-colors group px-4 py-2.5 rounded-lg shadow-lg hover:shadow-xl border border-gray-200"
