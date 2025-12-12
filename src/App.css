@@ -24,7 +24,17 @@
     }
   }
 }
+/* Smooth transitions for header and navigation */
+header, nav {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  will-change: transform, opacity;
+}
 
+/* Prevent flickering on some browsers */
+header {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
 /* Apply to back button */
 .back-button-fixed {
   position: fixed;

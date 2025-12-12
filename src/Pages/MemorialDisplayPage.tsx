@@ -2183,8 +2183,7 @@ export const MemorialDisplayPage: React.FC = () => {
   const [showTributeForm, setShowTributeForm] = useState(false);
  const [isScrolled, setIsScrolled] = useState(false); 
 const [headerLocked, setHeaderLocked] = useState(false);
-const [headerLockedTime, setHeaderLockedTime] = useState<number>(0);
-const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const [currentSessionId, setCurrentSessionId] = useState('');
   const [likedMemories, setLikedMemories] = useState<Set<string>>(new Set());
   const [editingTribute, setEditingTribute] = useState<Tribute | null>(null);
@@ -2413,47 +2412,45 @@ console.log('=== End Family Tree Debug ===');
   }, [fetchMemorial]);
 
 useEffect(() => {
+  // Initialize scroll state immediately
+  const initialScroll = window.scrollY > 50;
+  setIsScrolled(initialScroll);
+  
+  let ticking = false;
+
   const handleScroll = () => {
     const currentScroll = window.scrollY;
     
-    // If user scrolls to the very top (within 20px)
-    if (currentScroll <= 20) {
-      // Only unlock if enough time has passed since locking (1 second minimum)
-      const timeSinceLock = Date.now() - headerLockedTime;
-      if (timeSinceLock > 1000) {
-        setHeaderLocked(false);
-        setIsScrolled(false);
-      }
-      return;
-    }
+    // Don't update if we're already processing or header is locked
+    if (ticking || headerLocked) return;
     
-    // Don't update scroll state if header is locked (navigation was clicked)
-    if (headerLocked) return;
-    
-    // Clear any pending timeout
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current);
-    }
-    
-    // Debounce: wait 100ms after last scroll before updating state
-    scrollTimeoutRef.current = setTimeout(() => {
-      const shouldBeScrolled = currentScroll > 100;
+    // Use requestAnimationFrame for smooth performance
+    ticking = true;
+    requestAnimationFrame(() => {
+      // Immediate response to scroll - reduced threshold for faster response
+      const shouldBeScrolled = currentScroll > 50;
       
       // Only update if state actually needs to change
-      setIsScrolled(prev => prev !== shouldBeScrolled ? shouldBeScrolled : prev);
-    }, 100);
+      if (isScrolled !== shouldBeScrolled) {
+        setIsScrolled(shouldBeScrolled);
+      }
+      
+      // If at top of page, unlock header immediately
+      if (currentScroll <= 20) {
+        setHeaderLocked(false);
+      }
+      
+      ticking = false;
+    });
   };
 
+  // Use passive scroll listener for better performance
   window.addEventListener('scroll', handleScroll, { passive: true });
   
   return () => {
     window.removeEventListener('scroll', handleScroll);
-    if (scrollTimeoutRef.current) {
-      clearTimeout(scrollTimeoutRef.current);
-    }
   };
-}, [headerLocked, headerLockedTime]);
-
+}, [headerLocked, isScrolled]);
   useEffect(() => {
     // Initialize session ID
     if (identifier) {
@@ -2761,31 +2758,32 @@ useEffect(() => {
             return (
               <button
                 key={item.id}
-                onClick={() => {
-                  // Lock the header in collapsed state and record the time
-                  setHeaderLocked(true);
-                  setIsScrolled(true);
-                  setHeaderLockedTime(Date.now());
-                  setActiveSection(item.id);
-                  
-                  const element = document.getElementById(item.id);
-                  if (element) {
-                    // Fixed offset since nav is now always at same position
-                    const navHeight = 72; // Height of collapsed header
-                    const navBarHeight = 60; // Height of nav bar itself
-                    const totalOffset = navHeight + navBarHeight + 20; // 20px padding
-                    
-                    const elementPosition = element.getBoundingClientRect().top;
-                    const offsetPosition = elementPosition + window.pageYOffset - totalOffset;
-                    
-                    window.scrollTo({
-                      top: offsetPosition,
-                      behavior: 'smooth'
-                    });
-                  }
-                  
-                  // Header stays locked until user scrolls to very top AND 1 second has passed
-                }}
+               onClick={() => {
+  // Immediately collapse header without delay
+  setHeaderLocked(true);
+  setIsScrolled(true);
+  setActiveSection(item.id);
+  
+  const element = document.getElementById(item.id);
+  if (element) {
+    const navHeight = 72;
+    const navBarHeight = 60;
+    const totalOffset = navHeight + navBarHeight + 20;
+    
+    const elementPosition = element.getBoundingClientRect().top;
+    const offsetPosition = elementPosition + window.pageYOffset - totalOffset;
+    
+    window.scrollTo({
+      top: offsetPosition,
+      behavior: 'smooth'
+    });
+  }
+  
+  // Unlock after scroll completes (shorter delay)
+  setTimeout(() => {
+    setHeaderLocked(false);
+  }, 500); // Reduced from 1000ms to 500ms
+}}
                 className={`relative flex items-center gap-2 px-3 sm:px-4 md:px-6 py-2.5 sm:py-3 text-sm md:text-base font-medium whitespace-nowrap transition-all duration-300 ${
                   isActive
                     ? 'text-orange-600'
