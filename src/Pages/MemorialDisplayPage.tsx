@@ -2214,15 +2214,13 @@ const BackButtonPortal = () => {
 
   return ReactDOM.createPortal(
     <div 
+      className="back-button-fixed sm:top-8 sm:left-8"
       style={{ 
         position: 'fixed',
-        top: '16px',
-        left: '16px',
         zIndex: 999999,
         isolation: 'isolate',
         pointerEvents: 'auto'
       }}
-      className="sm:top-6 sm:left-6"
     >
       <button
         onClick={handleBackNavigation}
@@ -2637,8 +2635,8 @@ useEffect(() => {
   {/* Container with dynamic padding - REMOVED pl-16 */}
   <div className={`relative z-10 max-w-7xl mx-auto transition-all duration-200 ${
     isScrolled 
-      ? 'py-4 px-4 sm:px-6' 
-      : 'py-8 sm:py-16 md:py-24 px-4 sm:px-6'
+          ? 'py-4 px-4 sm:px-6 pl-16 sm:pl-24' // Add left padding
+    : 'py-8 sm:py-16 md:py-24 px-4 sm:px-6 pl-16 sm:pl-24' // Add left padding
   }`}>
     
     {/* Main flex container */}

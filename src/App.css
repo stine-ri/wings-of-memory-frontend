@@ -1,6 +1,55 @@
-
 @import "tailwindcss";
 
+:root {
+  --back-button-top: 20px;
+  --back-button-left: 20px;
+}
+
+/* Windows override */
+@media screen and (-ms-high-contrast: active), (-ms-high-contrast: none) {
+  :root {
+    --back-button-top: 24px;
+    --back-button-left: 24px;
+  }
+}
+
+/* Chrome/Edge Chromium detection */
+@supports (-webkit-appearance: none) and (not (overflow:-webkit-marquee)) {
+  /* Check if Windows by user agent */
+  @media not all and (min-resolution: 0.001dpcm) {
+    /* Windows Chrome/Edge */
+    :root {
+      --back-button-top: 24px;
+      --back-button-left: 24px;
+    }
+  }
+}
+
+/* Apply to back button */
+.back-button-fixed {
+  position: fixed;
+  top: var(--back-button-top);
+  left: var(--back-button-left);
+  z-index: 999999;
+  isolation: isolate;
+  pointer-events: auto;
+}
+
+/* Responsive styles */
+@media (min-width: 640px) {
+  .back-button-fixed {
+    top: 32px; /* sm:top-8 = 2rem = 32px */
+    left: 32px; /* sm:left-8 = 2rem = 32px */
+  }
+  
+  /* Windows override for responsive */
+  @media screen and (-ms-high-contrast: active), (-ms-high-contrast: none) {
+    .back-button-fixed {
+      top: 36px;
+      left: 36px;
+    }
+  }
+}
 
 /* =========================================== */
 /* ANIMATIONS */
