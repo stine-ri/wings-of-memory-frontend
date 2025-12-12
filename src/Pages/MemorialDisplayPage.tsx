@@ -2534,10 +2534,10 @@ useEffect(() => {
       {/* REDESIGNED HEADER - Modern & Warm */}
       <div className="min-h-screen bg-gray-50">
   {/* BACK BUTTON - Fixed positioning */}
-  <div className="fixed top-4 left-4 sm:top-6 sm:left-6 z-50">
+  <div className="fixed top-4 left-4 sm:top-6 sm:left-6 z-60">
     <button
       onClick={handleBackNavigation}
-      className="flex items-center gap-2 bg-white/90 backdrop-blur-sm text-gray-800 hover:text-orange-600 transition-colors group px-4 py-2.5 rounded-lg shadow-lg hover:shadow-xl border border-gray-200"
+      className="flex items-center gap-2 bg-white/95 backdrop-blur-md text-gray-800 hover:text-orange-600 transition-colors group px-4 py-2.5 rounded-lg shadow-lg hover:shadow-xl border border-gray-200"
     >
       <ChevronLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
       <span className="text-sm font-medium">
@@ -2547,7 +2547,7 @@ useEffect(() => {
   </div>
 
         {/* HEADER WITH WARM BACKGROUND IMAGE */}
-        <header className={`sticky top-0 z-40 transition-all duration-200 ${
+        <header className={`sticky top-0 z-50 transition-all duration-200 ${
           isScrolled 
             ? 'bg-white shadow-md' 
             : 'relative bg-gray-900'
