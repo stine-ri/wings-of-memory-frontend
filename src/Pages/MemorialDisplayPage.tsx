@@ -130,14 +130,17 @@ const getOrCreateSessionId = (identifier: string): string => {
 };
 
 // Enhanced Share Modal
+// Enhanced Share Modal with PDF Download
 const ShareModal: React.FC<{ 
   isOpen: boolean; 
   onClose: () => void; 
   memorialUrl: string;
   memorialName: string;
-   memorialData?: MemorialData;
-}> = ({ isOpen, onClose, memorialUrl, memorialName }) => {
+  memorialData?: MemorialData;
+  identifier?: string;
+}> = ({ isOpen, onClose, memorialUrl, memorialName, identifier }) => {
   const [copied, setCopied] = useState(false);
+  const [downloadingPDF, setDownloadingPDF] = useState(false);
 
   if (!isOpen) return null;
 
@@ -155,6 +158,45 @@ const ShareModal: React.FC<{
       document.body.removeChild(textArea);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!identifier) return;
+    
+    setDownloadingPDF(true);
+    try {
+      // Use the backend endpoint for PDF generation
+      const response = await fetch(
+        `https://wings-of-memories-backend.onrender.com/api/memorials/${identifier}/preview-pdf`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`Failed to generate PDF: ${response.status}`);
+      }
+      
+      // Create a blob from the response
+      const blob = await response.blob();
+      
+      // Create a download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${memorialName.replace(/\s+/g, '-')}-memorial.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      console.log('✅ PDF downloaded successfully');
+      
+    } catch (error) {
+      console.error('❌ PDF download failed:', error);
+      alert('Failed to download PDF. Please try again later.');
+    } finally {
+      setDownloadingPDF(false);
     }
   };
 
@@ -197,6 +239,42 @@ const ShareModal: React.FC<{
           </div>
           
           <div className="space-y-6">
+            {/* PDF Download Button - Top of the modal */}
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                    <svg className="w-5 h-5 text-amber-600" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9v-2h2v2zm0-4H9V8h2v4zm4 4h-2v-6h2v6z"/>
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-medium text-gray-900">Download Memorial Booklet</p>
+                    <p className="text-sm text-gray-600">Beautifully formatted PDF keepsake</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleDownloadPDF}
+                  disabled={downloadingPDF || !identifier}
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {downloadingPDF ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                      </svg>
+                      Download PDF
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
             <div>
               <p className="text-gray-600 mb-4">Share {memorialName}'s memorial with loved ones</p>
               <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
@@ -3164,6 +3242,8 @@ useEffect(() => {
     {serviceInfo && (serviceInfo.venue || serviceInfo.date) && (
       <ServiceSection serviceInfo={serviceInfo} />
     )}
+
+    
   </div>
 </main>
 
@@ -3172,6 +3252,7 @@ useEffect(() => {
 
         {/* Floating Action Buttons */}
      {/* Floating Action Buttons with Text */}
+{/* Floating Action Buttons with Text */}
 <div className="fixed right-4 bottom-4 z-40 flex flex-col gap-3">
   <button
     onClick={() => setShowShareModal(true)}
@@ -3179,7 +3260,7 @@ useEffect(() => {
     title="Share Memorial"
   >
     <span className="text-sm font-medium text-gray-700 group-hover:text-gray-900 transition-colors">
-      Share
+      Share & Download
     </span>
     <Share2 className="w-5 h-5 group-hover:scale-110 transition-transform" />
   </button>
@@ -3191,6 +3272,7 @@ useEffect(() => {
           onClose={() => setShowShareModal(false)}
           memorialUrl={memorialUrl}
           memorialName={memorial.name}
+           identifier={identifier}
         />
       </div>
     </div>
