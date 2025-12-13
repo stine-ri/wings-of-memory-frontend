@@ -132,11 +132,14 @@ export const FamilyTreeSection: React.FC = () => {
     }
   };
 
-  const relationOptions = [
-    'Father', 'Mother', 'Spouse', 'Son', 'Daughter', 'Brother', 'Sister',
-    'Grandfather', 'Grandmother', 'Grandson', 'Granddaughter', 'Uncle', 'Aunt',
-    'Cousin', 'Nephew', 'Niece', 'Father-in-law', 'Mother-in-law', 'Self', 'Memorialized'
-  ];
+
+const relationOptions = [
+  'First Wife', 'Second Wife', 'Third Wife', 'Fourth Wife', 'First Husband', 
+  'Second Husband', 'Third Husband', 'Former Wife', 'Former Husband',
+  'Spouse', 'Partner', 'Father', 'Mother', 'Son', 'Daughter', 'Brother', 'Sister',
+  'Grandfather', 'Grandmother', 'Grandson', 'Granddaughter', 'Uncle', 'Aunt',
+  'Cousin', 'Nephew', 'Niece', 'Father-in-law', 'Mother-in-law', 'Self', 'Memorialized'
+];
 
   const handleAddMember = () => {
     setEditingMember({

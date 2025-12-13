@@ -874,7 +874,7 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
     );
   }
 
-  // Organize family members into generations
+  // Organize family members into generations with spouse handling
   const organizeFamilyTree = () => {
     let mainPerson = familyTree.find(m => 
       m.relation?.toLowerCase() === 'memorialized' || 
@@ -892,7 +892,7 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
     const generations = {
       parents: [] as FamilyMember[],
       main: [] as FamilyMember[],
-      spouse: [] as FamilyMember[],
+      spouses: [] as FamilyMember[],
       siblings: [] as FamilyMember[],
       children: [] as FamilyMember[],
       grandchildren: [] as FamilyMember[],
@@ -900,17 +900,30 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
       others: [] as FamilyMember[]
     };
 
+    // Extract all spouses and categorize them
+    const allSpouses: FamilyMember[] = [];
+    
     familyTree.forEach(member => {
       const relation = member.relation?.toLowerCase() || '';
       
       if (member.id === mainPerson?.id) {
         generations.main.push(member);
       } 
-      else if (relation.includes('spouse') || relation.includes('partner') || relation.includes('husband') || relation.includes('wife')) {
-        generations.spouse.push(member);
+      else if (
+        relation.includes('spouse') || 
+        relation.includes('partner') || 
+        relation.includes('husband') || 
+        relation.includes('wife') ||
+        relation.includes('first wife') ||
+        relation.includes('second wife') ||
+        relation.includes('third wife') ||
+        relation.includes('ex-wife') ||
+        relation.includes('former wife')
+      ) {
+        // Add to spouses array for sorting
+        allSpouses.push(member);
       }
       else if (relation.includes('daughter') || relation.includes('son') || relation.includes('child')) {
-        // Check if it's actually a grandchild mistakenly categorized as child
         if (relation.includes('grand') || relation.includes('great')) {
           if (relation.includes('great')) {
             generations.greatGrandchildren.push(member);
@@ -938,17 +951,57 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
       }
     });
 
+    // Sort spouses by relationship order
+    generations.spouses = allSpouses.sort((a, b) => {
+      const getSpouseOrder = (relation: string): number => {
+        const rel = relation.toLowerCase();
+        if (rel.includes('first')) return 1;
+        if (rel.includes('second')) return 2;
+        if (rel.includes('third')) return 3;
+        if (rel.includes('fourth')) return 4;
+        if (rel.includes('ex-') || rel.includes('former')) return 99; // Put former spouses at the end
+        return 0; // Default for "Spouse"
+      };
+      
+      return getSpouseOrder(a.relation) - getSpouseOrder(b.relation);
+    });
+
     return { mainPerson, generations };
   };
 
   const { mainPerson, generations } = organizeFamilyTree();
+
+  // Function to get spouse label
+  const getSpouseLabel = (relation: string) => {
+    const rel = relation.toLowerCase();
+    if (rel.includes('first wife') || rel.includes('first spouse')) return 'First Wife';
+    if (rel.includes('second wife') || rel.includes('second spouse')) return 'Second Wife';
+    if (rel.includes('third wife') || rel.includes('third spouse')) return 'Third Wife';
+    if (rel.includes('fourth wife') || rel.includes('fourth spouse')) return 'Fourth Wife';
+    if (rel.includes('ex-wife') || rel.includes('former wife')) return 'Former Wife';
+    if (rel.includes('husband')) return 'Husband';
+    if (rel.includes('wife')) return 'Wife';
+    if (rel.includes('partner')) return 'Partner';
+    return relation;
+  };
+
+  // Function to get spouse badge color
+  const getSpouseBadgeColor = (index: number, totalSpouses: number) => {
+    if (totalSpouses === 1) return 'bg-pink-500';
+    if (index === 0) return 'bg-red-500'; // First wife
+    if (index === 1) return 'bg-pink-500'; // Second wife
+    if (index === 2) return 'bg-purple-500'; // Third wife
+    return 'bg-indigo-500'; // Additional wives
+  };
 
   // Member Card Component
   const MemberCard: React.FC<{ 
     member: FamilyMember;
     isMain?: boolean;
     generation?: string;
-  }> = ({ member, isMain = false, generation = '' }) => {
+    spouseIndex?: number;
+    totalSpouses?: number;
+  }> = ({ member, isMain = false, generation = '', spouseIndex = 0, totalSpouses = 1 }) => {
     const isHovered = hoveredMember === member.id;
     const isDeceased = member.isDeceased;
 
@@ -956,7 +1009,7 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
     const colorScheme = {
       parent: { border: 'border-blue-400', text: 'text-blue-700', badge: 'bg-blue-500' },
       main: { border: 'border-purple-500', text: 'text-purple-800', badge: 'bg-purple-600' },
-      spouse: { border: 'border-pink-400', text: 'text-pink-700', badge: 'bg-pink-500' },
+      spouse: { border: 'border-pink-400', text: 'text-pink-700', badge: getSpouseBadgeColor(spouseIndex, totalSpouses) },
       child: { border: 'border-green-400', text: 'text-green-700', badge: 'bg-green-500' },
       grandchild: { border: 'border-amber-400', text: 'text-amber-700', badge: 'bg-amber-500' },
       greatGrandchild: { border: 'border-orange-400', text: 'text-orange-700', badge: 'bg-orange-500' },
@@ -970,6 +1023,14 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
                    generation === 'grandchild' ? colorScheme.grandchild :
                    generation === 'greatGrandchild' ? colorScheme.greatGrandchild :
                    colorScheme.default;
+
+    // Get spouse icon based on index
+    const getSpouseIcon = (index: number) => {
+      if (index === 0) return '❤️';
+      if (index === 1) return '💝';
+      if (index === 2) return '💖';
+      return '💕';
+    };
 
     return (
       <motion.div
@@ -988,7 +1049,7 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
           {/* Generation Badge */}
           <div className={`absolute -top-2 sm:-top-3 -right-2 sm:-right-3 ${colors.badge} text-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold shadow-sm sm:shadow-lg flex items-center gap-1`}>
             {isMain ? '★' : 
-             generation === 'spouse' ? '❤️' : 
+             generation === 'spouse' ? getSpouseIcon(spouseIndex) :
              generation === 'child' ? '👶' :
              generation === 'parent' ? '👨‍👩' :
              generation === 'grandchild' ? '🌟' :
@@ -996,7 +1057,7 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
              '👤'}
             <span className="hidden sm:inline">
               {isMain ? ' Memorial' : 
-               generation === 'spouse' ? ' Spouse' : 
+               generation === 'spouse' ? ` ${getSpouseLabel(member.relation).split(' ')[0]}` :
                generation === 'child' ? ' Child' :
                generation === 'parent' ? ' Parent' :
                generation === 'grandchild' ? ' Grand' :
@@ -1004,6 +1065,13 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
                ''}
             </span>
           </div>
+
+          {/* Spouse Number Badge (for multiple spouses) */}
+          {generation === 'spouse' && totalSpouses > 1 && (
+            <div className="absolute -top-2 sm:-top-3 -left-2 sm:-left-3 bg-gray-800 text-white px-2 sm:px-3 py-0.5 sm:py-1 rounded-full text-[10px] sm:text-xs font-bold shadow-sm sm:shadow-lg">
+              #{spouseIndex + 1}
+            </div>
+          )}
 
           {/* Deceased Ribbon */}
           {isDeceased && (
@@ -1061,7 +1129,7 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
               } border ${colors.border}`}>
                 {generation === 'spouse' && <Heart className="w-2 h-2 sm:w-3 sm:h-3" />}
                 {generation === 'child' && <Users className="w-2 h-2 sm:w-3 sm:h-3" />}
-                {member.relation}
+                {generation === 'spouse' ? getSpouseLabel(member.relation) : member.relation}
               </div>
 
               {/* Birth/Death Info */}
@@ -1073,6 +1141,18 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
                   }
                 </p>
               )}
+
+              {/* Marriage Info for Spouses */}
+              {generation === 'spouse' && member.birthYear && mainPerson?.birthYear && (
+  <p className="text-[9px] sm:text-xs text-gray-400 mt-1">
+    {parseInt(String(member.birthYear)) > parseInt(String(mainPerson.birthYear)) 
+      ? `Younger by ${parseInt(String(member.birthYear)) - parseInt(String(mainPerson.birthYear))} years`
+      : parseInt(String(member.birthYear)) < parseInt(String(mainPerson.birthYear))
+      ? `Older by ${parseInt(String(mainPerson.birthYear)) - parseInt(String(member.birthYear))} years`
+      : 'Same age'
+    }
+  </p>
+)}
             </div>
           </div>
         </div>
@@ -1092,6 +1172,11 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
           <p className="text-xs sm:text-sm text-gray-600 mt-2 sm:mt-4">
             {familyTree.length} family member{familyTree.length > 1 ? 's' : ''} • Showing generational relationships
           </p>
+          {generations.spouses.length > 1 && (
+            <p className="text-xs sm:text-sm text-pink-600 mt-1">
+              Showing {generations.spouses.length} spouse{generations.spouses.length > 1 ? 's' : ''} in chronological order
+            </p>
+          )}
         </div>
 
         {/* Family Tree Visualization */}
@@ -1129,19 +1214,25 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
               </div>
             )}
 
-            {/* Main & Spouse Generation */}
+            {/* Main & Multiple Spouses Generation */}
             <div className="relative">
               <div className="text-center mb-4 sm:mb-6">
                 <div className="inline-flex items-center gap-1 sm:gap-2 px-3 py-1 sm:px-4 sm:py-2 rounded-full">
                   <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-purple-500"></div>
                   <h3 className="text-xs sm:text-base font-bold text-purple-800">Primary Generation</h3>
+                  {generations.spouses.length > 0 && (
+                    <span className="text-xs sm:text-sm text-gray-600 ml-2">
+                      (+{generations.spouses.length} spouse{generations.spouses.length > 1 ? 's' : ''})
+                    </span>
+                  )}
                 </div>
               </div>
               
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-4 lg:gap-6">
+              {/* Main Person and Spouses Layout */}
+              <div className="flex flex-col items-center justify-center gap-6 sm:gap-8">
                 {/* Main Person */}
                 {mainPerson && (
-                  <div className="w-full sm:w-auto max-w-[180px] sm:max-w-xs">
+                  <div className="w-full max-w-[200px] sm:max-w-xs">
                     <MemberCard 
                       member={mainPerson} 
                       isMain={true}
@@ -1149,44 +1240,95 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
                   </div>
                 )}
 
-                {/* Marriage Connection */}
-                {generations.spouse.length > 0 && (
-                  <>
-                    <div className="hidden sm:flex items-center px-3 sm:px-4">
-                      <div className="flex items-center gap-1 sm:gap-2">
-                        <div className="w-6 sm:w-8 lg:w-16 h-0.5 bg-pink-300"></div>
-                        <div className="bg-pink-50 p-1.5 sm:p-2 rounded-full">
-                          <Heart className="w-3 h-3 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-pink-500 fill-pink-400" />
+                {/* Multiple Spouses - HORIZONTAL LAYOUT */}
+                {generations.spouses.length > 0 && (
+                  <div className="mt-4 sm:mt-6">
+                    <div className="text-center mb-4">
+                      <h4 className="text-xs sm:text-sm font-semibold text-gray-600">
+                        {generations.spouses.length === 1 ? 'Spouse' : 'Spouses (in order)'}
+                      </h4>
+                    </div>
+                    
+                    {/* Spouses Container */}
+                    <div className="flex flex-wrap justify-center items-start gap-4 sm:gap-6 lg:gap-8">
+                      {generations.spouses.map((spouse, index) => (
+                        <div key={spouse.id} className="relative">
+                          {/* Connection Line (Desktop only) */}
+                          {index > 0 && !isMobile && (
+                            <div className="absolute -left-8 top-1/2 w-8 h-0.5 bg-pink-300 transform -translate-y-1/2"></div>
+                          )}
+                          
+                          {/* Marriage Connection Heart (for first spouse only) */}
+                          {index === 0 && (
+                            <div className="hidden sm:flex flex-col items-center absolute -top-6 left-1/2 transform -translate-x-1/2">
+                              <div className="h-6 w-0.5 bg-pink-300"></div>
+                              <div className="bg-pink-50 p-1.5 rounded-full">
+                                <Heart className="w-4 h-4 text-pink-500 fill-pink-400" />
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Spouse Card */}
+                          <div className="w-[140px] sm:w-[160px] md:w-[180px]">
+                            <MemberCard 
+                              member={spouse} 
+                              generation="spouse"
+                              spouseIndex={index}
+                              totalSpouses={generations.spouses.length}
+                            />
+                          </div>
+                          
+                          {/* Spouse Number Label */}
+                          {generations.spouses.length > 1 && (
+                            <div className="text-center mt-2">
+                              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                                {getSpouseLabel(spouse.relation)}
+                              </span>
+                              {spouse.birthYear && spouse.deathYear && (
+                                <p className="text-[10px] text-gray-500 mt-1">
+                                  {spouse.birthYear} - {spouse.deathYear}
+                                </p>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <div className="w-6 sm:w-8 lg:w-16 h-0.5 bg-pink-300"></div>
-                      </div>
-                    </div>
-                    
-                    <div className="sm:hidden">
-                      <div className="bg-pink-50 p-1.5 rounded-full">
-                        <Heart className="w-4 h-4 text-pink-500 fill-pink-400" />
-                      </div>
-                    </div>
-                    
-                    {/* Spouse(s) */}
-                    <div className="w-full sm:w-auto max-w-[180px] sm:max-w-xs flex flex-col gap-3 sm:gap-4">
-                      {generations.spouse.map((spouse) => (
-                        <MemberCard 
-                          key={spouse.id} 
-                          member={spouse} 
-                          generation="spouse"
-                        />
                       ))}
                     </div>
-                  </>
+                    
+                    {/* Spouse Legend for Multiple Spouses */}
+                    {generations.spouses.length > 1 && (
+                      <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs">
+                        <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-red-50 text-red-700">
+                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                          <span>First Wife</span>
+                        </div>
+                        <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-pink-50 text-pink-700">
+                          <div className="w-2 h-2 rounded-full bg-pink-500"></div>
+                          <span>Second Wife</span>
+                        </div>
+                        {generations.spouses.length > 2 && (
+                          <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-purple-50 text-purple-700">
+                            <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                            <span>Third Wife</span>
+                          </div>
+                        )}
+                        {generations.spouses.length > 3 && (
+                          <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-indigo-50 text-indigo-700">
+                            <div className="w-2 h-2 rounded-full bg-indigo-500"></div>
+                            <span>Additional Wives</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
 
               {/* Siblings */}
               {generations.siblings.length > 0 && (
-                <div className="mt-6 sm:mt-8">
-                  <div className="text-center mb-3 sm:mb-4">
-                    <h4 className="text-xs sm:text-sm font-semibold text-gray-600 inline-block px-3 py-1 rounded-full">
+                <div className="mt-8 sm:mt-10">
+                  <div className="text-center mb-4">
+                    <h4 className="text-xs sm:text-sm font-semibold text-gray-600 inline-block px-3 py-1 rounded-full bg-gray-50">
                       Siblings
                     </h4>
                   </div>
@@ -1202,14 +1344,7 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
               )}
             </div>
 
-            {/* Connection line from main to children */}
-            {generations.children.length > 0 && (
-              <div className="hidden sm:flex justify-center mt-2">
-                <div className="h-8 w-0.5 bg-gray-300"></div>
-              </div>
-            )}
-
-            {/* Children Generation - SEPARATE COLUMN */}
+            {/* Children Generation */}
             {generations.children.length > 0 && (
               <div className="relative">
                 <div className="text-center mb-4 sm:mb-6">
@@ -1220,9 +1355,6 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
                       ({generations.children.length})
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Direct descendants of the memorialized person
-                  </p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
                   {generations.children.map((child) => (
@@ -1236,15 +1368,7 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
               </div>
             )}
 
-            {/* Connection line from children to grandchildren */}
-            {generations.grandchildren.length > 0 && (
-              <div className="hidden sm:flex justify-center mt-4">
-                <div className="h-8 w-0.5 bg-gray-300"></div>
-                <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-gray-300 transform -translate-y-1/2"></div>
-              </div>
-            )}
-
-            {/* Grandchildren Generation - SEPARATE COLUMN */}
+            {/* Grandchildren Generation */}
             {generations.grandchildren.length > 0 && (
               <div className="relative mt-8 sm:mt-12">
                 <div className="text-center mb-4 sm:mb-6">
@@ -1255,9 +1379,6 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
                       ({generations.grandchildren.length})
                     </span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Second generation descendants
-                  </p>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
                   {generations.grandchildren.map((grandchild) => (
@@ -1265,33 +1386,6 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
                       key={grandchild.id} 
                       member={grandchild}
                       generation="grandchild"
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Great-Grandchildren Generation */}
-            {generations.greatGrandchildren.length > 0 && (
-              <div className="relative mt-8 sm:mt-12">
-                <div className="text-center mb-4 sm:mb-6">
-                  <div className="inline-flex items-center gap-1 sm:gap-2 px-3 py-1 sm:px-4 sm:py-2 rounded-full">
-                    <div className="w-2 h-2 sm:w-3 sm:h-3 rounded-full bg-orange-500"></div>
-                    <h3 className="text-xs sm:text-base font-bold text-orange-800">Great-Grandchildren</h3>
-                    <span className="text-xs sm:text-sm text-gray-600 ml-2">
-                      ({generations.greatGrandchildren.length})
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Third generation descendants
-                  </p>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
-                  {generations.greatGrandchildren.map((greatGrandchild) => (
-                    <MemberCard 
-                      key={greatGrandchild.id} 
-                      member={greatGrandchild}
-                      generation="greatGrandchild"
                     />
                   ))}
                 </div>
@@ -1323,7 +1417,7 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
           </div>
         </div>
 
-        {/* Legend */}
+        {/* Legend - Updated for multiple spouses */}
         <div className="mt-8 sm:mt-12 pt-6 sm:pt-8 border-t border-gray-200">
           <h4 className="text-center text-sm sm:text-lg font-semibold text-gray-700 mb-4">Relationship Legend</h4>
           <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4 text-[10px] sm:text-xs">
@@ -1331,17 +1425,23 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
               <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-purple-500 bg-white"></div>
               <span className="font-medium text-purple-700">Memorialized</span>
             </div>
-            <div className="flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 sm:py-2 rounded-lg">
-              <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-pink-500 bg-white"></div>
-              <span className="font-medium text-pink-700">Spouse</span>
-            </div>
+            {generations.spouses.length > 0 && (
+              <>
+                <div className="flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 sm:py-2 rounded-lg">
+                  <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-red-500 bg-white"></div>
+                  <span className="font-medium text-red-700">First Wife</span>
+                </div>
+                {generations.spouses.length > 1 && (
+                  <div className="flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 sm:py-2 rounded-lg">
+                    <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-pink-500 bg-white"></div>
+                    <span className="font-medium text-pink-700">Second Wife</span>
+                  </div>
+                )}
+              </>
+            )}
             <div className="flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 sm:py-2 rounded-lg">
               <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-green-500 bg-white"></div>
               <span className="font-medium text-green-700">Children</span>
-            </div>
-            <div className="flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 sm:py-2 rounded-lg">
-              <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border border-amber-500 bg-white"></div>
-              <span className="font-medium text-amber-700">Grandchildren</span>
             </div>
             <div className="flex items-center gap-1 sm:gap-2 px-2 py-1 sm:px-3 sm:py-2 rounded-lg">
               <span className="text-gray-700 text-sm">🕊️</span>
@@ -1363,8 +1463,8 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
               <div className="text-xs text-gray-600 font-medium">Memorialized</div>
             </div>
             <div className="text-center">
-              <div className="text-lg sm:text-2xl font-bold text-pink-600 mb-0.5 sm:mb-1">{generations.spouse.length}</div>
-              <div className="text-xs text-gray-600 font-medium">Spouse/Partner</div>
+              <div className="text-lg sm:text-2xl font-bold text-pink-600 mb-0.5 sm:mb-1">{generations.spouses.length}</div>
+              <div className="text-xs text-gray-600 font-medium">Spouse{generations.spouses.length > 1 ? 's' : ''}</div>
             </div>
             <div className="text-center">
               <div className="text-lg sm:text-2xl font-bold text-green-600 mb-0.5 sm:mb-1">
@@ -1372,25 +1472,21 @@ const FamilyTreeSection: React.FC<{ familyTree: FamilyMember[] }> = ({ familyTre
               </div>
               <div className="text-xs text-gray-600 font-medium">Children</div>
             </div>
-            <div className="text-center">
-              <div className="text-lg sm:text-2xl font-bold text-amber-600 mb-0.5 sm:mb-1">
-                {generations.grandchildren.length}
-              </div>
-              <div className="text-xs text-gray-600 font-medium">Grandchildren</div>
-            </div>
-            <div className="text-center">
-              <div className="text-lg sm:text-2xl font-bold text-orange-600 mb-0.5 sm:mb-1">
-                {generations.greatGrandchildren.length}
-              </div>
-              <div className="text-xs text-gray-600 font-medium">Great-Grandchildren</div>
-            </div>
-            <div className="text-center col-span-2">
-              <div className="text-lg sm:text-2xl font-bold text-blue-600 mb-0.5 sm:mb-1">
-                {generations.children.length + generations.grandchildren.length + generations.greatGrandchildren.length}
-              </div>
-              <div className="text-xs text-gray-600 font-medium">Total Descendants</div>
-            </div>
           </div>
+          {generations.spouses.length > 1 && (
+            <div className="mt-4 pt-4 border-t border-gray-200">
+              <h5 className="text-sm font-semibold text-gray-700 text-center mb-2">Spouse Details</h5>
+              <div className="flex flex-wrap justify-center gap-2">
+                {generations.spouses.map((spouse, index) => (
+                  <div key={spouse.id} className="flex items-center gap-2 px-3 py-1 bg-gray-50 rounded-lg">
+                    <span className="text-xs font-medium text-gray-700">#{index + 1}</span>
+                    <span className="text-xs text-gray-600">{spouse.name}</span>
+                    <span className="text-xs text-gray-500">({getSpouseLabel(spouse.relation)})</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>
