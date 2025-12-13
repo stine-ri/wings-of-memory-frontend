@@ -1,433 +1,178 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Edit2, Upload,  Play, ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { useMemorial } from '../../hooks/useMemorial';
+import React, { useState, useEffect, useCallback } from 'react';
+import { X, ChevronLeft, ChevronRight, Play, Pause } from 'lucide-react';
 
 interface GalleryImage {
-  id: string;
   url: string;
   category: string;
-  caption: string;
-  uploadedAt: string;
 }
 
-export const GallerySection: React.FC = () => {
-  const { memorialData, updateGallery, loading: contextLoading } = useMemorial();
-  const [images, setImages] = useState<GalleryImage[]>([]);
-  const [editingImage, setEditingImage] = useState<GalleryImage | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
-  const [slideshowOpen, setSlideshowOpen] = useState(false);
-  const [currentSlideIndex, setCurrentSlideIndex] = useState(0);
+interface GallerySectionProps {
+  images: GalleryImage[];
+}
 
-  // Initialize images from memorial data
+export const GallerySection: React.FC<GallerySectionProps> = ({ images }) => {
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [isSlideshow, setIsSlideshow] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  
+  const categories = ['all', 'portraits', 'family-activities', 'loving-couple'];
+  const filteredImages = selectedCategory === 'all' ? images : images.filter(img => img.category === selectedCategory);
+
+  // Slideshow autoplay
   useEffect(() => {
-    if (memorialData?.gallery && Array.isArray(memorialData.gallery)) {
-      console.log('🔄 Initializing gallery:', memorialData.gallery.length, 'images');
-      setImages(memorialData.gallery as GalleryImage[]);
+    let interval: number | undefined;
+    if (isPlaying && isSlideshow) {
+      interval = window.setInterval(() => {
+        setCurrentImageIndex((prev) => (prev + 1) % filteredImages.length);
+      }, 3000);
     }
-  }, [memorialData]);
-
-  const categories = [
-    'Portraits',
-    'Family Activities', 
-    'Loving Couple',
-    'Childhood',
-    'Vacations',
-    'Celebrations',
-    'Other'
-  ];
-
-  const handleAddImage = () => {
-    setEditingImage({
-      id: 'new-' + Date.now(),
-      url: '',
-      category: 'Portraits',
-      caption: '',
-      uploadedAt: new Date().toISOString()
-    });
-    setShowForm(true);
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !editingImage) return;
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image size should be less than 5MB');
-      return;
-    }
-
-    if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file');
-      return;
-    }
-
-    setUploading(true);
-
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('Please log in again.');
-      }
-
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('folder', 'memorials/gallery');
-
-      const response = await fetch('https://wings-of-memories-backend.onrender.com/api/imagekit/upload', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Upload failed: ${response.status} ${error}`);
-      }
-
-      const data = await response.json();
-      setEditingImage(prev => prev ? { ...prev, url: data.url } : null);
-    } catch (error) {
-      console.error('Upload failed:', error);
-      alert('Failed to upload image. Please try again.');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleSaveImage = async () => {
-    if (!editingImage || !editingImage.caption.trim()) {
-      alert('Please enter a caption for the image.');
-      return;
-    }
-
-    if (!editingImage.url) {
-      alert('Please upload an image.');
-      return;
-    }
-
-    setSaveStatus('saving');
-
-    try {
-      let newImages: GalleryImage[];
-      
-      if (editingImage.id.startsWith('new-')) {
-        newImages = [...images, { 
-          ...editingImage, 
-          id: Date.now().toString(),
-          uploadedAt: new Date().toISOString()
-        }];
-      } else {
-        newImages = images.map(img => 
-          img.id === editingImage.id ? editingImage : img
-        );
-      }
-      
-      // Update local state
-      setImages(newImages);
-      
-      // Save to context (which will auto-save to backend)
-      await updateGallery(newImages);
-      
-      setSaveStatus('success');
-      setTimeout(() => setSaveStatus('idle'), 2000);
-      
-      // Close form
-      setShowForm(false);
-      setEditingImage(null);
-      
-    } catch (error) {
-      console.error('Save failed:', error);
-      setSaveStatus('error');
-      setTimeout(() => setSaveStatus('idle'), 3000);
-    }
-  };
-
-  const handleDeleteImage = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this image?')) return;
-    
-    const newImages = images.filter(img => img.id !== id);
-    
-    try {
-      setImages(newImages);
-      await updateGallery(newImages);
-    } catch (error) {
-      console.error('Delete failed:', error);
-      alert('Failed to delete image');
-      // Revert on error
-      setImages(images);
-    }
-  };
-
-  const openSlideshow = (index: number = 0) => {
-    setCurrentSlideIndex(index);
-    setSlideshowOpen(true);
-  };
-
-  const nextSlide = () => {
-    setCurrentSlideIndex(prev => 
-      prev === images.length - 1 ? 0 : prev + 1
-    );
-  };
-
-  const prevSlide = () => {
-    setCurrentSlideIndex(prev => 
-      prev === 0 ? images.length - 1 : prev - 1
-    );
-  };
-
-  // Close slideshow on Escape key
-  useEffect(() => {
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && slideshowOpen) {
-        setSlideshowOpen(false);
+    return () => {
+      if (interval !== undefined) {
+        window.clearInterval(interval);
       }
     };
+  }, [isPlaying, isSlideshow, filteredImages.length]);
 
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [slideshowOpen]);
+  const openSlideshow = useCallback((index: number) => {
+    setCurrentImageIndex(index);
+    setIsSlideshow(true);
+    document.body.style.overflow = 'hidden';
+  }, []);
 
-  if (contextLoading) {
-    return (
-      <div className="max-w-6xl space-y-6 px-4 sm:px-6">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-          <div className="animate-pulse text-center py-8">Loading gallery...</div>
-        </div>
-      </div>
-    );
-  }
+  const closeSlideshow = useCallback(() => {
+    setIsSlideshow(false);
+    setIsPlaying(false);
+    document.body.style.overflow = 'unset';
+  }, []);
+
+  const nextImage = useCallback(() => {
+    setCurrentImageIndex((prev) => (prev + 1) % filteredImages.length);
+  }, [filteredImages.length]);
+
+  const prevImage = useCallback(() => {
+    setCurrentImageIndex((prev) => (prev - 1 + filteredImages.length) % filteredImages.length);
+  }, [filteredImages.length]);
+
+  const startSlideshow = () => {
+    openSlideshow(0);
+    setIsPlaying(true);
+  };
 
   return (
-    <div className="max-w-6xl space-y-6 px-4 sm:px-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-semibold text-gray-800">Photo Gallery</h2>
-          <p className="text-gray-600 mt-1">Add photos and organize them by category</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleAddImage}
-            className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-all"
-          >
-            <Plus className="w-4 h-4" />
-            Add Photo
-          </button>
-          {images.length > 0 && (
-            <button
-              onClick={() => openSlideshow()}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-all"
+    <section id="gallery" className="py-16 sm:py-20 px-3 sm:px-4 bg-orange-50">
+      <div className="max-w-6xl mx-auto">
+        {/* Header Section with Title and Horizontal Navigation */}
+        <div className="mb-8 sm:mb-12">
+          {/* Gallery Title with Half Underline */}
+          <div className="mb-6 sm:mb-8">
+            <h2 className="text-4xl sm:text-5xl font-serif text-gray-800 inline-block relative">
+              Gallery
+              <div className="absolute -bottom-2 left-0 w-1/2 h-1 bg-amber-500 rounded-full"></div>
+            </h2>
+          </div>
+          
+          {/* Horizontal Navigation */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+            {/* Categories */}
+            <div className="flex flex-wrap gap-2 sm:gap-4">
+              {categories.map(cat => (
+                <button 
+                  key={cat} 
+                  onClick={() => setSelectedCategory(cat)} 
+                  className={`px-4 sm:px-6 py-2 sm:py-3 rounded-lg transition-colors duration-200 font-medium text-sm sm:text-base ${
+                    selectedCategory === cat 
+                      ? 'bg-amber-500 text-white' 
+                      : 'text-gray-700 bg-white hover:bg-orange-100'
+                  }`}
+                >
+                  {cat.charAt(0).toUpperCase() + cat.slice(1).replace('-', ' ')}
+                </button>
+              ))}
+            </div>
+            
+            {/* Divider Line */}
+            <div className="hidden sm:block h-8 w-px bg-gray-300"></div>
+            
+            {/* Slideshow Button */}
+            <button 
+              onClick={startSlideshow}
+              className="px-4 sm:px-6 py-2 sm:py-3 rounded-lg bg-purple-500 text-white hover:bg-purple-600 transition-colors duration-200 font-medium flex items-center gap-2 text-sm sm:text-base w-fit"
             >
-              <Play className="w-4 h-4" />
+              <Play size={16} className="sm:size-[18px]" />
               Slideshow
             </button>
-          )}
-        </div>
-      </div>
-
-      {/* Save Status */}
-      {saveStatus === 'saving' && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-blue-800">
-          Saving gallery...
-        </div>
-      )}
-      
-      {saveStatus === 'success' && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-green-800">
-          Gallery saved successfully!
-        </div>
-      )}
-      
-      {saveStatus === 'error' && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-red-800">
-          Failed to save gallery. Please try again.
-        </div>
-      )}
-
-      {/* Images Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {images.map((image, index) => (
-          <div key={image.id} className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 text-center">
-            <div className="relative inline-block mb-4">
-              <div 
-                className="w-32 h-32 rounded-xl overflow-hidden border-4 border-white shadow-lg bg-gray-200 mx-auto cursor-pointer"
-                onClick={() => openSlideshow(index)}
-              >
-                <img 
-                  src={image.url} 
-                  alt={image.caption} 
-                  className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                />
-              </div>
-              <div className="absolute -top-2 -right-2 flex gap-1">
-                <button
-                  onClick={() => {
-                    setEditingImage(image);
-                    setShowForm(true);
-                  }}
-                  className="p-1 bg-amber-500 text-white rounded-full hover:bg-amber-600"
-                >
-                  <Edit2 className="w-3 h-3" />
-                </button>
-                <button
-                  onClick={() => handleDeleteImage(image.id)}
-                  className="p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
-            <h3 className="font-semibold text-gray-800 mb-1 line-clamp-2">{image.caption}</h3>
-            <p className="text-sm text-amber-600 font-medium">{image.category}</p>
           </div>
-        ))}
-      </div>
+        </div>
 
-      {/* Image Form */}
-      {showForm && editingImage && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">
-              {editingImage.id.startsWith('new-') ? 'Add Photo' : 'Edit Photo'}
-            </h3>
-            
-            <div className="flex flex-col md:flex-row gap-6 mb-6">
-              <div className="flex-shrink-0">
-                <div className="w-48 h-48 rounded-2xl overflow-hidden border-4 border-white shadow-lg bg-gray-200 mb-4">
-                  {editingImage.url ? (
-                    <img 
-                      src={editingImage.url} 
-                      alt="Preview" 
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400">
-                      <span className="text-4xl">🖼️</span>
-                    </div>
-                  )}
-                </div>
-                <label className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 cursor-pointer">
-                  <Upload className="w-4 h-4" />
-                  <span>{uploading ? 'Uploading...' : 'Upload Photo'}</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    disabled={uploading}
-                  />
-                </label>
-              </div>
+        {/* Image Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {filteredImages.map((img, index) => (
+            <div 
+              key={index} 
+              className="aspect-square overflow-hidden rounded-lg bg-orange-100 cursor-pointer"
+              onClick={() => openSlideshow(index)}
+            >
+              <img 
+                src={img.url} 
+                alt="" 
+                className="w-full h-full object-cover hover:scale-105 transition-transform duration-300" 
+              />
+            </div>
+          ))}
+        </div>
 
-              <div className="flex-1 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Caption *
-                  </label>
-                  <input
-                    type="text"
-                    value={editingImage.caption}
-                    onChange={(e) => setEditingImage(prev => prev ? { ...prev, caption: e.target.value } : null)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
-                    placeholder="Enter photo caption"
-                  />
-                </div>
+        {/* Slideshow Modal */}
+        {isSlideshow && (
+          <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
+            {/* Close Button */}
+            <button 
+              onClick={closeSlideshow}
+              className="absolute top-4 sm:top-6 right-4 sm:right-6 text-white hover:text-gray-300 transition-colors z-10"
+            >
+              <X size={24} className="sm:size-[36px]" />
+            </button>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Category *
-                  </label>
-                  <select
-                    value={editingImage.category}
-                    onChange={(e) => setEditingImage(prev => prev ? { ...prev, category: e.target.value } : null)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
-                  >
-                    {categories.map(category => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
+            {/* Navigation Buttons */}
+            <button 
+              onClick={prevImage}
+              className="absolute left-2 sm:left-6 text-white hover:text-gray-300 transition-colors z-10"
+            >
+              <ChevronLeft size={32} className="sm:size-[48px]" />
+            </button>
+
+            <button 
+              onClick={nextImage}
+              className="absolute right-2 sm:right-6 text-white hover:text-gray-300 transition-colors z-10"
+            >
+              <ChevronRight size={32} className="sm:size-[48px]" />
+            </button>
+
+            {/* Main Image */}
+            <div className="max-w-4xl max-h-[80vh] w-full px-4 sm:px-20">
+              <img 
+                src={filteredImages[currentImageIndex].url}
+                alt=""
+                className="w-full h-full object-contain rounded-lg"
+              />
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={handleSaveImage}
-                disabled={!editingImage.caption.trim() || !editingImage.url || saveStatus === 'saving'}
-                className="flex-1 px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 disabled:opacity-50"
+            {/* Controls Bar */}
+            <div className="absolute bottom-4 sm:bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-3 sm:gap-4">
+              <button 
+                onClick={() => setIsPlaying(!isPlaying)}
+                className="bg-white bg-opacity-20 hover:bg-opacity-30 text-white px-4 sm:px-6 py-2 sm:py-3 rounded-full transition-all flex items-center gap-2 text-sm sm:text-base"
               >
-                {saveStatus === 'saving' ? 'Saving...' : 'Save Photo'}
+                {isPlaying ? <Pause size={16} className="sm:size-[20px]" /> : <Play size={16} className="sm:size-[20px]" />}
+                {isPlaying ? 'Pause' : 'Play'}
               </button>
-              <button
-                onClick={() => {
-                  setShowForm(false);
-                  setEditingImage(null);
-                }}
-                className="flex-1 px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
-              >
-                Cancel
-              </button>
+              <div className="text-white text-base sm:text-lg">
+                {currentImageIndex + 1} / {filteredImages.length}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Slideshow */}
-      {slideshowOpen && images.length > 0 && (
-        <div className="fixed inset-0 bg-black flex items-center justify-center z-50 p-4">
-          <button
-            onClick={() => setSlideshowOpen(false)}
-            className="absolute top-4 right-4 p-2 bg-black/50 text-white rounded-full hover:bg-black/70"
-          >
-            <X className="w-6 h-6" />
-          </button>
-
-          <button
-            onClick={prevSlide}
-            className="absolute left-4 top-1/2 transform -translate-y-1/2 p-2 bg-black/50 text-white rounded-full hover:bg-black/70"
-          >
-            <ChevronLeft className="w-6 h-6" />
-          </button>
-
-          <button
-            onClick={nextSlide}
-            className="absolute right-4 top-1/2 transform -translate-y-1/2 p-2 bg-black/50 text-white rounded-full hover:bg-black/70"
-          >
-            <ChevronRight className="w-6 h-6" />
-          </button>
-
-          <div className="flex flex-col items-center">
-            <img
-              src={images[currentSlideIndex].url}
-              alt={images[currentSlideIndex].caption}
-              className="max-w-full max-h-[70vh] object-contain rounded-lg"
-            />
-            
-            <div className="mt-4 text-white text-center">
-              <p className="text-lg font-semibold">{images[currentSlideIndex].caption}</p>
-              <p className="text-sm text-gray-300">{currentSlideIndex + 1} of {images.length}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {images.length === 0 && !showForm && (
-        <div className="text-center py-12">
-          <div className="w-16 h-16 bg-gradient-to-br from-amber-400 to-orange-400 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl text-white">🖼️</span>
-          </div>
-          <h3 className="text-lg font-semibold text-gray-600 mb-2">No photos added yet</h3>
-          <p className="text-gray-500 mb-4">Add memorable photos to the gallery</p>
-          <button
-            onClick={handleAddImage}
-            className="px-6 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-full hover:from-amber-600 hover:to-orange-600 transition-all"
-          >
-            Add First Photo
-          </button>
-        </div>
-      )}
-    </div>
+        )}
+      </div>
+    </section>
   );
 };
