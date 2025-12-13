@@ -9,7 +9,7 @@ import { ProfileSection } from '../Components/Dashboard/ProfileSection';
 import { TimelineSection } from '../Components/Dashboard/TimeLlneSection';
 import { FavoritesSection } from '../Components/Dashboard/FavouriteSection';
 import { FamilyTreeSection } from '../Components/Dashboard/FamilyTreeSection';
-import { GallerySection } from '../Components/Dashboard/GallerySection';
+import { GallerySection } from '../Components/Dashboard/GallerySectionEditor';
 import { ServiceSection } from '../Components/Dashboard/ServiceSectionEditor';
 import { MemoryWallSection } from '../Components/Dashboard/MemoryWallEditor';
 import { DownloadSection } from '../Components/Dashboard/DownloadSection';
