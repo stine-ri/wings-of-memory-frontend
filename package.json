@@ -3,11 +3,14 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+ "scripts": {
+  "dev": "vite",
+  "start": "vite",
+  "build": "npm run generate-sitemap && tsc -b && vite build",
+  "preview": "vite preview",
+  "lint": "eslint .",
+  "test": "vitest",
+  "generate-sitemap": "node scripts/generate-sitemap.js"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.1.16",

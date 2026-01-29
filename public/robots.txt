@@ -1,0 +1,24 @@
+User-agent: *
+Allow: /
+
+# Disallow private/dashboard pages
+Disallow: /dashboard
+Disallow: /preview/
+Disallow: /memorial/pdf/
+
+# Allow memorial display pages
+Allow: /memorial/
+
+Sitemap: https://4revah.com/sitemap.xml
+
+# Crawl delay to be gentle on your server
+Crawl-delay: 2
+
+# Specific bots
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 2
