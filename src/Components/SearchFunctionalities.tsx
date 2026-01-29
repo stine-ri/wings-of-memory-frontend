@@ -264,7 +264,7 @@ export default function SearchNavbar({
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyPress={handleKeyPress}
                 onFocus={handleInputFocus}
-                placeholder="Search memorials by name, location, or story..."
+                placeholder="Search by name, location..."
                 className="block w-full pl-10 sm:pl-12 pr-20 sm:pr-28 py-3 border-2 border-amber-300 
                          bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 
                          focus:border-transparent placeholder-gray-400 text-gray-900 
