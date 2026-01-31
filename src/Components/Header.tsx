@@ -80,9 +80,9 @@ export const Header: React.FC<HeaderProps> = ({ data }) => {
             </div>
             
             {/* Main title - ORIGINAL SIZE */}
-            <h1 className="text-4xl sm:text-5xl md:text-7xl font-serif mb-6 text-gray-800 tracking-tight">
-              Eternal<span className="text-amber-600 mx-3">Remembrance</span>
-            </h1>
+   <h1 className="text-2xl sm:text-4xl md:text-7xl font-serif mb-4 sm:mb-6 text-gray-800 tracking-tight">
+  Eternal<span className="text-amber-600 mx-2 sm:mx-3">Remembrance</span>
+</h1>
             
             {/* Subtitle - ORIGINAL SIZE */}
             <p className="text-xl sm:text-2xl md:text-3xl text-gray-700 font-light mb-8 max-w-3xl leading-relaxed">
